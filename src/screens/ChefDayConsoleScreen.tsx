@@ -58,6 +58,7 @@ export default function ChefDayConsoleScreen({ backRoute = '/admin/dashboard' }:
   // Search & Category filter on kitchen stock
   const [search, setSearch] = useState('');
   const [selectedCat, setSelectedCat] = useState('all');
+  const [filterAttentionOnly, setFilterAttentionOnly] = useState(false);
 
   // 1. Manual Taste / Masala / Spoilage Adjustment Modal State
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
@@ -90,6 +91,7 @@ export default function ChefDayConsoleScreen({ backRoute = '/admin/dashboard' }:
   // Filtered live stock lines
   const filteredLines = useMemo(() => {
     return liveLines.filter((l) => {
+      if (filterAttentionOnly && l.status === 'ok') return false;
       if (selectedCat !== 'all' && l.category !== selectedCat) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
@@ -97,7 +99,7 @@ export default function ChefDayConsoleScreen({ backRoute = '/admin/dashboard' }:
       }
       return true;
     });
-  }, [liveLines, selectedCat, search]);
+  }, [liveLines, selectedCat, search, filterAttentionOnly]);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -496,11 +498,44 @@ export default function ChefDayConsoleScreen({ backRoute = '/admin/dashboard' }:
             {/* Category Filter Chips */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catChips}>
               <TouchableOpacity
-                style={[styles.catChip, selectedCat === 'all' && styles.catChipActive]}
-                onPress={() => setSelectedCat('all')}
+                style={[styles.catChip, selectedCat === 'all' && !filterAttentionOnly && styles.catChipActive]}
+                onPress={() => {
+                  setSelectedCat('all');
+                  setFilterAttentionOnly(false);
+                }}
               >
-                <Text style={[styles.catChipText, selectedCat === 'all' && styles.catChipTextActive]}>All ({liveLines.length})</Text>
+                <Text style={[styles.catChipText, selectedCat === 'all' && !filterAttentionOnly && styles.catChipTextActive]}>
+                  All ({liveLines.length})
+                </Text>
               </TouchableOpacity>
+
+              {/* Needs Attention (Low / Out) Chip */}
+              {(depletedLines.length > 0 || lowLines.length > 0) && (
+                <TouchableOpacity
+                  style={[
+                    styles.catChip,
+                    { borderColor: '#FCA5A5' },
+                    filterAttentionOnly && { backgroundColor: '#DC2626', borderColor: '#DC2626' },
+                  ]}
+                  onPress={() => setFilterAttentionOnly(!filterAttentionOnly)}
+                >
+                  <Ionicons
+                    name="warning"
+                    size={12}
+                    color={filterAttentionOnly ? '#FFFFFF' : '#DC2626'}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text
+                    style={[
+                      styles.catChipText,
+                      { color: '#DC2626', fontWeight: '800' },
+                      filterAttentionOnly && { color: '#FFFFFF' },
+                    ]}
+                  >
+                    Attention Needed ({depletedLines.length + lowLines.length})
+                  </Text>
+                </TouchableOpacity>
+              )}
               {categories.map((c) => (
                 <TouchableOpacity
                   key={c}

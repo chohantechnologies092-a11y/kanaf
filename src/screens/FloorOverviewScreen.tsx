@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
+  Alert,
+  Platform,
   ScrollView,
+  StyleSheet,
+  Text,
   TouchableOpacity,
   useWindowDimensions,
-  Platform,
-  Alert,
+  View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -140,7 +140,7 @@ export default function FloorOverviewScreen({ backRoute = '/manager/dashboard' }
           <Text style={styles.headerSubtitle}>Multi-Level Dine-In, Banquet & Rooftop Management</Text>
         </View>
         <TouchableOpacity style={styles.setupBtn} onPress={handlePopulateFloors}>
-          <Ionicons name="layers-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
+          <Ionicons name="layers-outline" size={16} color="#d8cdcdff" style={{ marginRight: 6 }} />
           <Text style={styles.setupBtnText}>{isMobile ? 'Template' : '5-Floor Template'}</Text>
         </TouchableOpacity>
       </View>

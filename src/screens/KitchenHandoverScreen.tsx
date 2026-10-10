@@ -29,6 +29,8 @@ const BRAND = {
   burgundy: '#52171B',
   gold: '#D5A943',
   goldDark: '#9E7A23',
+  goldLight: '#F5E6BE',
+  cream: '#FDFBF7',
   ink: '#1A1A1A',
   muted: '#7A7A7A',
   border: '#E8E1D5',
@@ -111,27 +113,54 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
 
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showOnlyRequested, setShowOnlyRequested] = useState(false);
+  const [showOnlyLowStock, setShowOnlyLowStock] = useState(false);
 
   // Top up modal state
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [topUpItemId, setTopUpItemId] = useState(cookingItems[0]?.id || '');
   const [topUpQty, setTopUpQty] = useState('');
 
+  const shortUnit = (unit: string) => {
+    const u = (unit || '').toLowerCase().trim();
+    if (u.startsWith('cylin')) return 'cyl';
+    if (u.startsWith('bottle')) return 'btl';
+    if (u.startsWith('pack')) return 'pk';
+    if (u.startsWith('liter') || u.startsWith('litre')) return 'L';
+    if (u.startsWith('piece')) return 'pcs';
+    return unit;
+  };
+
   const categories = useMemo(() => {
     const set = new Set(cookingItems.map((i) => i.category));
     return ['All', ...Array.from(set)];
   }, [cookingItems]);
 
+  const requestedCount = useMemo(() => {
+    return Object.values(quantities).filter((v) => (parseFloat(v) || 0) > 0).length;
+  }, [quantities]);
+
+  const lowStockCount = useMemo(() => {
+    return cookingItems.filter((i) => i.stock <= (i.threshold || 5)).length;
+  }, [cookingItems]);
+
   const filteredItems = useMemo(() => {
     return cookingItems.filter((i) => {
       if (filterCategory !== 'All' && i.category !== filterCategory) return false;
+      if (showOnlyRequested) {
+        const q = parseFloat(quantities[i.id] || '0') || 0;
+        if (q <= 0) return false;
+      }
+      if (showOnlyLowStock) {
+        if (i.stock > (i.threshold || 5)) return false;
+      }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         return i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q);
       }
       return true;
     });
-  }, [cookingItems, filterCategory, searchQuery]);
+  }, [cookingItems, filterCategory, searchQuery, showOnlyRequested, showOnlyLowStock, quantities]);
 
   const totalRequisitionValue = useMemo(() => {
     return Object.entries(quantities).reduce((sum, [id, qtyStr]) => {
@@ -149,6 +178,21 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
       const sug = Math.max(par, avg * 1.15);
       if (sug > 0) {
         next[i.id] = String(roundQty(sug, i.unit));
+      }
+    });
+    setQuantities(next);
+  };
+
+  const handleQuickFillLowStock = () => {
+    const next: Record<string, string> = { ...quantities };
+    cookingItems.forEach((i) => {
+      if (i.stock <= (i.threshold || 5)) {
+        const par = kitchenSettings.par[i.id] || 0;
+        const avg = avgUsage.get(i.id) || 0;
+        const sug = Math.max(par, avg * 1.15, (i.threshold || 5) * 2);
+        if (sug > 0) {
+          next[i.id] = String(roundQty(sug, i.unit));
+        }
       }
     });
     setQuantities(next);
@@ -521,18 +565,66 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
+              {searchQuery.trim().length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="close-circle" size={16} color={BRAND.muted} />
+                </TouchableOpacity>
+              )}
             </View>
 
+            {/* Smart Filter Chips & Category Scroll */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }}>
+              {/* Selected Items Toggle Chip */}
+              <TouchableOpacity
+                style={[styles.smartFilterChip, showOnlyRequested && styles.smartFilterChipActive]}
+                onPress={() => setShowOnlyRequested(!showOnlyRequested)}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name={showOnlyRequested ? 'checkbox' : 'checkbox-outline'}
+                  size={14}
+                  color={showOnlyRequested ? '#FFFFFF' : BRAND.burgundy}
+                  style={{ marginRight: 4 }}
+                />
+                <Text style={[styles.smartFilterChipText, showOnlyRequested && styles.smartFilterChipTextActive]}>
+                  Selected ({requestedCount})
+                </Text>
+              </TouchableOpacity>
+
+              {/* Low Stock Toggle Chip */}
+              <TouchableOpacity
+                style={[
+                  styles.smartFilterChip,
+                  { borderColor: '#FCA5A5' },
+                  showOnlyLowStock && { backgroundColor: BRAND.danger, borderColor: BRAND.danger },
+                ]}
+                onPress={() => setShowOnlyLowStock(!showOnlyLowStock)}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="alert-circle"
+                  size={14}
+                  color={showOnlyLowStock ? '#FFFFFF' : BRAND.danger}
+                  style={{ marginRight: 4 }}
+                />
+                <Text style={[styles.smartFilterChipText, { color: BRAND.danger }, showOnlyLowStock && { color: '#FFFFFF' }]}>
+                  Low In Store ({lowStockCount})
+                </Text>
+              </TouchableOpacity>
+
               {categories.map((cat) => {
                 const count = cat === 'All' ? cookingItems.length : cookingItems.filter(i => i.category === cat).length;
                 return (
                   <TouchableOpacity
                     key={cat}
-                    style={[styles.catPill, filterCategory === cat && styles.catPillActive]}
-                    onPress={() => setFilterCategory(cat)}
+                    style={[styles.catPill, filterCategory === cat && !showOnlyRequested && !showOnlyLowStock && styles.catPillActive]}
+                    onPress={() => {
+                      setFilterCategory(cat);
+                      setShowOnlyRequested(false);
+                      setShowOnlyLowStock(false);
+                    }}
                   >
-                    <Text style={[styles.catPillText, filterCategory === cat && styles.catPillTextActive]}>
+                    <Text style={[styles.catPillText, filterCategory === cat && !showOnlyRequested && !showOnlyLowStock && styles.catPillTextActive]}>
                       {cat} ({count})
                     </Text>
                   </TouchableOpacity>
@@ -540,14 +632,23 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
               })}
             </ScrollView>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <TouchableOpacity
                 style={styles.quickActionBtn}
                 onPress={handleQuickFillPars}
                 activeOpacity={0.8}
               >
                 <Ionicons name="flash" size={13} color="#FFFFFF" style={{ marginRight: 4 }} />
-                <Text style={styles.quickActionBtnText}>Auto-Fill Daily Par</Text>
+                <Text style={styles.quickActionBtnText}>Auto-Fill Par</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.quickActionBtn, { backgroundColor: '#B45309' }]}
+                onPress={handleQuickFillLowStock}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="alert-circle-outline" size={13} color="#FFFFFF" style={{ marginRight: 4 }} />
+                <Text style={styles.quickActionBtnText}>Fill Low Stock</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -584,13 +685,23 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
               const avg = avgUsage.get(item.id) || 0;
               const sugVal = Math.max(par, avg * 1.15);
               const lineCost = reqNum * (item.costPerUnit || 0);
+              const uLabel = shortUnit(item.unit);
 
               return (
-                <View key={item.id} style={styles.tableRow}>
+                <View
+                  key={item.id}
+                  style={[
+                    styles.tableRow,
+                    reqNum > 0 && styles.tableRowSelected,
+                    isOverStock && styles.tableRowOverStock,
+                  ]}
+                >
                   <View style={{ flex: 2.8 }}>
-                    <Text style={styles.itemName}>{item.name}</Text>
+                    <Text style={[styles.itemName, reqNum > 0 && { color: BRAND.burgundy, fontWeight: '800' }]}>
+                      {item.name}
+                    </Text>
                     <Text style={styles.itemCategory}>
-                      {item.category} • Cost: {money(item.costPerUnit || 0)} / {item.unit}
+                      {item.category} • Cost: {money(item.costPerUnit || 0)} / {uLabel}
                     </Text>
                   </View>
 
@@ -604,16 +715,18 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
                         },
                       ]}
                     >
-                      {formatQty(item.stock, item.unit)}
+                      {formatQty(item.stock, uLabel)}
                     </Text>
                     {item.stock <= (item.threshold || 5) && (
-                      <Text style={styles.lowStockWarning}>Low Stock</Text>
+                      <View style={styles.lowStockBadge}>
+                        <Text style={styles.lowStockBadgeText}>Low Stock</Text>
+                      </View>
                     )}
                   </View>
 
                   <View style={{ flex: 1.4, alignItems: 'flex-end' }}>
                     <Text style={styles.td}>
-                      {par > 0 ? `${par} ${item.unit}` : avg > 0 ? `~${roundQty(avg, item.unit)}` : '-'}
+                      {par > 0 ? `${par} ${uLabel}` : avg > 0 ? `~${roundQty(avg, uLabel)}` : '-'}
                     </Text>
                   </View>
 
@@ -653,11 +766,11 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
                       >
                         <Ionicons name="add" size={12} color={BRAND.burgundy} />
                       </TouchableOpacity>
-                      <Text style={styles.unitSuffix}>{item.unit}</Text>
+                      <Text style={styles.unitSuffix} numberOfLines={1}>{uLabel}</Text>
                     </View>
                     {isOverStock && (
                       <Text style={styles.overStockWarning}>
-                        Only {item.stock} {item.unit} available in store inventory!
+                        Only {item.stock} {uLabel} available in store inventory!
                       </Text>
                     )}
                   </View>
@@ -670,11 +783,73 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
                 </View>
               );
             })}
+
+            {filteredItems.length === 0 && (
+              <View style={styles.emptyState}>
+                <Ionicons name="search-outline" size={32} color={BRAND.muted} />
+                <Text style={styles.emptyStateTitle}>No ingredients found</Text>
+                <Text style={styles.emptyStateSub}>No items match your active search or filter selection.</Text>
+                <TouchableOpacity
+                  style={styles.resetFilterBtn}
+                  onPress={() => {
+                    setSearchQuery('');
+                    setFilterCategory('All');
+                    setShowOnlyRequested(false);
+                    setShowOnlyLowStock(false);
+                  }}
+                >
+                  <Text style={styles.resetFilterBtnText}>Reset All Filters</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </View>
 
-        <View style={{ height: 60 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Floating Bottom Sticky Action Dock */}
+      <View style={styles.floatingDock}>
+        <View style={styles.dockLeft}>
+          <View style={styles.dockBadge}>
+            <Ionicons name="basket" size={16} color={BRAND.burgundy} />
+            <Text style={styles.dockBadgeText}>{requestedCount} Selected</Text>
+          </View>
+          <View>
+            <Text style={styles.dockSub}>Total Handover Value</Text>
+            <Text style={styles.dockVal}>{money(totalRequisitionValue)}</Text>
+          </View>
+        </View>
+
+        <View style={styles.dockRight}>
+          <TouchableOpacity
+            style={styles.dockClearBtn}
+            onPress={handleClearAllQuantities}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="trash-outline" size={14} color={BRAND.muted} />
+            <Text style={styles.dockClearBtnText}>Reset</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.dockDraftBtn}
+            onPress={handleSaveDraft}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="save-outline" size={15} color={BRAND.burgundy} />
+            <Text style={styles.dockDraftBtnText}>Save Draft</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.dockIssueBtn}
+            onPress={handleIssueToChef}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="checkmark-done" size={16} color="#FFFFFF" />
+            <Text style={styles.dockIssueBtnText}>Issue to Head Chef</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       {/* TOP-UP MODAL */}
       <Modal visible={showTopUpModal} transparent animationType="fade">
@@ -1134,9 +1309,33 @@ const styles = StyleSheet.create({
     color: BRAND.danger,
   },
   unitSuffix: {
-    fontSize: 10,
+    fontSize: 11,
+    fontWeight: '700',
     color: BRAND.muted,
-    width: 24,
+    minWidth: 30,
+    marginLeft: 3,
+  },
+  tableRowSelected: {
+    backgroundColor: '#FFFDF6',
+    borderLeftWidth: 3,
+    borderLeftColor: BRAND.gold,
+  },
+  tableRowOverStock: {
+    backgroundColor: '#FFF5F5',
+    borderLeftWidth: 3,
+    borderLeftColor: BRAND.danger,
+  },
+  lowStockBadge: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 2,
+  },
+  lowStockBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#DC2626',
   },
   overStockWarning: {
     fontSize: 9,
@@ -1252,5 +1451,159 @@ const styles = StyleSheet.create({
   topUpItemRowActive: {
     backgroundColor: '#FFF8E1',
     borderColor: BRAND.gold,
+  },
+  smartFilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: BRAND.burgundy,
+    marginRight: 6,
+  },
+  smartFilterChipActive: {
+    backgroundColor: BRAND.burgundy,
+    borderColor: BRAND.burgundy,
+  },
+  smartFilterChipText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: BRAND.burgundy,
+  },
+  smartFilterChipTextActive: {
+    color: '#FFFFFF',
+  },
+  emptyState: {
+    padding: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: BRAND.ink,
+    marginTop: 8,
+  },
+  emptyStateSub: {
+    fontSize: 12,
+    color: BRAND.muted,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  resetFilterBtn: {
+    marginTop: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 6,
+    backgroundColor: BRAND.burgundy,
+  },
+  resetFilterBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  floatingDock: {
+    position: 'absolute',
+    bottom: 12,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.96)',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1.5,
+    borderColor: BRAND.gold,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 14,
+    elevation: 10,
+  },
+  dockLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  dockBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: BRAND.goldLight,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: BRAND.gold,
+  },
+  dockBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: BRAND.goldDark,
+  },
+  dockSub: {
+    fontSize: 10,
+    color: BRAND.muted,
+    fontWeight: '600',
+  },
+  dockVal: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: BRAND.burgundy,
+  },
+  dockRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dockClearBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    backgroundColor: '#F9FAFB',
+  },
+  dockClearBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: BRAND.muted,
+    marginLeft: 4,
+  },
+  dockDraftBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: BRAND.burgundy,
+    backgroundColor: '#FFFFFF',
+  },
+  dockDraftBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: BRAND.burgundy,
+    marginLeft: 4,
+  },
+  dockIssueBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 6,
+    backgroundColor: BRAND.burgundy,
+  },
+  dockIssueBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginLeft: 4,
   },
 });
