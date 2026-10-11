@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -22,6 +22,7 @@ interface DashboardAction {
 }
 
 interface DashboardGroup {
+  id: string;
   group: string;
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
@@ -32,11 +33,14 @@ export default function AdminDashboard() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
+  const isTablet = width >= 768 && width < 1100;
   
   const invoices = useRestaurantStore(state => state.invoices);
   const tickets = useRestaurantStore(state => state.tickets);
   const tables = useRestaurantStore(state => state.tables);
   const customers = useRestaurantStore(state => state.customers);
+
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   const today = new Date();
   today.setHours(0,0,0,0);
@@ -44,32 +48,66 @@ export default function AdminDashboard() {
   const todaysInvoices = invoices.filter(inv => inv.status !== 'voided' && (inv.timeSettled || inv.timePlaced) >= today.getTime());
   const todaysSales = todaysInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
   const activeOrders = tickets.length;
-  const activeTables = tables.filter(t => t.status !== 'available').length;
+  const occupiedTables = tables.filter(t => t.status === 'occupied' || t.status === 'billed').length;
+  const occupancyRate = tables.length > 0 ? Math.round((occupiedTables / tables.length) * 100) : 0;
 
   const STATS = [
-    { label: "Today's Sales", value: `Rs. ${todaysSales.toLocaleString()}`, trend: `${todaysInvoices.length} Orders`, icon: 'cash-outline' as const },
-    { label: 'Active Orders', value: activeOrders.toString(), trend: 'In Kitchen (KOT)', icon: 'restaurant-outline' as const },
-    { label: 'Occupied Tables', value: `${activeTables}/${tables.length}`, trend: 'Dine-In Area', icon: 'grid-outline' as const },
-    { label: 'Total Diners', value: customers.length.toString(), trend: 'Registered CRM', icon: 'people-outline' as const },
+    { 
+      label: "Today's Revenue", 
+      value: `Rs. ${todaysSales.toLocaleString()}`, 
+      subtext: `${todaysInvoices.length} Settled Invoices`, 
+      icon: 'cash-outline' as const,
+      color: '#D5A943',
+      bgGlow: '#4A121A',
+      trend: '+ Live Sync'
+    },
+    { 
+      label: 'Kitchen KDS Load', 
+      value: `${activeOrders} Active`, 
+      subtext: activeOrders > 0 ? 'Tickets in Preparation' : 'All Orders Dispatched', 
+      icon: 'flame-outline' as const,
+      color: '#E65100',
+      bgGlow: '#FF6F00',
+      trend: activeOrders > 3 ? '⚡ High Rush' : 'Normal Flow'
+    },
+    { 
+      label: 'Dine-In Occupancy', 
+      value: `${occupiedTables} / ${tables.length}`, 
+      subtext: `${occupancyRate}% Floor Capacity Occupied`, 
+      icon: 'restaurant-outline' as const,
+      color: '#27AE60',
+      bgGlow: '#2E7D32',
+      trend: `${tables.length - occupiedTables} Tables Free`
+    },
+    { 
+      label: 'Registered Diners', 
+      value: customers.length.toString(), 
+      subtext: 'Loyalty & VIP Profiles', 
+      icon: 'people-outline' as const,
+      color: '#8E44AD',
+      bgGlow: '#6C3483',
+      trend: 'CRM Database'
+    },
   ];
 
   const ACTION_GROUPS: DashboardGroup[] = [
     {
+      id: 'foh',
       group: 'Front of House & Dine-In',
       icon: 'restaurant-outline' as const,
       color: '#4a121a',
       items: [
         {
           title: 'POS Terminal',
-          desc: 'Instant billing, punch orders, takeaway & split payments.',
+          desc: 'Instant touch billing, punch orders, takeaway & split payments.',
           icon: 'calculator-outline' as const,
           route: '/admin/pos',
-          color: '#2E7D32',
+          color: '#27AE60',
           badge: 'ACTIVE POS',
         },
         {
           title: 'Invoices & Orders',
-          desc: 'Customer bills, order audit logs, reprint & void records.',
+          desc: 'Customer bills, order audit logs, thermal reprint & void records.',
           icon: 'receipt-outline' as const,
           route: '/admin/invoices',
           color: '#4a121a',
@@ -83,14 +121,14 @@ export default function AdminDashboard() {
         },
         {
           title: 'Tables & Cabins Blueprint',
-          desc: 'Live floor plan, dining tables, couches & majlis status.',
+          desc: 'Interactive live floor plan, dining tables, couches & majlis cabins.',
           icon: 'grid-outline' as const,
           route: '/admin/tables',
           color: '#D5A943',
         },
         {
           title: 'Floor Management',
-          desc: 'Manage floors, level prefixes, codes & themes.',
+          desc: 'Configure restaurant floors, level prefixes, codes & custom themes.',
           icon: 'layers-outline' as const,
           route: '/admin/floors',
           color: '#1976D2',
@@ -100,11 +138,12 @@ export default function AdminDashboard() {
           desc: 'VIP diner history, phone directory & visit frequency.',
           icon: 'person-outline' as const,
           route: '/admin/customers',
-          color: '#6A1B9A',
+          color: '#8E44AD',
         },
       ],
     },
     {
+      id: 'kitchen',
       group: 'Kitchen & Beverage Operations',
       icon: 'flame-outline' as const,
       color: '#C62828',
@@ -119,14 +158,14 @@ export default function AdminDashboard() {
         },
         {
           title: 'Kitchen Handover & Requisition',
-          desc: 'Store inventory par levels, requisition drafting & chef cash.',
+          desc: 'Store inventory par levels, requisition drafting & chef hand cash.',
           icon: 'clipboard-outline' as const,
           route: '/admin/kitchen-handover',
           color: '#E65100',
         },
         {
           title: 'Recipe BOM & Grams',
-          desc: 'Exact gram weights, spice formulations & food cost per dish.',
+          desc: 'Exact gram weights, spices, wastage % and food cost per dish.',
           icon: 'restaurant-outline' as const,
           route: '/admin/recipes',
           color: '#D5A943',
@@ -136,18 +175,19 @@ export default function AdminDashboard() {
           desc: 'Reconcile chef closing counts, audit variances & approve restock.',
           icon: 'checkmark-done-circle-outline' as const,
           route: '/admin/kitchen-returns',
-          color: '#2E7D32',
+          color: '#27AE60',
         },
       ],
     },
     {
+      id: 'inventory',
       group: 'Inventory, Procurement & Control',
       icon: 'cube-outline' as const,
       color: '#00897B',
       items: [
         {
           title: 'Menu Catalog',
-          desc: 'Manage categories, item pricing, dietary tags & pictures.',
+          desc: 'Manage categories, item pricing, dietary tags & dish pictures.',
           icon: 'fast-food-outline' as const,
           route: '/admin/menu',
           color: '#4a121a',
@@ -161,7 +201,7 @@ export default function AdminDashboard() {
         },
         {
           title: 'Suppliers & Vendors',
-          desc: 'Procurement ledgers, PO invoicing, payment tracking & dues.',
+          desc: 'Procurement ledgers, PO invoicing, payment vouchers & dues.',
           icon: 'bus-outline' as const,
           route: '/admin/suppliers',
           color: '#1565C0',
@@ -176,20 +216,21 @@ export default function AdminDashboard() {
       ],
     },
     {
+      id: 'finance',
       group: 'Management, Finance & Shifts',
       icon: 'bar-chart-outline' as const,
-      color: '#2E7D32',
+      color: '#27AE60',
       items: [
         {
           title: 'Financial Reports',
           desc: 'Sales analytics, P&L statements, CSV exports & Z-reports.',
           icon: 'bar-chart-outline' as const,
           route: '/admin/reports',
-          color: '#2E7D32',
+          color: '#27AE60',
         },
         {
           title: 'Live Shift & Register',
-          desc: 'Reconcile cash drawers, record drop floats & shift reports.',
+          desc: 'Reconcile drawer cash, record drop floats & generate X/Z slips.',
           icon: 'cash-outline' as const,
           route: '/manager/shift',
           color: '#4a121a',
@@ -226,58 +267,190 @@ export default function AdminDashboard() {
     },
   ];
 
+  const filteredGroups = useMemo(() => {
+    if (selectedCategory === 'all') return ACTION_GROUPS;
+    return ACTION_GROUPS.filter(g => g.id === selectedCategory);
+  }, [selectedCategory, ACTION_GROUPS]);
+
+  const totalActionsCount = ACTION_GROUPS.reduce((acc, g) => acc + g.items.length, 0);
+
   return (
     <ScrollView style={[styles.container, isMobile && styles.containerMobile]} showsVerticalScrollIndicator={false}>
       <View style={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-              <SultanLogo size="md" variant="circle" width={32} height={32} containerStyle={{ width: 48, height: 48, borderRadius: 24 }} />
-              <View>
-                <Text style={[styles.pageTitle, isMobile && styles.pageTitleMobile]}>Executive Dashboard</Text>
-                <Text style={styles.pageSubtitle}>
-                  {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                </Text>
+
+        {/* ================= ROYAL HERO EXECUTIVE BANNER ================= */}
+        <View style={[styles.heroBanner, isMobile && styles.heroBannerMobile]}>
+          <View style={styles.heroTopBar} />
+          
+          <View style={styles.heroMainRow}>
+            <View style={styles.heroLeft}>
+              <View style={styles.heroBrandRow}>
+                <SultanLogo 
+                  size="md" 
+                  variant="circle" 
+                  width={34} 
+                  height={34} 
+                  containerStyle={styles.heroLogoContainer} 
+                />
+                <View>
+                  <View style={styles.brandTitleRow}>
+                    <Text style={styles.heroBrandTag}>SULTAN RESTAURANT & RESORT</Text>
+                    <View style={styles.royalCrownBadge}>
+                      <Ionicons name="sparkles" size={10} color="#D5A943" />
+                      <Text style={styles.royalCrownText}>EXECUTIVE</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.heroHeading, isMobile && styles.heroHeadingMobile]}>
+                    Operational Command Hub
+                  </Text>
+                </View>
               </View>
+
+              <Text style={styles.heroSubtitle}>
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} • Multi-Zone Operations Center
+              </Text>
             </View>
 
-            <View style={styles.onlineBadge}>
-              <View style={styles.livePulseDot} />
-              <Text style={styles.onlineBadgeText}>Realtime Hub Active</Text>
+            <View style={[styles.heroRight, isMobile && styles.heroRightMobile]}>
+              <View style={styles.onlineStatusBadge}>
+                <View style={styles.livePulseDot} />
+                <Text style={styles.onlineStatusText}>REALTIME ACTIVE</Text>
+              </View>
+
+              {/* 1-Tap Quick POS Launch */}
+              <TouchableOpacity 
+                style={styles.heroPosBtn}
+                onPress={() => router.push('/admin/pos')}
+                activeOpacity={0.88}
+              >
+                <Ionicons name="flash" size={16} color="#4A121A" />
+                <Text style={styles.heroPosBtnText}>Open POS Terminal</Text>
+                <Ionicons name="arrow-forward" size={14} color="#4A121A" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Mini Operational Vitals Ticker */}
+          <View style={styles.heroTickerRow}>
+            <View style={styles.tickerPill}>
+              <Ionicons name="restaurant" size={12} color="#D5A943" />
+              <Text style={styles.tickerText}>
+                <Text style={styles.tickerBold}>{occupiedTables}</Text> Dine-In Tables Active
+              </Text>
+            </View>
+            <View style={styles.tickerDivider} />
+            <View style={styles.tickerPill}>
+              <Ionicons name="flame" size={12} color="#FF7043" />
+              <Text style={styles.tickerText}>
+                <Text style={styles.tickerBold}>{activeOrders}</Text> KOT Tickets Cooking
+              </Text>
+            </View>
+            <View style={styles.tickerDivider} />
+            <View style={styles.tickerPill}>
+              <Ionicons name="cash" size={12} color="#81C784" />
+              <Text style={styles.tickerText}>
+                <Text style={styles.tickerBold}>{todaysInvoices.length}</Text> Orders Settled Today
+              </Text>
             </View>
           </View>
         </View>
-        
-        {/* Stats Grid */}
+
+        {/* ================= STATS / KPI GRID ================= */}
         <View style={styles.statsGrid}>
           {STATS.map((stat, idx) => (
-            <View key={idx} style={[styles.statCard, isMobile && styles.statCardMobile]}>
-              <View style={styles.statHeaderRow}>
+            <View key={idx} style={[styles.statCard, isMobile ? styles.statCardMobile : isTablet ? styles.statCardTablet : styles.statCardDesktop]}>
+              {/* Top Accent Strip */}
+              <View style={[styles.statAccentLine, { backgroundColor: stat.color }]} />
+
+              <View style={styles.statTopRow}>
                 <Text style={styles.statLabel}>{stat.label}</Text>
-                <View style={[styles.statIconBadge, { backgroundColor: 'rgba(213, 169, 67, 0.15)' }]}>
-                  <Ionicons name={stat.icon} size={16} color="#4a121a" />
+                <View style={[styles.statIconCircle, { backgroundColor: stat.color + '18', borderColor: stat.color + '35' }]}>
+                  <Ionicons name={stat.icon} size={18} color={stat.color} />
                 </View>
               </View>
+
               <Text style={[styles.statValue, isMobile && styles.statValueMobile]}>{stat.value}</Text>
-              <View style={styles.trendRow}>
-                <Ionicons name="sparkles" size={11} color="#D5A943" />
-                <Text style={styles.statTrend}>{stat.trend}</Text>
+
+              <View style={styles.statFooterRow}>
+                <Text style={styles.statSubtext} numberOfLines={1}>{stat.subtext}</Text>
+                <View style={[styles.trendBadge, { backgroundColor: stat.color + '15' }]}>
+                  <Text style={[styles.trendText, { color: stat.color }]}>{stat.trend}</Text>
+                </View>
               </View>
             </View>
           ))}
         </View>
 
-        {/* Categorized Action Groups */}
-        {ACTION_GROUPS.map((group, gIdx) => (
-          <View key={gIdx} style={styles.groupSection}>
+        {/* ================= CATEGORY QUICK FILTER TABS ================= */}
+        <View style={styles.categorySection}>
+          <View style={styles.categoryHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Ionicons name="apps" size={18} color="#4A121A" />
+              <Text style={styles.categorySectionTitle}>Management Suites</Text>
+            </View>
+            <Text style={styles.categoryCountLabel}>{totalActionsCount} Total Operational Modules</Text>
+          </View>
+
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryTabsContainer}
+          >
+            <TouchableOpacity
+              style={[styles.categoryTab, selectedCategory === 'all' && styles.categoryTabActive]}
+              onPress={() => setSelectedCategory('all')}
+              activeOpacity={0.8}
+            >
+              <Ionicons 
+                name="grid" 
+                size={14} 
+                color={selectedCategory === 'all' ? '#D5A943' : '#636366'} 
+              />
+              <Text style={[styles.categoryTabText, selectedCategory === 'all' && styles.categoryTabTextActive]}>
+                All Suites ({totalActionsCount})
+              </Text>
+            </TouchableOpacity>
+
+            {ACTION_GROUPS.map((group) => {
+              const isActive = selectedCategory === group.id;
+              return (
+                <TouchableOpacity
+                  key={group.id}
+                  style={[
+                    styles.categoryTab, 
+                    isActive && styles.categoryTabActive,
+                    isActive && { borderColor: group.color }
+                  ]}
+                  onPress={() => setSelectedCategory(group.id)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons 
+                    name={group.icon} 
+                    size={14} 
+                    color={isActive ? group.color : '#636366'} 
+                  />
+                  <Text style={[styles.categoryTabText, isActive && styles.categoryTabTextActive]}>
+                    {group.group} ({group.items.length})
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {/* ================= CATEGORIZED ACTION GROUPS ================= */}
+        {filteredGroups.map((group) => (
+          <View key={group.id} style={styles.groupSection}>
             <View style={styles.groupHeaderRow}>
-              <View style={[styles.groupIconCircle, { backgroundColor: group.color + '18' }]}>
-                <Ionicons name={group.icon} size={16} color={group.color} />
+              <View style={[styles.groupIconCircle, { backgroundColor: group.color + '15', borderColor: group.color + '30' }]}>
+                <Ionicons name={group.icon} size={18} color={group.color} />
               </View>
-              <Text style={styles.groupTitle}>{group.group}</Text>
-              <View style={styles.groupCountBadge}>
-                <Text style={styles.groupCountText}>{group.items.length}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.groupTitle}>{group.group}</Text>
+                <Text style={styles.groupSubtitle}>Direct executive access & operations</Text>
+              </View>
+              <View style={[styles.groupCountBadge, { backgroundColor: group.color + '15' }]}>
+                <Text style={[styles.groupCountText, { color: group.color }]}>{group.items.length} Modules</Text>
               </View>
             </View>
 
@@ -290,28 +463,47 @@ export default function AdminDashboard() {
                     isMobile ? styles.actionCardMobile : styles.actionCardDesktop
                   ]}
                   onPress={() => router.push(action.route as any)}
-                  activeOpacity={0.76}
+                  activeOpacity={0.78}
                 >
-                  <View style={[styles.actionIconBadge, { backgroundColor: action.color + '15' }]}>
+                  {/* Subtle Accent Stripe on Left or Top */}
+                  <View style={[styles.cardAccentBar, { backgroundColor: action.color }]} />
+
+                  <View style={[styles.actionIconBadge, { backgroundColor: action.color + '12', borderColor: action.color + '25' }]}>
                     <Ionicons name={action.icon} size={22} color={action.color} />
                   </View>
+
                   <View style={styles.actionInfo}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                    <View style={styles.actionTitleRow}>
                       <Text style={styles.actionTitle}>{action.title}</Text>
                       {action.badge && (
-                        <View style={[styles.actionTagBadge, { backgroundColor: action.color + '18' }]}>
+                        <View style={[styles.actionTagBadge, { backgroundColor: action.color + '18', borderColor: action.color + '40' }]}>
                           <Text style={[styles.actionTagText, { color: action.color }]}>{action.badge}</Text>
                         </View>
                       )}
                     </View>
                     <Text style={styles.actionDesc} numberOfLines={2}>{action.desc}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color="#C7C7CC" style={{ marginLeft: 6 }} />
+
+                  <View style={styles.cardArrowBox}>
+                    <Ionicons name="chevron-forward" size={16} color="#A0A0A5" />
+                  </View>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
         ))}
+
+        {/* Footer Brand Note */}
+        <View style={styles.dashboardFooter}>
+          <View style={styles.footerDivider} />
+          <View style={styles.footerContent}>
+            <Ionicons name="shield-checkmark" size={14} color="#D5A943" />
+            <Text style={styles.footerText}>
+              Sultan Restaurant & Resort Enterprise ERP • Version 1.0.0
+            </Text>
+          </View>
+        </View>
+
       </View>
     </ScrollView>
   );
@@ -320,191 +512,365 @@ export default function AdminDashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
-    backgroundColor: '#F8F9FA',
+    padding: 22,
+    backgroundColor: '#F5F5F7', // Apple clean background
   },
   containerMobile: {
-    padding: 14,
+    padding: 12,
   },
   content: {
-    maxWidth: 1200,
+    maxWidth: 1280,
     width: '100%',
     alignSelf: 'center',
-    paddingBottom: 32,
+    paddingBottom: 40,
   },
-  header: {
-    marginBottom: 20,
+
+  /* ================= HERO EXECUTIVE BANNER ================= */
+  heroBanner: {
+    backgroundColor: '#350C12', // Deep Royal Sultan Burgundy
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 24,
+    borderWidth: 1.5,
+    borderColor: '#D5A943', // Royal Gold Border
+    shadowColor: '#350C12',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 8,
   },
-  pageTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#1C1C1E',
+  heroBannerMobile: {
+    borderRadius: 16,
+    marginBottom: 16,
   },
-  pageTitleMobile: {
-    fontSize: 22,
+  heroTopBar: {
+    height: 4,
+    backgroundColor: '#D5A943', // Gold Accent line
   },
-  pageSubtitle: {
-    fontSize: 13,
-    color: '#8E8E93',
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  statsGrid: {
+  heroMainRow: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 16,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 28,
-  },
-  statCard: {
-    flex: 1,
-    minWidth: 220,
-    backgroundColor: '#FFFFFF',
-    padding: 18,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#EFEFF4',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  statCardMobile: {
-    flex: undefined,
-    width: '48%',
-    minWidth: '47%',
-    padding: 14,
-  },
-  statHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  heroLeft: {
+    flex: 1,
+    minWidth: 280,
+  },
+  heroBrandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
     marginBottom: 6,
   },
-  statLabel: {
-    fontSize: 12,
-    color: '#8E8E93',
-    fontWeight: '600',
+  heroLogoContainer: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#4A121A',
+    borderColor: '#D5A943',
+    borderWidth: 1.5,
   },
-  statValue: {
+  brandTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  heroBrandTag: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#D5A943',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  royalCrownBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(213, 169, 67, 0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 3,
+  },
+  royalCrownText: {
+    fontSize: 8,
+    fontWeight: '900',
+    color: '#D5A943',
+    letterSpacing: 0.5,
+  },
+  heroHeading: {
     fontSize: 24,
-    fontWeight: '800',
-    color: '#4a121a', // Sultan Burgundy
-    marginBottom: 4,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
+    marginTop: 2,
   },
-  statValueMobile: {
-    fontSize: 18,
+  heroHeadingMobile: {
+    fontSize: 20,
   },
-  statTrend: {
+  heroSubtitle: {
     fontSize: 12,
-    color: '#27ae60',
-    fontWeight: '600',
+    color: '#E0D0B5',
+    fontWeight: '500',
+    marginTop: 2,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#1C1C1E',
-    marginBottom: 14,
-  },
-  actionsGrid: {
+  heroRight: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: 12,
+    flexWrap: 'wrap',
   },
-  actionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#EFEFF4',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  actionCardDesktop: {
-    width: '48%',
-    padding: 20,
-  },
-  actionCardMobile: {
+  heroRightMobile: {
     width: '100%',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  onlineStatusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-  },
-  actionIconBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  actionInfo: {
-    flex: 1,
-  },
-  actionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1C1C1E',
-    marginBottom: 3,
-  },
-  actionDesc: {
-    fontSize: 13,
-    color: '#8E8E93',
-    lineHeight: 18,
-  },
-  onlineBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(39, 174, 96, 0.1)',
-    borderColor: 'rgba(39, 174, 96, 0.25)',
+    backgroundColor: 'rgba(39, 174, 96, 0.18)',
+    borderColor: '#27AE60',
     borderWidth: 1,
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 20,
     gap: 6,
   },
   livePulseDot: {
-    width: 7,
-    height: 7,
+    width: 8,
+    height: 8,
     borderRadius: 4,
-    backgroundColor: '#27ae60',
+    backgroundColor: '#2ECC71',
   },
-  onlineBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#27ae60',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  onlineStatusText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#2ECC71',
+    letterSpacing: 0.8,
   },
-  statIconBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  trendRow: {
+  heroPosBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    backgroundColor: '#D5A943',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6,
+    shadowColor: '#D5A943',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  groupSection: {
+  heroPosBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#4A121A',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  heroTickerRow: {
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(213, 169, 67, 0.25)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 14,
+  },
+  tickerPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  tickerText: {
+    fontSize: 11,
+    color: '#ECE5D8',
+    fontWeight: '500',
+  },
+  tickerBold: {
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  tickerDivider: {
+    width: 1,
+    height: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+
+  /* ================= STATS / KPI GRID ================= */
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 14,
     marginBottom: 24,
+  },
+  statCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E8E8EE',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  statCardDesktop: {
+    flex: 1,
+    minWidth: 240,
+  },
+  statCardTablet: {
+    width: '48%',
+  },
+  statCardMobile: {
+    width: '48%',
+    padding: 12,
+  },
+  statAccentLine: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+  },
+  statTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+    marginBottom: 8,
+  },
+  statLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#8E8E93',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  statIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  statValue: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#1C1C1E',
+    marginBottom: 6,
+    letterSpacing: -0.4,
+  },
+  statValueMobile: {
+    fontSize: 18,
+  },
+  statFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  statSubtext: {
+    fontSize: 11,
+    color: '#8E8E93',
+    fontWeight: '500',
+    flex: 1,
+  },
+  trendBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  trendText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+
+  /* ================= CATEGORY TABS ================= */
+  categorySection: {
+    marginBottom: 20,
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  categorySectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1C1C1E',
+  },
+  categoryCountLabel: {
+    fontSize: 12,
+    color: '#8E8E93',
+    fontWeight: '600',
+  },
+  categoryTabsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  categoryTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  categoryTabActive: {
+    backgroundColor: '#350C12', // Sultan Burgundy
+    borderColor: '#D5A943',
+    borderWidth: 1.5,
+  },
+  categoryTabText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#636366',
+  },
+  categoryTabTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+
+  /* ================= GROUP SECTIONS & ACTION CARDS ================= */
+  groupSection: {
+    marginBottom: 26,
   },
   groupHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 14,
   },
   groupIconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
   },
   groupTitle: {
     fontSize: 16,
@@ -512,25 +878,129 @@ const styles = StyleSheet.create({
     color: '#1C1C1E',
     letterSpacing: -0.2,
   },
+  groupSubtitle: {
+    fontSize: 11,
+    color: '#8E8E93',
+    fontWeight: '500',
+  },
   groupCountBadge: {
-    backgroundColor: '#EFEFF4',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   groupCountText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#636366',
+    fontWeight: '800',
+  },
+
+  actionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  actionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E8E8EE',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 2,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  actionCardDesktop: {
+    width: '49%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 14,
+  },
+  actionCardMobile: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 12,
+  },
+  cardAccentBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3.5,
+  },
+  actionIconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    marginLeft: 2,
+  },
+  actionInfo: {
+    flex: 1,
+  },
+  actionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+    marginBottom: 4,
+  },
+  actionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1C1C1E',
   },
   actionTagBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
+    borderWidth: 1,
   },
   actionTagText: {
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: 8.5,
+    fontWeight: '900',
     letterSpacing: 0.5,
+  },
+  actionDesc: {
+    fontSize: 12,
+    color: '#6E6E73',
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  cardArrowBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#F2F2F7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* ================= FOOTER ================= */
+  dashboardFooter: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  footerDivider: {
+    width: '100%',
+    height: 1,
+    backgroundColor: '#E5E5EA',
+    marginBottom: 16,
+  },
+  footerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  footerText: {
+    fontSize: 11,
+    color: '#8E8E93',
+    fontWeight: '600',
   },
 });
