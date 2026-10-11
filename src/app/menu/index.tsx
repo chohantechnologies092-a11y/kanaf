@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Platform, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useRestaurantStore } from '../../store/restaurantStore';
 import SultanLogo from '../../components/SultanLogo';
+import UniversalPortalNav from '../../components/UniversalPortalNav';
 
 export default function CustomerMenuScreen() {
   const router = useRouter();
@@ -27,7 +29,14 @@ export default function CustomerMenuScreen() {
     : menuItems.filter(item => item.category === activeCat);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeContainer} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#4a121a" />
+      <UniversalPortalNav
+        portalName="Sultan Digital Menu"
+        portalRole="Customer Menu"
+        showTabs={false}
+      />
+      <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} stickyHeaderIndices={[1]}>
         
         {/* Hero Section */}
@@ -112,11 +121,16 @@ export default function CustomerMenuScreen() {
         </View>
 
       </ScrollView>
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeContainer: {
+    flex: 1,
+    backgroundColor: '#4a121a',
+  },
   container: {
     flex: 1,
     backgroundColor: '#FAFAFA',

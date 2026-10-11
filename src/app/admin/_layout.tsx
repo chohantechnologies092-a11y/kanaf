@@ -1,23 +1,29 @@
-import { Stack } from 'expo-router';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
-  StatusBar, 
-  useWindowDimensions, 
-  Platform 
-} from 'react-native';
+import React from 'react';
+import { View, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Stack } from 'expo-router';
 import { useRoleGuard } from '../../hooks/useRoleGuard';
-import SyncStatusBadge from '../../components/SyncStatusBadge';
-import SultanLogo from '../../components/SultanLogo';
+import UniversalPortalNav, { NavTabDef } from '../../components/UniversalPortalNav';
+
+const ADMIN_TABS: NavTabDef[] = [
+  { id: 'dashboard', label: 'Dashboard', route: '/admin/dashboard', icon: 'grid-outline' },
+  { id: 'pos', label: 'POS Billing', route: '/admin/pos', icon: 'card-outline' },
+  { id: 'floors', label: 'Floors', route: '/admin/floors', icon: 'business-outline' },
+  { id: 'tables', label: 'Tables & Cabins', route: '/admin/tables', icon: 'apps-outline' },
+  { id: 'menu', label: 'Menu Catalog', route: '/admin/menu', icon: 'fast-food-outline' },
+  { id: 'kitchen-ops', label: 'Kitchen Ops', route: '/admin/kitchen-handover', icon: 'clipboard-outline' },
+  { id: 'inventory', label: 'Inventory', route: '/admin/inventory', icon: 'cube-outline' },
+  { id: 'staff', label: 'Staff & Waiters', route: '/admin/staff', icon: 'people-outline' },
+  { id: 'reports', label: 'Reports', route: '/admin/reports', icon: 'bar-chart-outline' },
+  { id: 'waiter', label: 'Order Taker', route: '/waiter', icon: 'walk-outline', badge: 'POS' },
+  { id: 'kitchen-kds', label: 'Kitchen KDS', route: '/kitchen/kds', icon: 'flame-outline', badge: 'KDS' },
+  { id: 'juicebar-kds', label: 'Juice Bar', route: '/juicebar/kds', icon: 'cafe-outline' },
+  { id: 'playland', label: 'Playland', route: '/admin/playland', icon: 'game-controller-outline' },
+  { id: 'customers', label: 'Customers', route: '/admin/customers', icon: 'person-outline' },
+];
 
 export default function AdminLayout() {
-  const { ready, user, logout } = useRoleGuard(['admin']);
-  const { width } = useWindowDimensions();
-  const isMobile = width < 768;
+  const { ready } = useRoleGuard(['admin']);
 
   if (!ready) return null;
 
@@ -25,49 +31,21 @@ export default function AdminLayout() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#4a121a" />
 
-      {/* Top Navigation Bar */}
-      <View style={[styles.header, isMobile && styles.headerMobile]}>
-        <View style={styles.headerLeft}>
-          <SultanLogo size="sm" width={28} height={28} style={{ marginRight: 8 }} />
-          <Text style={[styles.headerTitle, isMobile && styles.headerTitleMobile]}>
-            {isMobile ? 'Sultan' : 'Sultan Admin'}
-          </Text>
-          <View style={styles.roleTag}>
-            <Text style={styles.roleTagText}>ADMIN</Text>
-          </View>
-        </View>
+      {/* Universal Top Navigation Bar with Sub-Navbar */}
+      <UniversalPortalNav
+        portalName="Sultan Admin"
+        portalRole="admin"
+        tabs={ADMIN_TABS}
+        showTabs={true}
+      />
 
-        <View style={[styles.headerRight, isMobile && styles.headerRightMobile]}>
-          <SyncStatusBadge compact={isMobile} />
-          
-          {!isMobile && (
-            <Text style={styles.userName} numberOfLines={1}>Hello, {user?.name}</Text>
-          )}
-
-          <TouchableOpacity 
-            style={[styles.logoutButton, isMobile && styles.logoutButtonMobile]}
-            onPress={logout}
-            activeOpacity={0.7}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          >
-            <Ionicons 
-              name="log-out-outline" 
-              size={18} 
-              color="#D5A943" 
-              style={!isMobile ? { marginRight: 6 } : undefined} 
-            />
-            {!isMobile && <Text style={styles.logoutText}>Logout</Text>}
-          </TouchableOpacity>
-        </View>
-      </View>
-      
       {/* Main Content Area */}
       <View style={styles.content}>
-        <Stack 
-          screenOptions={{ 
+        <Stack
+          screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: '#F8F9FA' }
-          }} 
+            contentStyle: { backgroundColor: '#F8F9FA' },
+          }}
         />
       </View>
     </SafeAreaView>
@@ -79,92 +57,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#4a121a', // Sultan Burgundy covers safe area
   },
-  header: {
-    backgroundColor: '#4a121a',
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(213, 169, 67, 0.2)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
-    zIndex: 10,
-  },
-  headerMobile: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerTitle: {
-    color: '#D5A943', // Sultan Gold
-    fontSize: 22,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  headerTitleMobile: {
-    fontSize: 18,
-  },
-  roleTag: {
-    backgroundColor: 'rgba(213, 169, 67, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(213, 169, 67, 0.4)',
-  },
-  roleTagText: {
-    color: '#D5A943',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  headerRightMobile: {
-    gap: 8,
-  },
-  userName: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '500',
-    maxWidth: 160,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#D5A943',
-  },
-  logoutButtonMobile: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    minHeight: 36,
-    minWidth: 36,
-    justifyContent: 'center',
-  },
-  logoutText: {
-    color: '#D5A943',
-    fontWeight: '700',
-    fontSize: 13,
-  },
   content: {
     flex: 1,
     backgroundColor: '#F8F9FA',
-  }
+  },
 });

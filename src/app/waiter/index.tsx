@@ -10,9 +10,7 @@ import {
   ScrollView,
   TextInput,
   useWindowDimensions,
-  StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useRestaurantStore, useAuthStore } from '../../store';
@@ -26,7 +24,6 @@ import {
   SEATING_ZONE_TYPES,
 } from '../../constants/floors';
 import SeatingTypeIcon from '../../components/SeatingTypeIcon';
-import SyncStatusBadge from '../../components/SyncStatusBadge';
 import { broadcastImmediately } from '../../services/syncService';
 
 const BRAND = '#4a121a';
@@ -338,26 +335,8 @@ export default function OrderTakerScreen() {
   const displayName = currentStaff?.name || user?.name || 'Order Taker';
 
   return (
-    <SafeAreaView style={styles.safeContainer} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8F9FA" />
-      <View style={[styles.container, isMobile && { paddingHorizontal: 12 }]}>
-        {/* Header Banner */}
-        <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={[styles.screenTitle, isMobile && { fontSize: 19 }]}>Order Taker Terminal</Text>
-              <View style={styles.terminalBadge}>
-                <Text style={styles.terminalBadgeText}>LIVE POS</Text>
-              </View>
-            </View>
-            <Text style={styles.screenSubtitle}>
-              Floor & Zone-based dining tables, couches & Arabian majlis cabins
-            </Text>
-          </View>
-          <SyncStatusBadge compact={isMobile} />
-        </View>
-
-        {/* Staff & Floor Assignment Banner */}
+    <View style={[styles.container, isMobile && { paddingHorizontal: 12 }]}>
+      {/* Staff & Floor Assignment Banner */}
         <View style={styles.assignmentBanner}>
           <View style={styles.assignmentBannerLeft}>
             <View
@@ -640,7 +619,6 @@ export default function OrderTakerScreen() {
           </View>
         )}
       </View>
-    </SafeAreaView>
   );
 }
 

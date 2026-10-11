@@ -6,6 +6,7 @@ import { useAuthStore } from '../store';
 import IslamicBackground from '../components/IslamicBackground';
 import SultanLogo from '../components/SultanLogo';
 import { Ionicons } from '@expo/vector-icons';
+import UniversalPortalNav from '../components/UniversalPortalNav';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -30,14 +31,20 @@ export default function HomeScreen() {
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <StatusBar barStyle="light-content" backgroundColor="#451014" />
 
+        <UniversalPortalNav
+          portalName="Sultan Grand Suite"
+          portalRole="Welcome"
+          showTabs={false}
+        />
+
         <View style={styles.content}>
           <View style={styles.cardContainer}>
             {/* Ultra Crisp Sultan Logo */}
             <View style={styles.logoContainer}>
               <SultanLogo
                 size={isMobile ? 'xl' : 'hero'}
-                width={isMobile ? 280 : 380}
-                height={isMobile ? 240 : 320}
+                width={isMobile ? 260 : 360}
+                height={isMobile ? 220 : 300}
               />
             </View>
 
@@ -72,6 +79,22 @@ export default function HomeScreen() {
                   <Text style={styles.secondaryButtonText}>View Digital Menu</Text>
                 </TouchableOpacity>
               </Link>
+
+              <View style={styles.quickRow}>
+                <Link href="/kitchen/kds" asChild style={{ flex: 1 }}>
+                  <TouchableOpacity style={styles.compactPortalBtn} activeOpacity={0.88}>
+                    <Ionicons name="flame-outline" size={16} color="#FF6B6B" style={{ marginRight: 5 }} />
+                    <Text style={styles.compactPortalText}>Kitchen KDS</Text>
+                  </TouchableOpacity>
+                </Link>
+
+                <Link href="/juicebar/kds" asChild style={{ flex: 1 }}>
+                  <TouchableOpacity style={styles.compactPortalBtn} activeOpacity={0.88}>
+                    <Ionicons name="cafe-outline" size={16} color="#FFA94D" style={{ marginRight: 5 }} />
+                    <Text style={styles.compactPortalText}>Juice Bar</Text>
+                  </TouchableOpacity>
+                </Link>
+              </View>
 
               <Link href="/login?all=true" asChild>
                 <TouchableOpacity style={styles.adminPortalButton} activeOpacity={0.88}>
@@ -203,6 +226,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.6,
+  },
+  quickRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  compactPortalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(69, 16, 20, 0.65)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(213, 169, 67, 0.4)',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  compactPortalText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   adminPortalButton: {
     flexDirection: 'row',
