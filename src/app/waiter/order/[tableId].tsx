@@ -29,6 +29,7 @@ export default function TableOrderScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
+  const menuColumns = isMobile ? (width < 360 ? 1 : 2) : (width < 1100 ? 2 : 3);
 
   const [activeTab, setActiveTab] = useState<'menu' | 'order'>('menu');
   const [activeCat, setActiveCat] = useState('All');
@@ -337,9 +338,10 @@ export default function TableOrderScreen() {
             <FlatList
               data={filteredItems}
               keyExtractor={item => item.id}
-              numColumns={2}
+              numColumns={menuColumns}
+              key={`order-menu-cols-${menuColumns}`}
               contentContainerStyle={styles.menuGrid}
-              columnWrapperStyle={styles.menuGridRow}
+              columnWrapperStyle={menuColumns > 1 ? styles.menuGridRow : undefined}
               showsVerticalScrollIndicator={false}
               renderItem={({ item, index }) => {
                 const inCartItem = newCart.find(c => c.item.id === item.id);
@@ -854,11 +856,11 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
   },
   menuGridRow: {
-    justifyContent: 'space-between',
+    gap: 10,
     marginBottom: 12,
   },
   menuItemCard: {
-    width: '48.5%',
+    flex: 1,
     borderRadius: 14,
     padding: 14,
     minHeight: 110,
@@ -912,16 +914,16 @@ const styles = StyleSheet.create({
   },
   addIconCircle: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    width: 26,
-    height: 26,
+    borderRadius: 15,
+    width: 30,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.12,
     shadowRadius: 2,
-    elevation: 1,
+    elevation: 2,
   },
   floatingCartBar: {
     position: 'absolute',
@@ -1212,14 +1214,18 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   stepBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    minWidth: 32,
+    minHeight: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   stepQty: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
     color: '#1C1C1E',
-    minWidth: 20,
+    minWidth: 22,
     textAlign: 'center',
   },
   newCartItemTotal: {
@@ -1231,7 +1237,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   removeBtn: {
-    padding: 2,
+    padding: 6,
   },
   cartFooter: {
     padding: 16,
