@@ -1,5 +1,15 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, useWindowDimensions, Platform } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  StatusBar,
+  useWindowDimensions,
+  Platform,
+  ScrollView,
+  DimensionValue,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useRouter } from 'expo-router';
 import { useAuthStore } from '../store';
@@ -11,8 +21,63 @@ export default function HomeScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+
+  // Screen classification for responsiveness
+  const isCompactMobile = width < 380;
   const isMobile = width < 600;
+  const isTablet = width >= 600 && width < 1024;
+  const isDesktop = width >= 1024;
+  const isShortScreen = height < 700;
+
+  // Dynamically compute dimensions based on screen resolution
+  const dynamicMetrics = useMemo(() => {
+    // Logo responsive dimensions
+    let logoWidth = 360;
+    let logoHeight = 300;
+    let logoSize: 'sm' | 'md' | 'lg' | 'xl' | 'hero' = 'hero';
+
+    if (isCompactMobile || (isMobile && isShortScreen)) {
+      logoWidth = Math.min(200, Math.round(width * 0.58));
+      logoHeight = Math.round(logoWidth * 0.82);
+      logoSize = 'lg';
+    } else if (isMobile) {
+      logoWidth = Math.min(270, Math.round(width * 0.72));
+      logoHeight = Math.round(logoWidth * 0.82);
+      logoSize = 'xl';
+    } else if (isShortScreen) {
+      logoWidth = 280;
+      logoHeight = 230;
+      logoSize = 'xl';
+    } else if (isTablet) {
+      logoWidth = 320;
+      logoHeight = 265;
+      logoSize = 'hero';
+    } else {
+      logoWidth = 380;
+      logoHeight = 310;
+      logoSize = 'hero';
+    }
+
+    const titleFontSize = isCompactMobile ? 21 : isMobile ? 24 : isTablet ? 27 : 30;
+    const subtitleFontSize = isCompactMobile ? 13 : isMobile ? 14 : 15;
+    const buttonPaddingVertical = isShortScreen || isCompactMobile ? 13 : 16;
+    const containerMaxWidth = isMobile ? Math.min(480, width - 24) : isTablet ? 530 : 580;
+    const buttonMaxWidth: DimensionValue = isMobile ? '100%' : isTablet ? 430 : 460;
+    const verticalGap = isShortScreen ? 10 : 13;
+
+    return {
+      logoWidth,
+      logoHeight,
+      logoSize,
+      titleFontSize,
+      subtitleFontSize,
+      buttonPaddingVertical,
+      containerMaxWidth,
+      buttonMaxWidth,
+      verticalGap,
+    };
+  }, [width, isCompactMobile, isMobile, isTablet, isShortScreen]);
 
   // On Native Mobile APK, launch straight into Waiter Terminal
   useEffect(() => {
@@ -30,59 +95,92 @@ export default function HomeScreen() {
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <StatusBar barStyle="light-content" backgroundColor="#451014" />
 
-        <View style={styles.content}>
-          <View style={styles.cardContainer}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingVertical: isShortScreen ? 14 : 28,
+              paddingHorizontal: isCompactMobile ? 12 : 20,
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={[styles.cardContainer, { maxWidth: dynamicMetrics.containerMaxWidth }]}>
             {/* Ultra Crisp Sultan Logo */}
-            <View style={styles.logoContainer}>
+            <View style={[styles.logoContainer, { marginVertical: isShortScreen ? 4 : 10 }]}>
               <SultanLogo
-                size={isMobile ? 'xl' : 'hero'}
-                width={isMobile ? 260 : 360}
-                height={isMobile ? 220 : 300}
+                size={dynamicMetrics.logoSize}
+                width={dynamicMetrics.logoWidth}
+                height={dynamicMetrics.logoHeight}
               />
             </View>
 
             {/* Title & Tagline */}
-            <View style={styles.welcomeTextContainer}>
+            <View style={[styles.welcomeTextContainer, { marginVertical: isShortScreen ? 8 : 14 }]}>
               <View style={styles.royalDivider}>
                 <View style={styles.dividerLine} />
                 <View style={styles.dividerStar}>
-                  <Ionicons name="sparkles" size={14} color="#D5A943" />
+                  <Ionicons name="sparkles" size={isMobile ? 12 : 14} color="#D5A943" />
                 </View>
                 <View style={styles.dividerLine} />
               </View>
 
-              <Text style={styles.welcomeTitle}>Authentic Dining Experience</Text>
-              <Text style={styles.welcomeSubtitle}>
+              <Text style={[styles.welcomeTitle, { fontSize: dynamicMetrics.titleFontSize }]}>
+                Authentic Dining Experience
+              </Text>
+              <Text style={[styles.welcomeSubtitle, { fontSize: dynamicMetrics.subtitleFontSize }]}>
                 Taste the royal flavors of the finest Arabian & Continental cuisine crafted with passion and heritage.
               </Text>
             </View>
 
             {/* Action Buttons */}
-            <View style={styles.buttonContainer}>
+            <View
+              style={[
+                styles.buttonContainer,
+                {
+                  maxWidth: dynamicMetrics.buttonMaxWidth,
+                  gap: dynamicMetrics.verticalGap,
+                },
+              ]}
+            >
               <Link href="/login?role=waiter" asChild>
-                <TouchableOpacity style={styles.primaryButton} activeOpacity={0.88}>
-                  <Ionicons name="walk" size={20} color="#451014" style={{ marginRight: 8 }} />
-                  <Text style={styles.primaryButtonText}>Order Taker Terminal Login</Text>
+                <TouchableOpacity
+                  style={[styles.primaryButton, { paddingVertical: dynamicMetrics.buttonPaddingVertical }]}
+                  activeOpacity={0.88}
+                >
+                  <Ionicons name="walk" size={isMobile ? 18 : 20} color="#451014" style={{ marginRight: 8 }} />
+                  <Text style={[styles.primaryButtonText, isMobile && { fontSize: 16 }]}>Order Taker Terminal Login</Text>
                 </TouchableOpacity>
               </Link>
 
               <Link href="/menu" asChild>
-                <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.88}>
-                  <Ionicons name="restaurant-outline" size={19} color="#D5A943" style={{ marginRight: 8 }} />
-                  <Text style={styles.secondaryButtonText}>View Digital Menu</Text>
+                <TouchableOpacity
+                  style={[styles.secondaryButton, { paddingVertical: dynamicMetrics.buttonPaddingVertical }]}
+                  activeOpacity={0.88}
+                >
+                  <Ionicons name="restaurant-outline" size={isMobile ? 18 : 19} color="#D5A943" style={{ marginRight: 8 }} />
+                  <Text style={[styles.secondaryButtonText, isMobile && { fontSize: 15 }]}>View Digital Menu</Text>
                 </TouchableOpacity>
               </Link>
 
               <View style={styles.quickRow}>
                 <Link href="/kitchen/kds" asChild style={{ flex: 1 }}>
-                  <TouchableOpacity style={styles.compactPortalBtn} activeOpacity={0.88}>
+                  <TouchableOpacity
+                    style={[styles.compactPortalBtn, { paddingVertical: isShortScreen ? 10 : 12 }]}
+                    activeOpacity={0.88}
+                  >
                     <Ionicons name="flame-outline" size={16} color="#FF6B6B" style={{ marginRight: 5 }} />
                     <Text style={styles.compactPortalText}>Kitchen KDS</Text>
                   </TouchableOpacity>
                 </Link>
 
                 <Link href="/juicebar/kds" asChild style={{ flex: 1 }}>
-                  <TouchableOpacity style={styles.compactPortalBtn} activeOpacity={0.88}>
+                  <TouchableOpacity
+                    style={[styles.compactPortalBtn, { paddingVertical: isShortScreen ? 10 : 12 }]}
+                    activeOpacity={0.88}
+                  >
                     <Ionicons name="cafe-outline" size={16} color="#FFA94D" style={{ marginRight: 5 }} />
                     <Text style={styles.compactPortalText}>Juice Bar</Text>
                   </TouchableOpacity>
@@ -90,8 +188,11 @@ export default function HomeScreen() {
               </View>
 
               <Link href="/login?all=true" asChild>
-                <TouchableOpacity style={styles.adminPortalButton} activeOpacity={0.88}>
-                  <Ionicons name="key-outline" size={16} color="#A38F78" style={{ marginRight: 6 }} />
+                <TouchableOpacity
+                  style={[styles.adminPortalButton, { paddingVertical: dynamicMetrics.buttonPaddingVertical }]}
+                  activeOpacity={0.88}
+                >
+                  <Ionicons name="key-outline" size={15} color="#A38F78" style={{ marginRight: 6 }} />
                   <Text style={styles.adminPortalButtonText}>Admin & Management Portal</Text>
                 </TouchableOpacity>
               </Link>
@@ -102,7 +203,7 @@ export default function HomeScreen() {
               <Text style={styles.footerText}>⚡ LAN Multi-Screen Realtime Order Hub Active</Text>
             </View>
           </View>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     </IslamicBackground>
   );
@@ -112,35 +213,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   cardContainer: {
     width: '100%',
-    maxWidth: 540,
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 20,
   },
   logoContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 10,
   },
   welcomeTextContainer: {
     alignItems: 'center',
-    marginVertical: 18,
     paddingHorizontal: 12,
   },
   royalDivider: {
     flexDirection: 'row',
     alignItems: 'center',
     width: 220,
-    marginBottom: 14,
+    marginBottom: 12,
     gap: 8,
   },
   dividerLine: {
@@ -152,35 +247,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   welcomeTitle: {
-    fontSize: 27,
     fontWeight: '800',
     color: '#ffffff',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
     letterSpacing: 0.6,
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 6,
   },
   welcomeSubtitle: {
-    fontSize: 15,
     color: 'rgba(255,255,255,0.88)',
     textAlign: 'center',
-    lineHeight: 23,
-    maxWidth: 440,
+    lineHeight: 22,
+    maxWidth: 460,
   },
   buttonContainer: {
     width: '100%',
-    maxWidth: 420,
-    gap: 14,
-    marginTop: 10,
-    marginBottom: 16,
+    marginTop: 8,
+    marginBottom: 12,
   },
   primaryButton: {
     flexDirection: 'row',
     backgroundColor: '#D5A943',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    paddingHorizontal: 22,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -203,8 +293,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(69, 16, 20, 0.75)',
     borderWidth: 1.8,
     borderColor: '#D5A943',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    paddingHorizontal: 22,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -232,8 +321,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(69, 16, 20, 0.65)',
     borderWidth: 1.2,
     borderColor: 'rgba(213, 169, 67, 0.4)',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     borderRadius: 12,
   },
   compactPortalText: {
@@ -246,12 +334,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 1.8,
     borderColor: 'rgba(213, 169, 67, 0.25)',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    paddingHorizontal: 22,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
   adminPortalButtonText: {
     color: '#A38F78',
@@ -260,7 +347,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   footerNote: {
-    marginTop: 14,
+    marginTop: 10,
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 20,

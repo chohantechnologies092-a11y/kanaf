@@ -173,8 +173,7 @@ export default function IslamicBackground({
   contentContainerStyle,
 }: IslamicBackgroundProps) {
   const { width } = useWindowDimensions();
-  const isMobile = width < 600;
-  const cornerSize = isMobile ? 120 : 180;
+  const cornerSize = width < 420 ? 80 : width < 768 ? 115 : 170;
 
   const isBurgundy = theme === 'burgundy';
   const isLight = theme === 'light';
