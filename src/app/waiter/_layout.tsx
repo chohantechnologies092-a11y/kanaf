@@ -4,9 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { useRoleGuard } from '../../hooks/useRoleGuard';
 import UniversalPortalNav from '../../components/UniversalPortalNav';
+import BottomNav from '../../components/BottomNav';
 
 export default function WaiterLayout() {
-  const { ready } = useRoleGuard(['waiter', 'manager', 'admin']);
+  const { ready, logout } = useRoleGuard(['waiter', 'manager', 'admin']);
 
   if (!ready) return null;
 
@@ -29,6 +30,7 @@ export default function WaiterLayout() {
           }}
         />
       </View>
+      <BottomNav role="waiter" onLogout={logout} />
     </SafeAreaView>
   );
 }

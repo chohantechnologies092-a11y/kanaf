@@ -31,7 +31,10 @@ export type ServiceRequest = {
 
 export type InventoryItem = {
   id: string;
+  itemCode?: string;
+  barcode?: string;
   name: string;
+  urduName?: string;
   category: string;
   unit: string;
   stock: number;
@@ -40,6 +43,12 @@ export type InventoryItem = {
   costPerUnit?: number;
   supplier?: string;
   supplierPhone?: string;
+  location?: string;
+  batchNumber?: string;
+  expiryDate?: number;
+  receivedDate?: number;
+  invoiceNo?: string;
+  notes?: string;
   updatedAt: number;
 };
 
@@ -49,6 +58,7 @@ export type StockMovement = {
   id: string;
   itemId: string;
   itemName: string;
+  itemCode?: string;
   type: StockMovementType;
   /** Absolute quantity entered by the user. */
   qty: number;
@@ -57,7 +67,75 @@ export type StockMovement = {
   note?: string;
   by?: string;
   at: number;
+  supplier?: string;
+  invoiceNo?: string;
+  batchNumber?: string;
+  unitCost?: number;
+  expiryDate?: number;
 };
+
+export type ExpiryStatus = 'expired' | 'critical' | 'warning' | 'fresh' | 'none';
+
+export function getExpiryStatus(item: InventoryItem): {
+  status: ExpiryStatus;
+  daysRemaining?: number;
+  label: string;
+  color: string;
+  bgColor: string;
+} {
+  if (!item.expiryDate) {
+    return { status: 'none', label: 'No Expiry Set', color: '#64748B', bgColor: '#F1F5F9' };
+  }
+  const now = Date.now();
+  const diffDays = Math.ceil((item.expiryDate - now) / 86400000);
+
+  if (diffDays <= 0) {
+    return {
+      status: 'expired',
+      daysRemaining: diffDays,
+      label: diffDays === 0 ? 'Expires Today!' : `Expired ${Math.abs(diffDays)}d ago`,
+      color: '#DC2626',
+      bgColor: '#FEE2E2',
+    };
+  }
+  if (diffDays <= 3) {
+    return {
+      status: 'critical',
+      daysRemaining: diffDays,
+      label: `Expires in ${diffDays} day${diffDays > 1 ? 's' : ''}!`,
+      color: '#EA580C',
+      bgColor: '#FFEDD5',
+    };
+  }
+  if (diffDays <= 7) {
+    return {
+      status: 'warning',
+      daysRemaining: diffDays,
+      label: `${diffDays} days left`,
+      color: '#D97706',
+      bgColor: '#FEF3C7',
+    };
+  }
+  return {
+    status: 'fresh',
+    daysRemaining: diffDays,
+    label: `${diffDays} days fresh`,
+    color: '#16A34A',
+    bgColor: '#DCFCE7',
+  };
+}
+
+export const STORAGE_LOCATIONS = [
+  'Walk-in Chiller',
+  'Deep Freezer #1 (Meat)',
+  'Deep Freezer #2 (Poultry)',
+  'Dry Ration Store - Shelf A',
+  'Dry Ration Store - Shelf B',
+  'Spice & Masala Rack',
+  'Beverage Cold Room',
+  'Cooking Line / Kitchen',
+  'Packaging Store',
+] as const;
 
 export type ExpenseMethod = 'cash' | 'online';
 
@@ -143,42 +221,116 @@ export function getStockLevel(item: InventoryItem): StockLevel {
 
 const seedItem = (
   id: string,
+  itemCode: string,
   name: string,
+  urduName: string,
   category: string,
   unit: string,
   stock: number,
   threshold: number,
   costPerUnit: number,
-  supplier: string
+  supplier: string,
+  supplierPhone: string,
+  location: string,
+  batchNumber: string,
+  expiryOffsetDays?: number,
+  invoiceNo?: string
 ): InventoryItem => ({
   id,
+  itemCode,
   name,
+  urduName,
   category,
   unit,
   stock,
   threshold,
   costPerUnit,
   supplier,
-  supplierPhone: '',
-  updatedAt: 0,
+  supplierPhone,
+  location,
+  batchNumber,
+  expiryDate: expiryOffsetDays !== undefined ? Date.now() + expiryOffsetDays * 86400000 : undefined,
+  receivedDate: Date.now() - 3 * 86400000,
+  invoiceNo: invoiceNo || `INV-${id.toUpperCase()}-01`,
+  updatedAt: Date.now() - 86400000,
 });
 
-const INITIAL_INVENTORY: InventoryItem[] = [
-  seedItem('inv1', 'Chicken (Boneless)', 'Meat', 'kg', 15, 20, 780, 'Al-Madina Poultry'),
-  seedItem('inv2', 'Mutton', 'Meat', 'kg', 35, 15, 2200, 'City Meat Shop'),
-  seedItem('inv3', 'Basmati Rice', 'Grains', 'kg', 50, 10, 360, 'Wholesale Mart'),
-  seedItem('inv4', 'Wheat Flour (Naan / Roti)', 'Grains', 'kg', 40, 15, 150, 'Wholesale Mart'),
-  seedItem('inv5', 'Cooking Oil', 'Pantry', 'Liters', 45, 15, 520, 'Wholesale Mart'),
-  seedItem('inv6', 'Yogurt (Dahi)', 'Dairy', 'kg', 12, 8, 240, 'Dairy Supplier'),
-  seedItem('inv7', 'Onions', 'Produce', 'kg', 30, 10, 120, 'Wholesale Produce Market'),
-  seedItem('inv8', 'Tomatoes', 'Produce', 'kg', 18, 10, 150, 'Wholesale Produce Market'),
-  seedItem('inv9', 'Mint Leaves', 'Produce', 'kg', 2, 5, 400, 'Wholesale Produce Market'),
-  seedItem('inv10', 'Pepsi 1L', 'Beverages', 'bottles', 12, 24, 150, 'Beverage Distributor'),
-  seedItem('inv11', 'Mineral Water 500ml', 'Beverages', 'bottles', 60, 48, 55, 'Beverage Distributor'),
-  seedItem('inv12', 'LPG Cylinder', 'Fuel', 'cylinders', 3, 2, 11000, 'Gas Agency'),
-  seedItem('inv13', 'Charcoal (BBQ)', 'Fuel', 'kg', 80, 50, 90, 'Gas Agency'),
-  seedItem('inv14', 'Tissue & Napkins', 'Supplies', 'packs', 20, 10, 180, 'General Store'),
-  seedItem('inv15', 'Takeaway Boxes', 'Packaging', 'pcs', 150, 200, 25, 'Packaging House'),
+export const INITIAL_INVENTORY: InventoryItem[] = [
+  seedItem('inv1', 'SKU-MT-001', 'Chicken (Boneless)', 'چکن بون لیس', 'Meat', 'kg', 15, 20, 780, 'Al-Madina Fresh Poultry Ltd', '+92 300 4567891', 'Deep Freezer #2 (Poultry)', 'B-26-CHK-081', 3, 'AMP-8821'),
+  seedItem('inv2', 'SKU-MT-002', 'Mutton (Mix Cut)', 'مٹن مکس بوٹی', 'Meat', 'kg', 35, 15, 2200, 'Hazrat Bilal Meat & Beef Center', '+92 321 8765432', 'Deep Freezer #1 (Meat)', 'B-26-MUT-044', 12, 'HBM-5501'),
+  seedItem('inv3', 'SKU-GR-001', 'Basmati Rice (Kainat)', 'باسمتی چاول کائنات', 'Grains', 'kg', 50, 15, 360, 'National Spices & Grains Mart', '+92 345 9988776', 'Dry Ration Store - Shelf A', 'B-26-RIC-012', 180, 'NSG-4412'),
+  seedItem('inv4', 'SKU-GR-002', 'Wheat Flour (Fine Atta)', 'فائن آٹا / میدہ', 'Grains', 'kg', 40, 20, 150, 'National Spices & Grains Mart', '+92 345 9988776', 'Dry Ration Store - Shelf A', 'B-26-FLR-009', 90, 'NSG-4412'),
+  seedItem('inv5', 'SKU-PT-001', 'Cooking Oil (Canola 16L)', 'کوکنگ آئل کنولا', 'Pantry', 'Liters', 45, 15, 520, 'National Spices & Grains Mart', '+92 345 9988776', 'Dry Ration Store - Shelf B', 'B-26-OIL-091', 120, 'NSG-4412'),
+  seedItem('inv6', 'SKU-DY-001', 'Yogurt (Fresh Dahi)', 'تازہ دہی', 'Dairy', 'kg', 12, 10, 240, 'Punjab Pure Dairy & Khoya Farm', '+92 302 9876543', 'Walk-in Chiller', 'B-26-YOG-015', 2, 'PPD-1022'),
+  seedItem('inv7', 'SKU-PR-001', 'Onions (Piaz)', 'پیاز دیسی', 'Produce', 'kg', 30, 15, 120, 'Sindh Green Fresh Produce Wholesale', '+92 333 5551234', 'Dry Ration Store - Shelf B', 'B-26-ONN-032', 8, 'SGP-9011'),
+  seedItem('inv8', 'SKU-PR-002', 'Tomatoes (Tamatar)', 'ٹماٹر فارمی', 'Produce', 'kg', 18, 12, 150, 'Sindh Green Fresh Produce Wholesale', '+92 333 5551234', 'Walk-in Chiller', 'B-26-TOM-088', 4, 'SGP-9011'),
+  seedItem('inv9', 'SKU-PR-003', 'Mint & Coriander Leaves', 'پودینہ و دھنیا', 'Produce', 'kg', 1.5, 5, 400, 'Sindh Green Fresh Produce Wholesale', '+92 333 5551234', 'Walk-in Chiller', 'B-26-MNT-003', -1, 'SGP-8977'),
+  seedItem('inv10', 'SKU-BV-001', 'Pepsi 1L Bottled', 'پیپسی ایک لیٹر', 'Beverages', 'bottles', 12, 24, 150, 'Gourmet Beverages & Mineral Water', '+92 300 1234567', 'Beverage Cold Room', 'B-26-PEP-210', 60, 'GBM-3320'),
+  seedItem('inv11', 'SKU-BV-002', 'Mineral Water 500ml', 'منرل واٹر', 'Beverages', 'bottles', 60, 48, 55, 'Gourmet Beverages & Mineral Water', '+92 300 1234567', 'Beverage Cold Room', 'B-26-WAT-110', 90, 'GBM-3320'),
+  seedItem('inv12', 'SKU-FL-001', 'Commercial LPG Cylinder (45kg)', 'کمرشل گیس سلنڈر', 'Fuel', 'cylinders', 3, 2, 11000, 'Al-Rehman LPG & Charcoal Agency', '+92 322 1199887', 'Cooking Line / Kitchen', 'B-26-LPG-004', undefined, 'ARL-7712'),
+  seedItem('inv13', 'SKU-FL-002', 'Charcoal BBQ (Hardwood)', 'کوئلہ باربی کیو', 'Fuel', 'kg', 80, 50, 90, 'Al-Rehman LPG & Charcoal Agency', '+92 322 1199887', 'Dry Ration Store - Shelf B', 'B-26-CHR-055', undefined, 'ARL-7712'),
+  seedItem('inv14', 'SKU-SP-001', 'Tissue & Cutlery Packs', 'ٹشو اور کٹلری', 'Supplies', 'packs', 20, 15, 180, 'Modern Pack & Eco Disposables', '+92 301 7766554', 'Packaging Store', 'B-26-TIS-022', undefined, 'MPE-1230'),
+  seedItem('inv15', 'SKU-PK-001', 'Sultan Takeaway Boxes (Embossed)', 'سلطان باکسز', 'Packaging', 'pcs', 150, 200, 25, 'Modern Pack & Eco Disposables', '+92 301 7766554', 'Packaging Store', 'B-26-BOX-101', undefined, 'MPE-1230'),
+];
+
+export const INITIAL_STOCK_MOVEMENTS: StockMovement[] = [
+  {
+    id: 'mv-01',
+    itemId: 'inv1',
+    itemName: 'Chicken (Boneless)',
+    itemCode: 'SKU-MT-001',
+    type: 'receive',
+    qty: 30,
+    delta: 30,
+    note: 'Inward receiving from Al-Madina Fresh Poultry Ltd',
+    supplier: 'Al-Madina Fresh Poultry Ltd',
+    invoiceNo: 'AMP-8821',
+    batchNumber: 'B-26-CHK-081',
+    unitCost: 780,
+    expiryDate: Date.now() + 3 * 86400000,
+    by: 'Chef Omar',
+    at: Date.now() - 2 * 86400000,
+  },
+  {
+    id: 'mv-02',
+    itemId: 'inv3',
+    itemName: 'Basmati Rice (Kainat)',
+    itemCode: 'SKU-GR-001',
+    type: 'receive',
+    qty: 100,
+    delta: 100,
+    note: 'PO #PO-2026-082 delivery verified',
+    supplier: 'National Spices & Grains Mart',
+    invoiceNo: 'NSG-4412',
+    batchNumber: 'B-26-RIC-012',
+    unitCost: 360,
+    by: 'Manager Ali',
+    at: Date.now() - 4 * 86400000,
+  },
+  {
+    id: 'mv-03',
+    itemId: 'inv1',
+    itemName: 'Chicken (Boneless)',
+    itemCode: 'SKU-MT-001',
+    type: 'usage',
+    qty: 15,
+    delta: -15,
+    note: 'Kitchen prep issue for Handi & Tikka line',
+    by: 'Chef Asghar',
+    at: Date.now() - 1 * 86400000,
+  },
+  {
+    id: 'mv-04',
+    itemId: 'inv9',
+    itemName: 'Mint & Coriander Leaves',
+    itemCode: 'SKU-PR-003',
+    type: 'wastage',
+    qty: 1,
+    delta: -1,
+    note: 'Discarded wilted stock past shelf life',
+    by: 'Kitchen Supervisor',
+    at: Date.now() - 12 * 3600000,
+  },
 ];
 
 export type SupplierCategory =
@@ -279,6 +431,11 @@ export type SupplierPayment = {
   notes?: string;
   paidBy?: string;
   paidAt: number;
+  bankName?: string;
+  chequeNumber?: string;
+  chequeDate?: string;
+  receivedByContact?: string;
+  sourceAccount?: string;
 };
 
 // ---------- Store ----------
@@ -574,6 +731,38 @@ export const INITIAL_PURCHASE_ORDERS: PurchaseOrder[] = [
   }
 ];
 
+export const INITIAL_SUPPLIER_PAYMENTS: SupplierPayment[] = [
+  {
+    id: 'spay-1',
+    supplierId: 'sup-1',
+    supplierName: 'Al-Madina Fresh Poultry Ltd',
+    purchaseOrderId: 'po-101',
+    amount: 15000,
+    method: 'cash',
+    reference: 'Cash Voucher #981',
+    notes: 'Advance partial payment at time of delivery to driver Rafiq',
+    paidBy: 'Admin Omar',
+    paidAt: Date.now() - 2 * 86400000,
+    sourceAccount: 'Main Cash Counter',
+    receivedByContact: 'Driver Rafiq',
+  },
+  {
+    id: 'spay-2',
+    supplierId: 'sup-4',
+    supplierName: 'National Spices & Grains Mart',
+    purchaseOrderId: 'po-102',
+    amount: 76000,
+    method: 'online',
+    reference: 'Meezan IBFT #882194',
+    notes: 'Full payment via Meezan Bank Online Transfer upon invoice receipt',
+    paidBy: 'Manager Ali',
+    paidAt: Date.now() - 4 * 86400000,
+    bankName: 'Meezan Bank Ltd',
+    sourceAccount: 'Sultan Rest. Business A/C',
+    receivedByContact: 'Tariq Mehmood',
+  },
+];
+
 export type OpsData = {
   serviceRequests: ServiceRequest[];
   inventory: InventoryItem[];
@@ -624,7 +813,15 @@ type OpsState = OpsData & {
     type: StockMovementType,
     qty: number,
     note?: string,
-    by?: string
+    by?: string,
+    meta?: {
+      supplier?: string;
+      invoiceNo?: string;
+      batchNumber?: string;
+      unitCost?: number;
+      expiryDate?: number;
+      location?: string;
+    }
   ) => void;
 
   // Expenses
@@ -661,6 +858,7 @@ type OpsState = OpsData & {
     payment: Omit<SupplierPayment, 'id' | 'paidAt'>,
     options?: { autoRecordExpense?: boolean }
   ) => void;
+  deleteSupplierPayment: (id: string) => void;
 
   syncFromServer: (remote: Partial<OpsData>) => void;
 };
@@ -670,13 +868,13 @@ export const useOpsStore = create<OpsState>()(
     (set, get) => ({
       serviceRequests: [],
       inventory: INITIAL_INVENTORY,
-      stockMovements: [],
+      stockMovements: INITIAL_STOCK_MOVEMENTS,
       expenses: [],
       feedback: [],
       unavailableItemIds: [],
       suppliers: INITIAL_SUPPLIERS,
       purchaseOrders: INITIAL_PURCHASE_ORDERS,
-      supplierPayments: [],
+      supplierPayments: INITIAL_SUPPLIER_PAYMENTS,
 
       addServiceRequest: (req) => {
         const duplicate = get().serviceRequests.some(
@@ -729,7 +927,7 @@ export const useOpsStore = create<OpsState>()(
       deleteInventoryItem: (id) =>
         set((state) => ({ inventory: state.inventory.filter((i) => i.id !== id) })),
 
-      recordStockMovement: (itemId, type, qty, note, by) =>
+      recordStockMovement: (itemId, type, qty, note, by, meta) =>
         set((state) => {
           const item = state.inventory.find((i) => i.id === itemId);
           if (!item || !Number.isFinite(qty) || qty < 0) return state;
@@ -743,17 +941,35 @@ export const useOpsStore = create<OpsState>()(
             id: uid('mv'),
             itemId,
             itemName: item.name,
+            itemCode: item.itemCode,
             type,
             qty,
             delta: newStock - item.stock,
             note,
             by,
             at: Date.now(),
+            supplier: meta?.supplier || item.supplier,
+            invoiceNo: meta?.invoiceNo || item.invoiceNo,
+            batchNumber: meta?.batchNumber || item.batchNumber,
+            unitCost: meta?.unitCost ?? item.costPerUnit,
+            expiryDate: meta?.expiryDate ?? item.expiryDate,
           };
 
           return {
             inventory: state.inventory.map((i) =>
-              i.id === itemId ? { ...i, stock: newStock, updatedAt: movement.at } : i
+              i.id === itemId
+                ? {
+                    ...i,
+                    stock: newStock,
+                    updatedAt: movement.at,
+                    ...(meta?.unitCost !== undefined && { costPerUnit: meta.unitCost }),
+                    ...(meta?.batchNumber && { batchNumber: meta.batchNumber }),
+                    ...(meta?.expiryDate !== undefined && { expiryDate: meta.expiryDate }),
+                    ...(meta?.location && { location: meta.location }),
+                    ...(meta?.invoiceNo && { invoiceNo: meta.invoiceNo }),
+                    ...(meta?.supplier && { supplier: meta.supplier }),
+                  }
+                : i
             ),
             stockMovements: [movement, ...state.stockMovements].slice(0, MAX_MOVEMENTS),
           };
@@ -816,6 +1032,7 @@ export const useOpsStore = create<OpsState>()(
         set({
           suppliers: INITIAL_SUPPLIERS,
           purchaseOrders: INITIAL_PURCHASE_ORDERS,
+          supplierPayments: INITIAL_SUPPLIER_PAYMENTS,
         }),
 
       addPurchaseOrder: (poData, options = {}) => {
@@ -900,12 +1117,34 @@ export const useOpsStore = create<OpsState>()(
             ];
           }
 
+          // 4. Record Supplier Payment if amount paid > 0
+          let nextPayments = state.supplierPayments;
+          if (po.amountPaid > 0) {
+            nextPayments = [
+              {
+                id: uid('spay'),
+                supplierId: po.supplierId,
+                supplierName: po.supplierName,
+                purchaseOrderId: po.id,
+                amount: po.amountPaid,
+                method: po.paymentMethod === 'online' ? 'online' : po.paymentMethod === 'cheque' ? 'cheque' : 'cash',
+                reference: `PO Creation Payment #${po.poNumber}`,
+                notes: `Advance / Delivery Payment against PO #${po.poNumber}`,
+                paidBy: receivedBy || po.receivedBy || 'Admin',
+                paidAt: now,
+                sourceAccount: po.paymentMethod === 'online' ? 'Bank Account' : 'Cash Drawer',
+              },
+              ...nextPayments,
+            ];
+          }
+
           return {
             purchaseOrders: [po, ...state.purchaseOrders],
             suppliers: updatedSuppliers,
             inventory: nextInventory,
             stockMovements: nextMovements.slice(0, MAX_MOVEMENTS),
             expenses: nextExpenses,
+            supplierPayments: nextPayments,
           };
         });
       },
@@ -975,9 +1214,25 @@ export const useOpsStore = create<OpsState>()(
       },
 
       deletePurchaseOrder: (id) =>
-        set((state) => ({
-          purchaseOrders: state.purchaseOrders.filter((p) => p.id !== id),
-        })),
+        set((state) => {
+          const po = state.purchaseOrders.find((p) => p.id === id);
+          if (!po) return state;
+          const updatedSuppliers = state.suppliers.map((s) => {
+            if (s.id === po.supplierId) {
+              return {
+                ...s,
+                currentBalance: Math.max(0, (s.currentBalance || 0) - (po.balanceDue || 0)),
+                totalPurchases: Math.max(0, (s.totalPurchases || 0) - (po.totalAmount || 0)),
+                updatedAt: Date.now(),
+              };
+            }
+            return s;
+          });
+          return {
+            purchaseOrders: state.purchaseOrders.filter((p) => p.id !== id),
+            suppliers: updatedSuppliers,
+          };
+        }),
 
       recordSupplierPayment: (paymentData, options = {}) => {
         const { autoRecordExpense = true } = options;
@@ -1044,6 +1299,45 @@ export const useOpsStore = create<OpsState>()(
           };
         });
       },
+
+      deleteSupplierPayment: (id) =>
+        set((state) => {
+          const payment = state.supplierPayments.find((p) => p.id === id);
+          if (!payment) return state;
+
+          const updatedSuppliers = state.suppliers.map((s) =>
+            s.id === payment.supplierId
+              ? {
+                  ...s,
+                  currentBalance: (s.currentBalance || 0) + payment.amount,
+                  updatedAt: Date.now(),
+                }
+              : s
+          );
+
+          let updatedPOs = state.purchaseOrders;
+          if (payment.purchaseOrderId) {
+            updatedPOs = state.purchaseOrders.map((po) => {
+              if (po.id === payment.purchaseOrderId) {
+                const newPaid = Math.max(0, (po.amountPaid || 0) - payment.amount);
+                const newDue = Math.max(0, (po.totalAmount || 0) - newPaid);
+                return {
+                  ...po,
+                  amountPaid: newPaid,
+                  balanceDue: newDue,
+                  paymentStatus: newDue === 0 ? 'paid' : newPaid > 0 ? 'partial' : 'unpaid',
+                };
+              }
+              return po;
+            });
+          }
+
+          return {
+            supplierPayments: state.supplierPayments.filter((p) => p.id !== id),
+            suppliers: updatedSuppliers,
+            purchaseOrders: updatedPOs,
+          };
+        }),
 
       syncFromServer: (remote) =>
         set((state) => {

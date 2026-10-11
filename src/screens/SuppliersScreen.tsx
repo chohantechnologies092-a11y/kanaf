@@ -74,6 +74,7 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
     receivePurchaseOrder,
     deletePurchaseOrder,
     recordSupplierPayment,
+    deleteSupplierPayment,
   } = useOpsStore();
 
   // Navigation tabs
@@ -95,6 +96,23 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
 
   const [isLedgerModalOpen, setIsLedgerModalOpen] = useState(false);
   const [ledgerSupplier, setLedgerSupplier] = useState<Supplier | null>(null);
+
+  // Additional feature modals & states
+  const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false);
+  const [selectedPaymentForVoucher, setSelectedPaymentForVoucher] = useState<SupplierPayment | null>(null);
+
+  const [isPODetailsModalOpen, setIsPODetailsModalOpen] = useState(false);
+  const [selectedPOForDetails, setSelectedPOForDetails] = useState<PurchaseOrder | null>(null);
+
+  // Ledger filters
+  const [ledgerFilter, setLedgerFilter] = useState<'all' | 'bills' | 'payments'>('all');
+  const [ledgerSearch, setLedgerSearch] = useState('');
+  const [ledgerSortAsc, setLedgerSortAsc] = useState(false);
+
+  // Payment tab filters
+  const [paymentSearch, setPaymentSearch] = useState('');
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<'all' | 'cash' | 'online' | 'cheque'>('all');
+  const [paymentSupplierFilter, setPaymentSupplierFilter] = useState<string>('all');
 
   // Form State: Supplier Modal
   const [supplierForm, setSupplierForm] = useState({
@@ -134,13 +152,20 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
     { name: '', category: 'Meat', unit: 'kg', qtyOrdered: 10, qtyReceived: 10, unitCost: 0, totalCost: 0 },
   ]);
 
-  // Form State: Payment Modal
+  // Form State: Payment Modal (Full Details)
   const [paymentForm, setPaymentForm] = useState({
+    supplierId: '',
+    purchaseOrderId: '',
     amount: '',
     method: 'cash' as 'cash' | 'online' | 'cheque',
+    bankName: '',
+    sourceAccount: 'Main Cash Drawer',
     reference: '',
-    notes: '',
+    chequeNumber: '',
+    chequeDate: '',
     paidBy: 'Admin',
+    receivedByContact: '',
+    notes: '',
     autoExpense: true,
   });
 
@@ -160,6 +185,36 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
     () => purchaseOrders.filter((po) => po.status === 'ordered').length,
     [purchaseOrders]
   );
+
+  const totalPaymentsDisbursed = useMemo(
+    () => supplierPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
+    [supplierPayments]
+  );
+  const cashPaymentsTotal = useMemo(
+    () => supplierPayments.filter((p) => p.method === 'cash').reduce((sum, p) => sum + (p.amount || 0), 0),
+    [supplierPayments]
+  );
+  const onlinePaymentsTotal = useMemo(
+    () => supplierPayments.filter((p) => p.method === 'online').reduce((sum, p) => sum + (p.amount || 0), 0),
+    [supplierPayments]
+  );
+
+  const filteredPayments = useMemo(() => {
+    return supplierPayments.filter((p) => {
+      if (paymentMethodFilter !== 'all' && p.method !== paymentMethodFilter) return false;
+      if (paymentSupplierFilter !== 'all' && p.supplierId !== paymentSupplierFilter) return false;
+      if (paymentSearch.trim()) {
+        const q = paymentSearch.toLowerCase();
+        const mSup = p.supplierName.toLowerCase().includes(q);
+        const mRef = p.reference?.toLowerCase().includes(q);
+        const mNote = p.notes?.toLowerCase().includes(q);
+        const mBank = p.bankName?.toLowerCase().includes(q);
+        const mId = p.id.toLowerCase().includes(q);
+        if (!mSup && !mRef && !mNote && !mBank && !mId) return false;
+      }
+      return true;
+    });
+  }, [supplierPayments, paymentMethodFilter, paymentSupplierFilter, paymentSearch]);
 
   // ----------------------------------------------------
   // Filtered Suppliers
@@ -447,7 +502,7 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
   };
 
   // ----------------------------------------------------
-  // Payment Handlers
+  // Payment Handlers & Full Details Support
   // ----------------------------------------------------
   const handleOpenPaymentModal = (supplier: Supplier, po?: PurchaseOrder) => {
     setSelectedSupplierForPayment(supplier);
@@ -455,42 +510,260 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
     const suggestedAmount = po ? po.balanceDue : supplier.currentBalance || 0;
 
     setPaymentForm({
+      supplierId: supplier.id,
+      purchaseOrderId: po?.id || '',
       amount: String(suggestedAmount > 0 ? suggestedAmount : ''),
       method: 'cash',
+      bankName: supplier.bankDetails?.bankName || '',
+      sourceAccount: 'Main Cash Drawer',
       reference: '',
-      notes: po ? `Clearance for PO #${po.poNumber}` : `Vendor Settlement`,
+      chequeNumber: '',
+      chequeDate: new Date().toISOString().slice(0, 10),
       paidBy: 'Admin',
+      receivedByContact: supplier.contactPerson || '',
+      notes: po ? `Clearance for PO #${po.poNumber} (Bill #${po.invoiceNo || 'N/A'})` : `Vendor Account Settlement`,
       autoExpense: true,
     });
     setIsPaymentModalOpen(true);
   };
 
+  const handleQuickFillAmount = (val: number) => {
+    setPaymentForm((prev) => ({ ...prev, amount: String(Math.max(0, Math.round(val))) }));
+  };
+
   const handleSavePayment = () => {
-    if (!selectedSupplierForPayment) return;
+    const targetSupplier =
+      suppliers.find((s) => s.id === paymentForm.supplierId) || selectedSupplierForPayment;
+    if (!targetSupplier) {
+      showAlert('Required', 'Please select a supplier.');
+      return;
+    }
     const amount = parseFloat(paymentForm.amount) || 0;
     if (amount <= 0) {
       showAlert('Invalid Amount', 'Please enter a valid payment amount greater than zero.');
       return;
     }
 
-    recordSupplierPayment(
-      {
-        supplierId: selectedSupplierForPayment.id,
-        supplierName: selectedSupplierForPayment.name,
-        purchaseOrderId: selectedPOForPayment?.id,
-        amount,
-        method: paymentForm.method,
-        reference: paymentForm.reference.trim(),
-        notes: paymentForm.notes.trim(),
-        paidBy: paymentForm.paidBy.trim(),
-      },
-      {
-        autoRecordExpense: paymentForm.autoExpense,
-      }
-    );
+    const newPaymentData = {
+      supplierId: targetSupplier.id,
+      supplierName: targetSupplier.name,
+      purchaseOrderId: paymentForm.purchaseOrderId || selectedPOForPayment?.id || undefined,
+      amount,
+      method: paymentForm.method,
+      reference: paymentForm.reference.trim(),
+      notes: paymentForm.notes.trim(),
+      paidBy: paymentForm.paidBy.trim() || 'Admin',
+      bankName: paymentForm.bankName.trim() || undefined,
+      chequeNumber: paymentForm.method === 'cheque' ? paymentForm.chequeNumber.trim() : undefined,
+      chequeDate: paymentForm.method === 'cheque' ? paymentForm.chequeDate.trim() : undefined,
+      receivedByContact: paymentForm.receivedByContact.trim() || undefined,
+      sourceAccount: paymentForm.sourceAccount.trim() || undefined,
+    };
+
+    recordSupplierPayment(newPaymentData, {
+      autoRecordExpense: paymentForm.autoExpense,
+    });
 
     setIsPaymentModalOpen(false);
-    showAlert('Payment Recorded', `Rs. ${amount.toLocaleString()} paid to ${selectedSupplierForPayment.name}.`);
+
+    // Create payment object for voucher preview
+    const createdPayment: SupplierPayment = {
+      ...newPaymentData,
+      id: `spay-${Date.now().toString(36)}`,
+      paidAt: Date.now(),
+    };
+    setSelectedPaymentForVoucher(createdPayment);
+    setIsVoucherModalOpen(true);
+
+    showAlert('Payment Recorded', `Rs. ${amount.toLocaleString()} paid to ${targetSupplier.name}. Official voucher generated.`);
+  };
+
+  const handleDeletePayment = (payment: SupplierPayment) => {
+    confirmAction(
+      'Delete Payment Voucher',
+      `Are you sure you want to reverse payment of Rs. ${payment.amount.toLocaleString()} for ${payment.supplierName}?\n\nThis will restore the outstanding balance back to the supplier account.`,
+      () => {
+        deleteSupplierPayment(payment.id);
+        showAlert('Reversed', `Payment voucher deleted and Rs. ${payment.amount.toLocaleString()} restored to supplier balance.`);
+      }
+    );
+  };
+
+  const handleOpenVoucherModal = (payment: SupplierPayment) => {
+    setSelectedPaymentForVoucher(payment);
+    setIsVoucherModalOpen(true);
+  };
+
+  const handleOpenPODetails = (po: PurchaseOrder) => {
+    setSelectedPOForDetails(po);
+    setIsPODetailsModalOpen(true);
+  };
+
+  // Clipboard copy helper
+  const copyToClipboard = (text: string, title: string = 'Copied') => {
+    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        showAlert(title, 'Text copied to clipboard successfully!');
+      }).catch(() => {
+        showAlert(title, text);
+      });
+    } else {
+      showAlert(title, text);
+    }
+  };
+
+  // ----------------------------------------------------
+  // Ledger Statement Computation & Share
+  // ----------------------------------------------------
+  type LedgerEntry = {
+    id: string;
+    date: number;
+    type: 'bill' | 'payment';
+    docNumber: string;
+    invoiceNo?: string;
+    title: string;
+    subtitle: string;
+    debit: number;
+    credit: number;
+    runningBalance: number;
+    po?: PurchaseOrder;
+    payment?: SupplierPayment;
+  };
+
+  const getSupplierLedgerEntries = (supplierId: string): LedgerEntry[] => {
+    const sPOs = purchaseOrders.filter((po) => po.supplierId === supplierId);
+    const sPays = supplierPayments.filter((p) => p.supplierId === supplierId);
+
+    const rawList: { date: number; type: 'bill' | 'payment'; po?: PurchaseOrder; payment?: SupplierPayment }[] = [];
+
+    sPOs.forEach((po) => {
+      rawList.push({ date: po.orderDate || po.createdAt, type: 'bill', po });
+    });
+
+    sPays.forEach((pay) => {
+      rawList.push({ date: pay.paidAt, type: 'payment', payment: pay });
+    });
+
+    rawList.sort((a, b) => a.date - b.date);
+
+    let currentRunBal = 0;
+    const computedEntries: LedgerEntry[] = [];
+
+    rawList.forEach((item, index) => {
+      if (item.type === 'bill' && item.po) {
+        const po = item.po;
+        const debit = po.totalAmount;
+        currentRunBal += debit;
+
+        const itemsSummary = po.items.map((i) => `${i.name} (${i.qtyReceived || i.qtyOrdered} ${i.unit})`).join(', ');
+
+        computedEntries.push({
+          id: `ledger-po-${po.id}-${index}`,
+          date: item.date,
+          type: 'bill',
+          docNumber: po.poNumber,
+          invoiceNo: po.invoiceNo,
+          title: `Purchase Bill / Inward Delivery`,
+          subtitle: itemsSummary || 'Procurement supplies received',
+          debit,
+          credit: 0,
+          runningBalance: currentRunBal,
+          po,
+        });
+      } else if (item.type === 'payment' && item.payment) {
+        const pay = item.payment;
+        const credit = pay.amount;
+        currentRunBal = Math.max(0, currentRunBal - credit);
+
+        const methodDetails = [
+          pay.method.toUpperCase(),
+          pay.bankName || pay.sourceAccount,
+          pay.reference ? `Ref: ${pay.reference}` : null,
+        ].filter(Boolean).join(' • ');
+
+        computedEntries.push({
+          id: `ledger-pay-${pay.id}-${index}`,
+          date: item.date,
+          type: 'payment',
+          docNumber: `VCH-${pay.id.slice(-6).toUpperCase()}`,
+          title: `Payment Cleared / Settlement`,
+          subtitle: `${methodDetails}${pay.notes ? ` • Note: ${pay.notes}` : ''}`,
+          debit: 0,
+          credit,
+          runningBalance: currentRunBal,
+          payment: pay,
+        });
+      }
+    });
+
+    return computedEntries;
+  };
+
+  const handleShareLedger = (supplier: Supplier, entries: LedgerEntry[]) => {
+    const totalBilled = entries.filter((e) => e.type === 'bill').reduce((sum, e) => sum + e.debit, 0);
+    const totalPaid = entries.filter((e) => e.type === 'payment').reduce((sum, e) => sum + e.credit, 0);
+    const curBal = supplier.currentBalance || 0;
+
+    let text = `==============================\n`;
+    text += `🏛️ SULTAN RESTAURANT & BBQ\n`;
+    text += `VENDOR ACCOUNT STATEMENT\n`;
+    text += `==============================\n`;
+    text += `Supplier: ${supplier.name}\n`;
+    text += `Category: ${supplier.category}\n`;
+    text += `Contact: ${supplier.contactPerson} (${supplier.phone})\n`;
+    text += `Date: ${new Date().toLocaleDateString()}\n\n`;
+    text += `📊 FINANCIAL SUMMARY:\n`;
+    text += `• Total Bills (Dr): Rs. ${totalBilled.toLocaleString()}\n`;
+    text += `• Total Payments (Cr): Rs. ${totalPaid.toLocaleString()}\n`;
+    text += `• NET OUTSTANDING DUE: Rs. ${curBal.toLocaleString()}\n`;
+    text += `------------------------------\n`;
+    text += `📜 RECENT TRANSACTIONS:\n`;
+
+    const recent = entries.slice(-10);
+    recent.forEach((e) => {
+      const dStr = new Date(e.date).toLocaleDateString();
+      if (e.type === 'bill') {
+        text += `• [${dStr}] BILL ${e.docNumber}: +Rs. ${e.debit.toLocaleString()} (Bal: Rs. ${e.runningBalance.toLocaleString()})\n`;
+      } else {
+        text += `• [${dStr}] PAID ${e.docNumber}: -Rs. ${e.credit.toLocaleString()} (Bal: Rs. ${e.runningBalance.toLocaleString()})\n`;
+      }
+    });
+
+    if (supplier.bankDetails?.accountNumber) {
+      text += `------------------------------\n`;
+      text += `🏦 BANK DETAILS:\n`;
+      text += `Bank: ${supplier.bankDetails.bankName}\n`;
+      text += `A/C Title: ${supplier.bankDetails.accountTitle}\n`;
+      text += `A/C No: ${supplier.bankDetails.accountNumber}\n`;
+      if (supplier.bankDetails.iban) text += `IBAN: ${supplier.bankDetails.iban}\n`;
+    }
+    text += `==============================\n`;
+
+    copyToClipboard(text, 'Ledger Statement');
+  };
+
+  const handleSharePaymentVoucher = (pay: SupplierPayment) => {
+    let text = `==============================\n`;
+    text += `🏛️ SULTAN RESTAURANT & BBQ\n`;
+    text += `OFFICIAL PAYMENT SETTLEMENT VOUCHER\n`;
+    text += `==============================\n`;
+    text += `Voucher #: VCH-${pay.id.toUpperCase()}\n`;
+    text += `Date: ${new Date(pay.paidAt).toLocaleString()}\n`;
+    text += `Payee: ${pay.supplierName}\n`;
+    text += `AMOUNT PAID: Rs. ${pay.amount.toLocaleString()}\n`;
+    text += `Method: ${pay.method.toUpperCase()}\n`;
+    if (pay.bankName) text += `Bank: ${pay.bankName}\n`;
+    if (pay.sourceAccount) text += `Source: ${pay.sourceAccount}\n`;
+    if (pay.reference) text += `Reference / Trx ID: ${pay.reference}\n`;
+    if (pay.chequeNumber) text += `Cheque #: ${pay.chequeNumber} (Date: ${pay.chequeDate || 'N/A'})\n`;
+    if (pay.purchaseOrderId) text += `Linked PO: #${pay.purchaseOrderId}\n`;
+    text += `Paid By: ${pay.paidBy || 'Admin'}\n`;
+    if (pay.receivedByContact) text += `Received By: ${pay.receivedByContact}\n`;
+    if (pay.notes) text += `Notes: ${pay.notes}\n`;
+    text += `Status: CLEARED & VERIFIED\n`;
+    text += `==============================\n`;
+
+    copyToClipboard(text, 'Payment Voucher Slip');
   };
 
   // ----------------------------------------------------
@@ -1129,41 +1402,333 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
                 <Text style={styles.sectionTitle}>Vendor Settlements & Payment Logs</Text>
                 <Text style={styles.sectionSub}>All cleared payouts made to restaurant suppliers</Text>
               </View>
+              <TouchableOpacity
+                style={styles.primaryBtn}
+                onPress={() => {
+                  const firstSup = suppliers[0];
+                  if (firstSup) handleOpenPaymentModal(firstSup);
+                }}
+              >
+                <Ionicons name="cash-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.primaryBtnText}>Record Payment</Text>
+              </TouchableOpacity>
             </View>
 
-            {supplierPayments.length === 0 ? (
+            {/* Payment KPIs Summary Bar */}
+            <View style={styles.paymentKpiRow}>
+              <View style={[styles.paymentKpiCard, { borderLeftColor: BRAND.success }]}>
+                <View style={[styles.kpiIconWrap, { backgroundColor: '#E8F5E9' }]}>
+                  <Ionicons name="cash" size={20} color={BRAND.success} />
+                </View>
+                <View>
+                  <Text style={styles.kpiLabel}>Total Paid Out</Text>
+                  <Text style={[styles.kpiValue, { color: BRAND.success }]}>
+                    Rs. {totalPaymentsDisbursed.toLocaleString()}
+                  </Text>
+                  <Text style={styles.kpiMeta}>{supplierPayments.length} Total Vouchers</Text>
+                </View>
+              </View>
+
+              <View style={[styles.paymentKpiCard, { borderLeftColor: BRAND.burgundy }]}>
+                <View style={[styles.kpiIconWrap, { backgroundColor: '#F5EBE6' }]}>
+                  <Ionicons name="wallet-outline" size={20} color={BRAND.burgundy} />
+                </View>
+                <View>
+                  <Text style={styles.kpiLabel}>Cash Disbursements</Text>
+                  <Text style={[styles.kpiValue, { color: BRAND.burgundy }]}>
+                    Rs. {cashPaymentsTotal.toLocaleString()}
+                  </Text>
+                  <Text style={styles.kpiMeta}>From Cash Drawers / Counters</Text>
+                </View>
+              </View>
+
+              <View style={[styles.paymentKpiCard, { borderLeftColor: BRAND.info }]}>
+                <View style={[styles.kpiIconWrap, { backgroundColor: '#E1F5FE' }]}>
+                  <Ionicons name="card-outline" size={20} color={BRAND.info} />
+                </View>
+                <View>
+                  <Text style={styles.kpiLabel}>Bank & Online</Text>
+                  <Text style={[styles.kpiValue, { color: BRAND.info }]}>
+                    Rs. {onlinePaymentsTotal.toLocaleString()}
+                  </Text>
+                  <Text style={styles.kpiMeta}>IBFT / Online Transfers</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Payment Search & Filter Section */}
+            <View style={styles.filterSection}>
+              <View style={styles.searchBar}>
+                <Ionicons name="search" size={18} color={BRAND.muted} style={{ marginRight: 8 }} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search payments by vendor, reference, bank, or notes..."
+                  value={paymentSearch}
+                  onChangeText={setPaymentSearch}
+                  placeholderTextColor="#9E9E9E"
+                />
+                {paymentSearch.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchQuery('')}>
+                    <Ionicons name="close-circle" size={18} color={BRAND.muted} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Method filter pills */}
+              <View style={styles.balanceFilterRow}>
+                <Text style={styles.filterLabel}>Method:</Text>
+                {(['all', 'cash', 'online', 'cheque'] as const).map((m) => (
+                  <TouchableOpacity
+                    key={m}
+                    style={[styles.balancePill, paymentMethodFilter === m && styles.balancePillActive]}
+                    onPress={() => setPaymentMethodFilter(m)}
+                  >
+                    <Text
+                      style={[
+                        styles.balancePillText,
+                        paymentMethodFilter === m && styles.balancePillTextActive,
+                      ]}
+                    >
+                      {m.toUpperCase()}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Vendor Filter Pills */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+              <TouchableOpacity
+                style={[styles.categoryPill, paymentSupplierFilter === 'all' && styles.categoryPillActive]}
+                onPress={() => setPaymentSupplierFilter('all')}
+              >
+                <Text
+                  style={[
+                    styles.categoryPillText,
+                    paymentSupplierFilter === 'all' && styles.categoryPillTextActive,
+                  ]}
+                >
+                  All Vendors ({supplierPayments.length})
+                </Text>
+              </TouchableOpacity>
+              {suppliers.map((s) => {
+                const count = supplierPayments.filter((p) => p.supplierId === s.id).length;
+                if (count === 0) return null;
+                const isSelected = paymentSupplierFilter === s.id;
+                return (
+                  <TouchableOpacity
+                    key={s.id}
+                    style={[styles.categoryPill, isSelected && styles.categoryPillActive]}
+                    onPress={() => setPaymentSupplierFilter(s.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.categoryPillText,
+                        isSelected && styles.categoryPillTextActive,
+                      ]}
+                    >
+                      {s.name} ({count})
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {/* Payments List */}
+            {filteredPayments.length === 0 ? (
               <View style={styles.emptyState}>
                 <Ionicons name="cash-outline" size={48} color={BRAND.muted} style={{ marginBottom: 12 }} />
-                <Text style={styles.emptyStateTitle}>No Payments Recorded</Text>
-                <Text style={styles.emptyStateSub}>Payments recorded against suppliers will appear here.</Text>
+                <Text style={styles.emptyStateTitle}>No Payments Found</Text>
+                <Text style={styles.emptyStateSub}>
+                  {supplierPayments.length === 0
+                    ? 'No payments recorded yet. Click "Record Payment" to log a settlement.'
+                    : 'No payments match the active search or filters.'}
+                </Text>
               </View>
             ) : (
-              supplierPayments.map((pay) => (
-                <View key={pay.id} style={styles.paymentCard}>
-                  <View style={styles.paymentLeft}>
-                    <View style={styles.payIconWrap}>
-                      <Ionicons
-                        name={pay.method === 'online' ? 'phone-portrait-outline' : 'cash-outline'}
-                        size={20}
-                        color={BRAND.burgundy}
-                      />
-                    </View>
-                    <View>
-                      <Text style={styles.paymentSupplierName}>{pay.supplierName}</Text>
-                      <Text style={styles.paymentMeta}>
-                        {new Date(pay.paidAt).toLocaleString()} • Method: {pay.method.toUpperCase()}
-                        {pay.reference ? ` • Ref: ${pay.reference}` : ''}
-                      </Text>
-                      {pay.notes ? <Text style={styles.paymentNote}>{pay.notes}</Text> : null}
-                    </View>
-                  </View>
+              filteredPayments.map((pay) => {
+                const sup = suppliers.find((s) => s.id === pay.supplierId);
+                const isCash = pay.method === 'cash';
+                const isOnline = pay.method === 'online';
+                const isCheque = pay.method === 'cheque';
 
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.paymentAmount}>Rs. {pay.amount.toLocaleString()}</Text>
-                    <Text style={styles.paidByTag}>Paid by: {pay.paidBy || 'Admin'}</Text>
+                return (
+                  <View key={pay.id} style={styles.paymentCardFull}>
+                    <View style={styles.paymentCardHeader}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                        <View
+                          style={[
+                            styles.payIconWrapLarge,
+                            {
+                              backgroundColor: isCash
+                                ? '#E8F5E9'
+                                : isOnline
+                                ? '#E1F5FE'
+                                : '#FFF3E0',
+                            },
+                          ]}
+                        >
+                          <Ionicons
+                            name={
+                              isCash
+                                ? 'cash-outline'
+                                : isOnline
+                                ? 'phone-portrait-outline'
+                                : 'document-text-outline'
+                            }
+                            size={22}
+                            color={isCash ? '#2E7D32' : isOnline ? '#0277BD' : '#E65100'}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={styles.paymentSupplierNameLarge}>{pay.supplierName}</Text>
+                            <View
+                              style={[
+                                styles.payMethodTag,
+                                {
+                                  backgroundColor: isCash
+                                    ? '#E8F5E9'
+                                    : isOnline
+                                    ? '#E1F5FE'
+                                    : '#FFF3E0',
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.payMethodTagText,
+                                  { color: isCash ? '#2E7D32' : isOnline ? '#0277BD' : '#E65100' },
+                                ]}
+                              >
+                                {pay.method.toUpperCase()}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <Text style={styles.paymentVoucherId}>
+                            Voucher: VCH-{pay.id.slice(-6).toUpperCase()} •{' '}
+                            {new Date(pay.paidAt).toLocaleString([], {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Right amount badge */}
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={styles.paymentAmountLarge}>
+                          Rs. {pay.amount.toLocaleString()}
+                        </Text>
+                        <Text style={styles.paidByTag}>Disbursed by: {pay.paidBy || 'Admin'}</Text>
+                      </View>
+                    </View>
+
+                    {/* Detailed info pills row */}
+                    <View style={styles.payDetailsGrid}>
+                      {pay.sourceAccount && (
+                        <View style={styles.payDetailItem}>
+                          <Ionicons name="wallet-outline" size={13} color={BRAND.muted} style={{ marginRight: 4 }} />
+                          <Text style={styles.payDetailText}>
+                            <Text style={{ fontWeight: '700' }}>Paid From:</Text> {pay.sourceAccount}
+                          </Text>
+                        </View>
+                      )}
+
+                      {pay.bankName && (
+                        <View style={styles.payDetailItem}>
+                          <Ionicons name="business-outline" size={13} color={BRAND.muted} style={{ marginRight: 4 }} />
+                          <Text style={styles.payDetailText}>
+                            <Text style={{ fontWeight: '700' }}>Bank:</Text> {pay.bankName}
+                          </Text>
+                        </View>
+                      )}
+
+                      {pay.reference && (
+                        <View style={styles.payDetailItem}>
+                          <Ionicons name="barcode-outline" size={13} color={BRAND.muted} style={{ marginRight: 4 }} />
+                          <Text style={styles.payDetailText}>
+                            <Text style={{ fontWeight: '700' }}>Trx / Ref:</Text> {pay.reference}
+                          </Text>
+                        </View>
+                      )}
+
+                      {pay.chequeNumber && (
+                        <View style={styles.payDetailItem}>
+                          <Ionicons name="newspaper-outline" size={13} color={BRAND.muted} style={{ marginRight: 4 }} />
+                          <Text style={styles.payDetailText}>
+                            <Text style={{ fontWeight: '700' }}>Cheque #:</Text> {pay.chequeNumber}
+                            {pay.chequeDate ? ` (Due: ${pay.chequeDate})` : ''}
+                          </Text>
+                        </View>
+                      )}
+
+                      {pay.receivedByContact && (
+                        <View style={styles.payDetailItem}>
+                          <Ionicons name="person-circle-outline" size={13} color={BRAND.muted} style={{ marginRight: 4 }} />
+                          <Text style={styles.payDetailText}>
+                            <Text style={{ fontWeight: '700' }}>Received By:</Text> {pay.receivedByContact}
+                          </Text>
+                        </View>
+                      )}
+
+                      {pay.purchaseOrderId && (
+                        <View style={styles.payDetailItem}>
+                          <Ionicons name="document-attach-outline" size={13} color={BRAND.muted} style={{ marginRight: 4 }} />
+                          <Text style={styles.payDetailText}>
+                            <Text style={{ fontWeight: '700' }}>Linked PO:</Text> #{pay.purchaseOrderId}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {pay.notes ? (
+                      <View style={styles.paymentNoteBox}>
+                        <Ionicons name="information-circle-outline" size={14} color={BRAND.goldDark} style={{ marginRight: 6 }} />
+                        <Text style={styles.paymentNoteText}>{pay.notes}</Text>
+                      </View>
+                    ) : null}
+
+                    {/* Action buttons */}
+                    <View style={styles.paymentCardActions}>
+                      <TouchableOpacity
+                        style={styles.payActionBtn}
+                        onPress={() => handleOpenVoucherModal(pay)}
+                      >
+                        <Ionicons name="receipt-outline" size={14} color={BRAND.burgundy} style={{ marginRight: 4 }} />
+                        <Text style={styles.payActionBtnText}>View Voucher Slip</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.payActionBtn}
+                        onPress={() => handleSharePaymentVoucher(pay)}
+                      >
+                        <Ionicons name="share-social-outline" size={14} color={BRAND.muted} style={{ marginRight: 4 }} />
+                        <Text style={[styles.payActionBtnText, { color: BRAND.ink }]}>Copy Receipt</Text>
+                      </TouchableOpacity>
+
+                      {sup && (
+                        <TouchableOpacity
+                          style={styles.payActionBtn}
+                          onPress={() => handleOpenLedger(sup)}
+                        >
+                          <Ionicons name="newspaper-outline" size={14} color={BRAND.muted} style={{ marginRight: 4 }} />
+                          <Text style={[styles.payActionBtnText, { color: BRAND.ink }]}>Vendor Ledger</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      <TouchableOpacity
+                        style={[styles.payActionBtn, { borderColor: '#FFCDD2' }]}
+                        onPress={() => handleDeletePayment(pay)}
+                      >
+                        <Ionicons name="trash-outline" size={14} color={BRAND.danger} style={{ marginRight: 4 }} />
+                        <Text style={[styles.payActionBtnText, { color: BRAND.danger }]}>Reverse</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                </View>
-              ))
+                );
+              })
             )}
           </View>
         )}
@@ -1622,33 +2187,152 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
       </Modal>
 
       {/* ---------------------------------------------------- */}
-      {/* MODAL 3: RECORD PAYMENT */}
+      {/* MODAL 3: RECORD VENDOR PAYMENT (FULL DETAILS) */}
       {/* ---------------------------------------------------- */}
       <Modal visible={isPaymentModalOpen} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalBox, { width: isMobile ? '95%' : 480 }]}>
+          <View style={[styles.modalBox, { width: isMobile ? '95%' : 560, maxHeight: '92%' }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Record Vendor Payment</Text>
+              <View>
+                <Text style={styles.modalTitle}>Record Vendor Payment Voucher</Text>
+                <Text style={styles.modalSub}>Disburse settlement & update supplier ledger balance</Text>
+              </View>
               <TouchableOpacity onPress={() => setIsPaymentModalOpen(false)}>
                 <Ionicons name="close" size={24} color={BRAND.ink} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalBody}>
-              <View style={{ backgroundColor: '#FDF8EC', padding: 12, borderRadius: 8, marginBottom: 12 }}>
-                <Text style={{ fontWeight: '800', color: BRAND.burgundy, fontSize: 14 }}>
-                  {selectedSupplierForPayment?.name}
-                </Text>
-                <Text style={{ fontSize: 12, color: BRAND.muted, marginTop: 2 }}>
-                  Current Outstanding Due: Rs.{' '}
-                  {(selectedSupplierForPayment?.currentBalance || 0).toLocaleString()}
-                </Text>
-              </View>
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              {/* Supplier info banner */}
+              {(() => {
+                const curSup =
+                  suppliers.find((s) => s.id === paymentForm.supplierId) || selectedSupplierForPayment;
+                const outstanding = curSup?.currentBalance || 0;
+                const pendingPOs = purchaseOrders.filter(
+                  (po) => po.supplierId === curSup?.id && (po.balanceDue || 0) > 0
+                );
 
+                return (
+                  <View>
+                    <View style={styles.paymentSupBanner}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.paymentSupBannerName}>{curSup?.name}</Text>
+                        <Text style={styles.paymentSupBannerMeta}>
+                          {curSup?.category} • {curSup?.contactPerson} ({curSup?.phone})
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={styles.paymentSupBannerDueLabel}>Outstanding Payable</Text>
+                        <Text
+                          style={[
+                            styles.paymentSupBannerDueVal,
+                            { color: outstanding > 0 ? BRAND.danger : BRAND.success },
+                          ]}
+                        >
+                          Rs. {outstanding.toLocaleString()}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Quick Amount Fill Shortcuts */}
+                    {outstanding > 0 && (
+                      <View style={{ marginBottom: 12 }}>
+                        <Text style={styles.inputHintBold}>Quick Amount Shortcuts:</Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                          <TouchableOpacity
+                            style={styles.quickFillPill}
+                            onPress={() => handleQuickFillAmount(outstanding)}
+                          >
+                            <Text style={styles.quickFillPillText}>
+                              Full Due (Rs. {outstanding.toLocaleString()})
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.quickFillPill}
+                            onPress={() => handleQuickFillAmount(outstanding * 0.5)}
+                          >
+                            <Text style={styles.quickFillPillText}>
+                              50% Due (Rs. {Math.round(outstanding * 0.5).toLocaleString()})
+                            </Text>
+                          </TouchableOpacity>
+                          {[5000, 10000, 25000, 50000].map((preset) => {
+                            if (preset > outstanding * 1.5) return null;
+                            return (
+                              <TouchableOpacity
+                                key={preset}
+                                style={styles.quickFillPill}
+                                onPress={() => handleQuickFillAmount(preset)}
+                              >
+                                <Text style={styles.quickFillPillText}>Rs. {preset.toLocaleString()}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    )}
+
+                    {/* PO Specific Allocation (Optional) */}
+                    {pendingPOs.length > 0 && (
+                      <View style={styles.formGroup}>
+                        <Text style={styles.inputLabel}>Allocate Against Specific Invoice / PO (Optional)</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
+                          <TouchableOpacity
+                            style={[
+                              styles.poAllocPill,
+                              !paymentForm.purchaseOrderId && styles.poAllocPillActive,
+                            ]}
+                            onPress={() => setPaymentForm((prev) => ({ ...prev, purchaseOrderId: '' }))}
+                          >
+                            <Text
+                              style={[
+                                styles.poAllocPillText,
+                                !paymentForm.purchaseOrderId && styles.poAllocPillTextActive,
+                              ]}
+                            >
+                              General Account Settlement
+                            </Text>
+                          </TouchableOpacity>
+                          {pendingPOs.map((po) => {
+                            const isSelected = paymentForm.purchaseOrderId === po.id;
+                            return (
+                              <TouchableOpacity
+                                key={po.id}
+                                style={[styles.poAllocPill, isSelected && styles.poAllocPillActive]}
+                                onPress={() => {
+                                  setPaymentForm((prev) => ({
+                                    ...prev,
+                                    purchaseOrderId: po.id,
+                                    amount: String(po.balanceDue),
+                                    notes: `Settlement for PO #${po.poNumber}${po.invoiceNo ? ` (Bill #${po.invoiceNo})` : ''}`,
+                                  }));
+                                }}
+                              >
+                                <Text
+                                  style={[
+                                    styles.poAllocPillText,
+                                    isSelected && styles.poAllocPillTextActive,
+                                  ]}
+                                >
+                                  {po.poNumber}: Due Rs. {po.balanceDue.toLocaleString()}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </ScrollView>
+                      </View>
+                    )}
+                  </View>
+                );
+              })()}
+
+              {/* Amount input */}
               <View style={styles.formGroup}>
-                <Text style={styles.inputLabel}>Payment Amount (Rs) *</Text>
+                <Text style={styles.inputLabel}>Settlement Amount (PKR) *</Text>
                 <TextInput
-                  style={[styles.input, { fontSize: 18, fontWeight: '800', color: BRAND.burgundy }]}
+                  style={[
+                    styles.input,
+                    { fontSize: 20, fontWeight: '900', color: BRAND.burgundy, paddingVertical: 10 },
+                  ]}
                   placeholder="0"
                   keyboardType="numeric"
                   value={paymentForm.amount}
@@ -1656,48 +2340,181 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
                 />
               </View>
 
+              {/* Payment Method Selector */}
               <View style={styles.formGroup}>
-                <Text style={styles.inputLabel}>Payment Method</Text>
+                <Text style={styles.inputLabel}>Payment Method *</Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   {(['cash', 'online', 'cheque'] as const).map((m) => (
                     <TouchableOpacity
                       key={m}
-                      style={[
-                        styles.methodPill,
-                        paymentForm.method === m && styles.methodPillActive,
-                      ]}
+                      style={[styles.methodPill, paymentForm.method === m && styles.methodPillActive]}
                       onPress={() => setPaymentForm({ ...paymentForm, method: m })}
                     >
+                      <Ionicons
+                        name={
+                          m === 'cash'
+                            ? 'cash-outline'
+                            : m === 'online'
+                            ? 'phone-portrait-outline'
+                            : 'document-text-outline'
+                        }
+                        size={16}
+                        color={paymentForm.method === m ? '#FFFFFF' : BRAND.ink}
+                        style={{ marginRight: 6 }}
+                      />
                       <Text
                         style={[
                           styles.methodPillText,
                           paymentForm.method === m && styles.methodPillTextActive,
                         ]}
                       >
-                        {m.toUpperCase()}
+                        {m === 'cash' ? 'Cash Counter' : m === 'online' ? 'Online / IBFT' : 'Bank Cheque'}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </View>
 
-              <View style={styles.formGroup}>
-                <Text style={styles.inputLabel}>Reference / Transaction ID / Cheque #</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. Meezan Trx #98213812"
-                  value={paymentForm.reference}
-                  onChangeText={(t) => setPaymentForm({ ...paymentForm, reference: t })}
-                />
+              {/* Contextual Fields: Cash Mode */}
+              {paymentForm.method === 'cash' && (
+                <View style={styles.formSectionBox}>
+                  <Text style={styles.formSectionTitle}>Cash Payment Details</Text>
+                  <View style={styles.formRow}>
+                    <View style={styles.formCol}>
+                      <Text style={styles.inputLabel}>Cash Drawer / Source</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="e.g. Main Cash Drawer / Safe Vault"
+                        value={paymentForm.sourceAccount}
+                        onChangeText={(t) => setPaymentForm({ ...paymentForm, sourceAccount: t })}
+                      />
+                    </View>
+                    <View style={styles.formCol}>
+                      <Text style={styles.inputLabel}>Cash Receiver / Vendor Agent</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="e.g. Driver Rafiq / Sales Rep"
+                        value={paymentForm.receivedByContact}
+                        onChangeText={(t) => setPaymentForm({ ...paymentForm, receivedByContact: t })}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.inputLabel}>Cash Receipt Voucher / Serial #</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="e.g. Cash Voucher #981 / Slip #12"
+                      value={paymentForm.reference}
+                      onChangeText={(t) => setPaymentForm({ ...paymentForm, reference: t })}
+                    />
+                  </View>
+                </View>
+              )}
+
+              {/* Contextual Fields: Online Mode */}
+              {paymentForm.method === 'online' && (
+                <View style={styles.formSectionBox}>
+                  <Text style={styles.formSectionTitle}>Online / IBFT Transfer Details</Text>
+                  <View style={styles.formRow}>
+                    <View style={styles.formCol}>
+                      <Text style={styles.inputLabel}>Restaurant Debit Account</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="e.g. Meezan Bank A/C #0281"
+                        value={paymentForm.sourceAccount}
+                        onChangeText={(t) => setPaymentForm({ ...paymentForm, sourceAccount: t })}
+                      />
+                    </View>
+                    <View style={styles.formCol}>
+                      <Text style={styles.inputLabel}>Beneficiary Bank</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="e.g. Meezan Bank / HBL / Bank Alfalah"
+                        value={paymentForm.bankName}
+                        onChangeText={(t) => setPaymentForm({ ...paymentForm, bankName: t })}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.inputLabel}>Bank Transaction ID / UTR / Reference *</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="e.g. IBFT-9821381283 / Trx #882194"
+                      value={paymentForm.reference}
+                      onChangeText={(t) => setPaymentForm({ ...paymentForm, reference: t })}
+                    />
+                  </View>
+                </View>
+              )}
+
+              {/* Contextual Fields: Cheque Mode */}
+              {paymentForm.method === 'cheque' && (
+                <View style={styles.formSectionBox}>
+                  <Text style={styles.formSectionTitle}>Cheque Instrument Details</Text>
+                  <View style={styles.formRow}>
+                    <View style={styles.formCol}>
+                      <Text style={styles.inputLabel}>Cheque Number *</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="e.g. CHQ-0098231"
+                        value={paymentForm.chequeNumber}
+                        onChangeText={(t) => setPaymentForm({ ...paymentForm, chequeNumber: t })}
+                      />
+                    </View>
+                    <View style={styles.formCol}>
+                      <Text style={styles.inputLabel}>Bank Name</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="e.g. Meezan Bank Ltd"
+                        value={paymentForm.bankName}
+                        onChangeText={(t) => setPaymentForm({ ...paymentForm, bankName: t })}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.formRow}>
+                    <View style={styles.formCol}>
+                      <Text style={styles.inputLabel}>Cheque Clearance Date</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="YYYY-MM-DD"
+                        value={paymentForm.chequeDate}
+                        onChangeText={(t) => setPaymentForm({ ...paymentForm, chequeDate: t })}
+                      />
+                    </View>
+                    <View style={styles.formCol}>
+                      <Text style={styles.inputLabel}>Cheque Delivered To</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="e.g. Supplier Manager"
+                        value={paymentForm.receivedByContact}
+                        onChangeText={(t) => setPaymentForm({ ...paymentForm, receivedByContact: t })}
+                      />
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              {/* Authorized by & Notes */}
+              <View style={styles.formRow}>
+                <View style={styles.formCol}>
+                  <Text style={styles.inputLabel}>Disbursed / Authorized By</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. Admin / Cashier Omar"
+                    value={paymentForm.paidBy}
+                    onChangeText={(t) => setPaymentForm({ ...paymentForm, paidBy: t })}
+                  />
+                </View>
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.inputLabel}>Paid By</Text>
+                <Text style={styles.inputLabel}>Payment Remarks / Ledger Narration</Text>
                 <TextInput
-                  style={styles.input}
-                  placeholder="e.g. Admin / Cashier"
-                  value={paymentForm.paidBy}
-                  onChangeText={(t) => setPaymentForm({ ...paymentForm, paidBy: t })}
+                  style={[styles.input, { height: 60 }]}
+                  multiline
+                  placeholder="e.g. Weekly vendor settlement cleared after quality verification."
+                  value={paymentForm.notes}
+                  onChangeText={(t) => setPaymentForm({ ...paymentForm, notes: t })}
                 />
               </View>
 
@@ -1711,17 +2528,18 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
                   color={BRAND.burgundy}
                 />
                 <Text style={styles.toggleText}>
-                  Record as Daily Cash Expense in Shift Ledger
+                  Auto-record as cash expense in Daily Restaurant Shift Ledger
                 </Text>
               </TouchableOpacity>
-            </View>
+            </ScrollView>
 
             <View style={styles.modalFooter}>
               <TouchableOpacity style={styles.secondaryBtn} onPress={() => setIsPaymentModalOpen(false)}>
                 <Text style={styles.secondaryBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.primaryBtn} onPress={handleSavePayment}>
-                <Text style={styles.primaryBtnText}>Confirm Payment</Text>
+                <Ionicons name="checkmark-circle-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.primaryBtnText}>Confirm & Generate Voucher</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1729,99 +2547,701 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
       </Modal>
 
       {/* ---------------------------------------------------- */}
-      {/* MODAL 4: SUPPLIER LEDGER */}
+      {/* MODAL 4: DEDICATED SEPARATE SUPPLIER ACCOUNT LEDGER */}
       {/* ---------------------------------------------------- */}
       <Modal visible={isLedgerModalOpen} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalBox, { width: isMobile ? '95%' : 700, maxHeight: '88%' }]}>
+          <View style={[styles.modalBox, { width: isMobile ? '95%' : 840, maxHeight: '92%' }]}>
+            {(() => {
+              const currentSup =
+                suppliers.find((s) => s.id === ledgerSupplier?.id) || ledgerSupplier;
+              if (!currentSup) return null;
+
+              const allLedgerEntries = getSupplierLedgerEntries(currentSup.id);
+              const totalBilled = allLedgerEntries
+                .filter((e) => e.type === 'bill')
+                .reduce((sum, e) => sum + e.debit, 0);
+              const totalPaid = allLedgerEntries
+                .filter((e) => e.type === 'payment')
+                .reduce((sum, e) => sum + e.credit, 0);
+              const currentDue = currentSup.currentBalance || 0;
+
+              // Filtered entries within ledger
+              const displayedEntries = allLedgerEntries
+                .filter((e) => {
+                  if (ledgerFilter === 'bills' && e.type !== 'bill') return false;
+                  if (ledgerFilter === 'payments' && e.type !== 'payment') return false;
+                  if (ledgerSearch.trim()) {
+                    const q = ledgerSearch.toLowerCase();
+                    const mDoc = e.docNumber.toLowerCase().includes(q);
+                    const mInv = e.invoiceNo?.toLowerCase().includes(q);
+                    const mSub = e.subtitle.toLowerCase().includes(q);
+                    if (!mDoc && !mInv && !mSub) return false;
+                  }
+                  return true;
+                })
+                .sort((a, b) => (ledgerSortAsc ? a.date - b.date : b.date - a.date));
+
+              return (
+                <View style={{ flex: 1 }}>
+                  {/* Ledger Header */}
+                  <View style={styles.modalHeader}>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={styles.modalTitle}>Supplier Account Statement & Ledger</Text>
+                        <View style={styles.badgePill}>
+                          <Text style={styles.badgePillText}>{currentSup.category.toUpperCase()}</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.modalSub}>
+                        {currentSup.name} • Contact: {currentSup.contactPerson} ({currentSup.phone})
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity onPress={() => setIsLedgerModalOpen(false)}>
+                      <Ionicons name="close" size={24} color={BRAND.ink} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+                    {/* Supplier Contact & Quick Actions Strip */}
+                    <View style={styles.ledgerSupplierStrip}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.ledgerSupAddress}>
+                          <Ionicons name="location-outline" size={13} color={BRAND.muted} />{' '}
+                          {currentSup.address || currentSup.city || 'Lahore'}
+                          {currentSup.paymentTerms ? ` • Terms: ${currentSup.paymentTerms}` : ''}
+                        </Text>
+                        {currentSup.bankDetails?.accountNumber ? (
+                          <TouchableOpacity
+                            style={styles.ledgerBankCopyRow}
+                            onPress={() =>
+                              copyToClipboard(
+                                `${currentSup.bankDetails?.bankName} - ${currentSup.bankDetails?.accountNumber} (${currentSup.bankDetails?.accountTitle})`,
+                                'Bank Details Copied'
+                              )
+                            }
+                          >
+                            <Ionicons name="card-outline" size={13} color={BRAND.goldDark} />
+                            <Text style={styles.ledgerBankCopyText}>
+                              {currentSup.bankDetails.bankName}: {currentSup.bankDetails.accountNumber} (
+                              {currentSup.bankDetails.accountTitle}) • Tap to copy
+                            </Text>
+                          </TouchableOpacity>
+                        ) : null}
+                      </View>
+
+                      <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                        <TouchableOpacity
+                          style={[styles.commBtn, { backgroundColor: '#E8F5E9' }]}
+                          onPress={() => handleWhatsApp(currentSup)}
+                          accessibilityLabel="WhatsApp Vendor"
+                        >
+                          <Ionicons name="logo-whatsapp" size={18} color="#2E7D32" />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.commBtn, { backgroundColor: '#E1F5FE' }]}
+                          onPress={() => handleCall(currentSup.phone)}
+                          accessibilityLabel="Call Vendor"
+                        >
+                          <Ionicons name="call" size={16} color="#0277BD" />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.ledgerActionBtnSmall}
+                          onPress={() => handleShareLedger(currentSup, allLedgerEntries)}
+                        >
+                          <Ionicons name="share-social-outline" size={14} color={BRAND.burgundy} style={{ marginRight: 4 }} />
+                          <Text style={styles.ledgerActionBtnSmallText}>Copy Statement</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.primaryBtn, { paddingVertical: 6, paddingHorizontal: 10 }]}
+                          onPress={() => handleOpenPaymentModal(currentSup)}
+                        >
+                          <Ionicons name="cash-outline" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                          <Text style={[styles.primaryBtnText, { fontSize: 11 }]}>Pay Dues</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.primaryBtn, { backgroundColor: BRAND.goldDark, paddingVertical: 6, paddingHorizontal: 10 }]}
+                          onPress={() => handleOpenNewPO(currentSup)}
+                        >
+                          <Ionicons name="cart-outline" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                          <Text style={[styles.primaryBtnText, { fontSize: 11 }]}>New PO</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    {/* Financial Summary KPI Cards */}
+                    <View style={styles.ledgerKpiRow}>
+                      <View style={[styles.ledgerKpiBox, { borderLeftColor: BRAND.burgundy }]}>
+                        <Text style={styles.ledgerKpiLabel}>Total Procurement (Dr)</Text>
+                        <Text style={[styles.ledgerKpiVal, { color: BRAND.burgundy }]}>
+                          Rs. {totalBilled.toLocaleString()}
+                        </Text>
+                        <Text style={styles.ledgerKpiSub}>Invoices / Goods Received</Text>
+                      </View>
+
+                      <View style={[styles.ledgerKpiBox, { borderLeftColor: BRAND.success }]}>
+                        <Text style={styles.ledgerKpiLabel}>Total Paid Out (Cr)</Text>
+                        <Text style={[styles.ledgerKpiVal, { color: BRAND.success }]}>
+                          Rs. {totalPaid.toLocaleString()}
+                        </Text>
+                        <Text style={styles.ledgerKpiSub}>Payments Cleared</Text>
+                      </View>
+
+                      <View style={[styles.ledgerKpiBox, { borderLeftColor: currentDue > 0 ? BRAND.danger : BRAND.success }]}>
+                        <Text style={styles.ledgerKpiLabel}>Net Outstanding Payable</Text>
+                        <Text
+                          style={[
+                            styles.ledgerKpiVal,
+                            { color: currentDue > 0 ? BRAND.danger : BRAND.success },
+                          ]}
+                        >
+                          Rs. {currentDue.toLocaleString()}
+                        </Text>
+                        <Text style={styles.ledgerKpiSub}>
+                          {currentDue > 0 ? '⚠️ Outstanding Dues Pending' : '✓ Account Fully Settled'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Ledger Filter & Search Toolbar */}
+                    <View style={styles.ledgerToolbar}>
+                      <View style={styles.ledgerFilterTabs}>
+                        <TouchableOpacity
+                          style={[styles.ledgerTabPill, ledgerFilter === 'all' && styles.ledgerTabPillActive]}
+                          onPress={() => setLedgerFilter('all')}
+                        >
+                          <Text
+                            style={[
+                              styles.ledgerTabPillText,
+                              ledgerFilter === 'all' && styles.ledgerTabPillTextActive,
+                            ]}
+                          >
+                            All ({allLedgerEntries.length})
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.ledgerTabPill, ledgerFilter === 'bills' && styles.ledgerTabPillActive]}
+                          onPress={() => setLedgerFilter('bills')}
+                        >
+                          <Text
+                            style={[
+                              styles.ledgerTabPillText,
+                              ledgerFilter === 'bills' && styles.ledgerTabPillTextActive,
+                            ]}
+                          >
+                            Bills (Dr) ({allLedgerEntries.filter((e) => e.type === 'bill').length})
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.ledgerTabPill, ledgerFilter === 'payments' && styles.ledgerTabPillActive]}
+                          onPress={() => setLedgerFilter('payments')}
+                        >
+                          <Text
+                            style={[
+                              styles.ledgerTabPillText,
+                              ledgerFilter === 'payments' && styles.ledgerTabPillTextActive,
+                            ]}
+                          >
+                            Payments (Cr) ({allLedgerEntries.filter((e) => e.type === 'payment').length})
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      <View style={styles.ledgerSearchBox}>
+                        <Ionicons name="search" size={14} color={BRAND.muted} style={{ marginRight: 6 }} />
+                        <TextInput
+                          style={styles.ledgerSearchInput}
+                          placeholder="Search statement..."
+                          value={ledgerSearch}
+                          onChangeText={setLedgerSearch}
+                          placeholderTextColor="#9E9E9E"
+                        />
+                        {ledgerSearch.length > 0 && (
+                          <TouchableOpacity onPress={() => setLedgerSearch('')}>
+                            <Ionicons name="close-circle" size={14} color={BRAND.muted} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      <TouchableOpacity
+                        style={styles.ledgerSortBtn}
+                        onPress={() => setLedgerSortAsc(!ledgerSortAsc)}
+                      >
+                        <Ionicons
+                          name={ledgerSortAsc ? 'arrow-up-outline' : 'arrow-down-outline'}
+                          size={14}
+                          color={BRAND.burgundy}
+                        />
+                        <Text style={styles.ledgerSortBtnText}>
+                          {ledgerSortAsc ? 'Oldest First' : 'Newest First'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Chronological Table Header */}
+                    <View style={styles.ledgerTableHeader}>
+                      <Text style={[styles.ledgerTh, { flex: 2 }]}>Date & Time</Text>
+                      <Text style={[styles.ledgerTh, { flex: 4 }]}>Voucher & Transaction Details</Text>
+                      <Text style={[styles.ledgerTh, { flex: 2, textAlign: 'right' }]}>Billed (Dr)</Text>
+                      <Text style={[styles.ledgerTh, { flex: 2, textAlign: 'right' }]}>Paid (Cr)</Text>
+                      <Text style={[styles.ledgerTh, { flex: 2.2, textAlign: 'right' }]}>Running Balance</Text>
+                      <Text style={[styles.ledgerTh, { flex: 1.5, textAlign: 'center' }]}>Action</Text>
+                    </View>
+
+                    {/* Chronological Statement Rows */}
+                    {displayedEntries.length === 0 ? (
+                      <View style={styles.emptyState}>
+                        <Ionicons name="newspaper-outline" size={40} color={BRAND.muted} style={{ marginBottom: 8 }} />
+                        <Text style={styles.emptyStateTitle}>No Ledger Entries</Text>
+                        <Text style={styles.emptyStateSub}>No matching bills or payments found for this vendor.</Text>
+                      </View>
+                    ) : (
+                      displayedEntries.map((entry) => {
+                        const isBill = entry.type === 'bill';
+                        const isPay = entry.type === 'payment';
+
+                        return (
+                          <View key={entry.id} style={styles.ledgerTableRow}>
+                            {/* Date */}
+                            <View style={{ flex: 2 }}>
+                              <Text style={styles.ledgerRowDate}>
+                                {new Date(entry.date).toLocaleDateString([], {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })}
+                              </Text>
+                              <Text style={styles.ledgerRowTime}>
+                                {new Date(entry.date).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </Text>
+                            </View>
+
+                            {/* Voucher & Description */}
+                            <View style={{ flex: 4, paddingRight: 6 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <View
+                                  style={[
+                                    styles.ledgerTypeBadge,
+                                    { backgroundColor: isBill ? '#F5EBE6' : '#E8F5E9' },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.ledgerTypeBadgeText,
+                                      { color: isBill ? BRAND.burgundy : BRAND.success },
+                                    ]}
+                                  >
+                                    {isBill ? 'BILL' : 'PAID'}
+                                  </Text>
+                                </View>
+                                <Text style={styles.ledgerDocNo}>{entry.docNumber}</Text>
+                                {entry.invoiceNo ? (
+                                  <Text style={styles.ledgerInvNo}>(Inv: {entry.invoiceNo})</Text>
+                                ) : null}
+                              </View>
+                              <Text style={styles.ledgerRowSubtitle} numberOfLines={2}>
+                                {entry.subtitle}
+                              </Text>
+                            </View>
+
+                            {/* Billed (Debit) */}
+                            <View style={{ flex: 2, alignItems: 'flex-end' }}>
+                              {entry.debit > 0 ? (
+                                <Text style={[styles.ledgerAmountVal, { color: BRAND.burgundy }]}>
+                                  + Rs. {entry.debit.toLocaleString()}
+                                </Text>
+                              ) : (
+                                <Text style={styles.ledgerAmountDash}>-</Text>
+                              )}
+                            </View>
+
+                            {/* Paid (Credit) */}
+                            <View style={{ flex: 2, alignItems: 'flex-end' }}>
+                              {entry.credit > 0 ? (
+                                <Text style={[styles.ledgerAmountVal, { color: BRAND.success }]}>
+                                  - Rs. {entry.credit.toLocaleString()}
+                                </Text>
+                              ) : (
+                                <Text style={styles.ledgerAmountDash}>-</Text>
+                              )}
+                            </View>
+
+                            {/* Running Balance */}
+                            <View style={{ flex: 2.2, alignItems: 'flex-end' }}>
+                              <Text style={styles.ledgerRunBalVal}>
+                                Rs. {entry.runningBalance.toLocaleString()}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.ledgerRunBalStatus,
+                                  { color: entry.runningBalance > 0 ? BRAND.danger : BRAND.success },
+                                ]}
+                              >
+                                {entry.runningBalance > 0 ? 'Payable Due' : 'Settled'}
+                              </Text>
+                            </View>
+
+                            {/* Action Button */}
+                            <View style={{ flex: 1.5, alignItems: 'center' }}>
+                              {isBill && entry.po && (
+                                <TouchableOpacity
+                                  style={styles.ledgerRowBtn}
+                                  onPress={() => handleOpenPODetails(entry.po!)}
+                                >
+                                  <Text style={styles.ledgerRowBtnText}>Bill Slip</Text>
+                                </TouchableOpacity>
+                              )}
+                              {isPay && entry.payment && (
+                                <TouchableOpacity
+                                  style={[styles.ledgerRowBtn, { borderColor: '#A5D6A7' }]}
+                                  onPress={() => handleOpenVoucherModal(entry.payment!)}
+                                >
+                                  <Text style={[styles.ledgerRowBtnText, { color: BRAND.success }]}>
+                                    Voucher
+                                  </Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          </View>
+                        );
+                      })
+                    )}
+                  </ScrollView>
+
+                  <View style={styles.modalFooter}>
+                    <TouchableOpacity
+                      style={styles.secondaryBtn}
+                      onPress={() => handleShareLedger(currentSup, allLedgerEntries)}
+                    >
+                      <Ionicons name="logo-whatsapp" size={15} color="#2E7D32" style={{ marginRight: 6 }} />
+                      <Text style={[styles.secondaryBtnText, { color: '#2E7D32' }]}>Send Statement</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.primaryBtn, { backgroundColor: BRAND.danger }]}
+                      onPress={() => {
+                        setIsLedgerModalOpen(false);
+                        handleOpenPaymentModal(currentSup);
+                      }}
+                    >
+                      <Ionicons name="cash-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.primaryBtnText}>
+                        Pay Dues (Rs. {currentDue.toLocaleString()})
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.primaryBtn} onPress={() => setIsLedgerModalOpen(false)}>
+                      <Text style={styles.primaryBtnText}>Close Statement</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })()}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ---------------------------------------------------- */}
+      {/* MODAL 5: OFFICIAL PAYMENT VOUCHER SLIP MODAL */}
+      {/* ---------------------------------------------------- */}
+      <Modal visible={isVoucherModalOpen} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { width: isMobile ? '95%' : 540, maxHeight: '90%' }]}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>Supplier Account Ledger</Text>
-                <Text style={styles.modalSub}>{ledgerSupplier?.name}</Text>
+                <Text style={styles.modalTitle}>Official Payment Settlement Voucher</Text>
+                <Text style={styles.modalSub}>Sultan Restaurant Accounts Disbursement Record</Text>
               </View>
-              <TouchableOpacity onPress={() => setIsLedgerModalOpen(false)}>
+              <TouchableOpacity onPress={() => setIsVoucherModalOpen(false)}>
                 <Ionicons name="close" size={24} color={BRAND.ink} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
-              {/* Top balance summary */}
-              <View style={styles.ledgerHeaderCard}>
-                <View>
-                  <Text style={styles.ledgerMetaLabel}>Current Outstanding Dues</Text>
-                  <Text
-                    style={[
-                      styles.ledgerDueAmount,
-                      {
-                        color:
-                          (ledgerSupplier?.currentBalance || 0) > 0 ? BRAND.danger : BRAND.success,
-                      },
-                    ]}
-                  >
-                    Rs. {(ledgerSupplier?.currentBalance || 0).toLocaleString()}
-                  </Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.ledgerMetaLabel}>Lifetime Purchases</Text>
-                  <Text style={styles.ledgerLifetimeAmount}>
-                    Rs. {(ledgerSupplier?.totalPurchases || 0).toLocaleString()}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Purchase orders from this supplier */}
-              <Text style={styles.ledgerSectionTitle}>Purchase Orders History</Text>
-              {purchaseOrders
-                .filter((po) => po.supplierId === ledgerSupplier?.id)
-                .map((po) => (
-                  <View key={po.id} style={styles.ledgerPoRow}>
-                    <View>
-                      <Text style={{ fontWeight: '700', color: BRAND.ink }}>{po.poNumber}</Text>
-                      <Text style={{ fontSize: 11, color: BRAND.muted }}>
-                        {new Date(po.orderDate).toLocaleDateString()} • Items:{' '}
-                        {po.items.map((i) => i.name).join(', ')}
-                      </Text>
+            {selectedPaymentForVoucher && (
+              <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+                {/* Official Voucher Card */}
+                <View style={styles.voucherContainer}>
+                  {/* Voucher Header Banner */}
+                  <View style={styles.voucherHeaderBox}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Ionicons name="restaurant" size={20} color={BRAND.burgundy} />
+                      <Text style={styles.voucherBrandTitle}>SULTAN RESTAURANT & BBQ</Text>
                     </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={{ fontWeight: '800', color: BRAND.burgundy }}>
-                        Rs. {po.totalAmount.toLocaleString()}
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: 11,
-                          fontWeight: '700',
-                          color: po.balanceDue > 0 ? BRAND.danger : BRAND.success,
-                        }}
-                      >
-                        {po.balanceDue > 0 ? `Due: Rs. ${po.balanceDue}` : '✓ Paid'}
+                    <Text style={styles.voucherBrandSub}>Procurement & Vendor Payment Settlement</Text>
+                    <View style={styles.voucherNoPill}>
+                      <Text style={styles.voucherNoText}>
+                        VOUCHER #{selectedPaymentForVoucher.id.toUpperCase()}
                       </Text>
                     </View>
                   </View>
-                ))}
 
-              {/* Payments made to this supplier */}
-              <Text style={[styles.ledgerSectionTitle, { marginTop: 16 }]}>Settlement Payments History</Text>
-              {supplierPayments
-                .filter((p) => p.supplierId === ledgerSupplier?.id)
-                .map((pay) => (
-                  <View key={pay.id} style={styles.ledgerPayRow}>
-                    <View>
-                      <Text style={{ fontWeight: '700', color: BRAND.success }}>Payment Cleared</Text>
-                      <Text style={{ fontSize: 11, color: BRAND.muted }}>
-                        {new Date(pay.paidAt).toLocaleDateString()} • {pay.method.toUpperCase()}
-                        {pay.reference ? ` (${pay.reference})` : ''}
-                      </Text>
-                    </View>
-                    <Text style={{ fontWeight: '800', color: BRAND.success }}>
-                      - Rs. {pay.amount.toLocaleString()}
+                  {/* Main Amount Callout */}
+                  <View style={styles.voucherAmountBox}>
+                    <Text style={styles.voucherAmountLabel}>AMOUNT PAID / SETTLED</Text>
+                    <Text style={styles.voucherAmountNumber}>
+                      Rs. {selectedPaymentForVoucher.amount.toLocaleString()}
+                    </Text>
+                    <Text style={styles.voucherMethodText}>
+                      via {selectedPaymentForVoucher.method.toUpperCase()}
+                      {selectedPaymentForVoucher.reference ? ` (${selectedPaymentForVoucher.reference})` : ''}
                     </Text>
                   </View>
-                ))}
-            </ScrollView>
+
+                  {/* Voucher Key-Value Details Table */}
+                  <View style={styles.voucherTable}>
+                    <View style={styles.voucherRow}>
+                      <Text style={styles.voucherKey}>Vendor / Payee:</Text>
+                      <Text style={styles.voucherValBold}>{selectedPaymentForVoucher.supplierName}</Text>
+                    </View>
+
+                    <View style={styles.voucherRow}>
+                      <Text style={styles.voucherKey}>Disbursement Date:</Text>
+                      <Text style={styles.voucherVal}>
+                        {new Date(selectedPaymentForVoucher.paidAt).toLocaleString([], {
+                          dateStyle: 'full',
+                          timeStyle: 'short',
+                        })}
+                      </Text>
+                    </View>
+
+                    {selectedPaymentForVoucher.bankName ? (
+                      <View style={styles.voucherRow}>
+                        <Text style={styles.voucherKey}>Bank Name:</Text>
+                        <Text style={styles.voucherVal}>{selectedPaymentForVoucher.bankName}</Text>
+                      </View>
+                    ) : null}
+
+                    {selectedPaymentForVoucher.sourceAccount ? (
+                      <View style={styles.voucherRow}>
+                        <Text style={styles.voucherKey}>Source Drawer / A/C:</Text>
+                        <Text style={styles.voucherVal}>{selectedPaymentForVoucher.sourceAccount}</Text>
+                      </View>
+                    ) : null}
+
+                    {selectedPaymentForVoucher.chequeNumber ? (
+                      <View style={styles.voucherRow}>
+                        <Text style={styles.voucherKey}>Cheque Number:</Text>
+                        <Text style={styles.voucherVal}>
+                          {selectedPaymentForVoucher.chequeNumber}
+                          {selectedPaymentForVoucher.chequeDate
+                            ? ` (Due: ${selectedPaymentForVoucher.chequeDate})`
+                            : ''}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {selectedPaymentForVoucher.purchaseOrderId ? (
+                      <View style={styles.voucherRow}>
+                        <Text style={styles.voucherKey}>Allocated PO #:</Text>
+                        <Text style={styles.voucherVal}>{selectedPaymentForVoucher.purchaseOrderId}</Text>
+                      </View>
+                    ) : null}
+
+                    <View style={styles.voucherRow}>
+                      <Text style={styles.voucherKey}>Disbursed By:</Text>
+                      <Text style={styles.voucherVal}>{selectedPaymentForVoucher.paidBy || 'Admin'}</Text>
+                    </View>
+
+                    {selectedPaymentForVoucher.receivedByContact ? (
+                      <View style={styles.voucherRow}>
+                        <Text style={styles.voucherKey}>Received By:</Text>
+                        <Text style={styles.voucherVal}>{selectedPaymentForVoucher.receivedByContact}</Text>
+                      </View>
+                    ) : null}
+
+                    {selectedPaymentForVoucher.notes ? (
+                      <View style={[styles.voucherRow, { borderBottomWidth: 0 }]}>
+                        <Text style={styles.voucherKey}>Narration / Notes:</Text>
+                        <Text style={[styles.voucherVal, { fontStyle: 'italic' }]}>
+                          {selectedPaymentForVoucher.notes}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  {/* Signatures Row */}
+                  <View style={styles.voucherSignaturesRow}>
+                    <View style={styles.signatureBox}>
+                      <View style={styles.signLine} />
+                      <Text style={styles.signLabel}>Accountant / Disbursed By</Text>
+                    </View>
+
+                    <View style={styles.signatureBox}>
+                      <View style={styles.signLine} />
+                      <Text style={styles.signLabel}>Vendor / Received By</Text>
+                    </View>
+                  </View>
+                </View>
+              </ScrollView>
+            )}
 
             <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.primaryBtn} onPress={() => setIsLedgerModalOpen(false)}>
-                <Text style={styles.primaryBtnText}>Close Statement</Text>
+              <TouchableOpacity
+                style={styles.secondaryBtn}
+                onPress={() => {
+                  if (selectedPaymentForVoucher) handleSharePaymentVoucher(selectedPaymentForVoucher);
+                }}
+              >
+                <Ionicons name="copy-outline" size={15} color={BRAND.burgundy} style={{ marginRight: 6 }} />
+                <Text style={styles.secondaryBtnText}>Copy Voucher Text</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.primaryBtn} onPress={() => setIsVoucherModalOpen(false)}>
+                <Text style={styles.primaryBtnText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ---------------------------------------------------- */}
+      {/* MODAL 6: PURCHASE ORDER / INVOICE ITEM BREAKDOWN */}
+      {/* ---------------------------------------------------- */}
+      <Modal visible={isPODetailsModalOpen} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { width: isMobile ? '95%' : 640, maxHeight: '90%' }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Purchase Bill & Goods Delivery</Text>
+                <Text style={styles.modalSub}>{selectedPOForDetails?.poNumber}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setIsPODetailsModalOpen(false)}>
+                <Ionicons name="close" size={24} color={BRAND.ink} />
+              </TouchableOpacity>
+            </View>
+
+            {selectedPOForDetails && (
+              <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+                <View style={styles.poSummaryBox}>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Supplier / Vendor:</Text>
+                    <Text style={styles.summaryVal}>{selectedPOForDetails.supplierName}</Text>
+                  </View>
+                  {selectedPOForDetails.invoiceNo && (
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>Vendor Bill / Invoice #:</Text>
+                      <Text style={styles.summaryVal}>{selectedPOForDetails.invoiceNo}</Text>
+                    </View>
+                  )}
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Order Date:</Text>
+                    <Text style={styles.summaryVal}>
+                      {new Date(selectedPOForDetails.orderDate).toLocaleString()}
+                    </Text>
+                  </View>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Delivery Status:</Text>
+                    <Text style={[styles.summaryVal, { color: BRAND.success, fontWeight: '800' }]}>
+                      {selectedPOForDetails.status.toUpperCase()} (by {selectedPOForDetails.receivedBy || 'Admin'})
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Items table */}
+                <Text style={[styles.formSectionTitle, { marginTop: 12 }]}>Procured Ingredients & Items</Text>
+                <View style={styles.poItemsTable}>
+                  <View style={styles.poTableHeader}>
+                    <Text style={[styles.poTh, { flex: 3 }]}>Item Name</Text>
+                    <Text style={[styles.poTh, { flex: 1.5, textAlign: 'center' }]}>Qty Recv</Text>
+                    <Text style={[styles.poTh, { flex: 1.5, textAlign: 'right' }]}>Unit Rate</Text>
+                    <Text style={[styles.poTh, { flex: 2, textAlign: 'right' }]}>Total Cost</Text>
+                  </View>
+                  {selectedPOForDetails.items.map((it, idx) => (
+                    <View key={idx} style={styles.poTableRow}>
+                      <Text style={[styles.poTd, { flex: 3, fontWeight: '700' }]}>{it.name}</Text>
+                      <Text style={[styles.poTd, { flex: 1.5, textAlign: 'center' }]}>
+                        {it.qtyReceived || it.qtyOrdered} {it.unit}
+                      </Text>
+                      <Text style={[styles.poTd, { flex: 1.5, textAlign: 'right' }]}>
+                        Rs. {it.unitCost.toLocaleString()}
+                      </Text>
+                      <Text style={[styles.poTd, { flex: 2, textAlign: 'right', fontWeight: '800' }]}>
+                        Rs. {it.totalCost.toLocaleString()}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Bill Totals breakdown */}
+                <View style={styles.poSummaryBox}>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Subtotal:</Text>
+                    <Text style={styles.summaryVal}>Rs. {selectedPOForDetails.subtotal.toLocaleString()}</Text>
+                  </View>
+                  {selectedPOForDetails.discount > 0 && (
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>Discount Received:</Text>
+                      <Text style={[styles.summaryVal, { color: BRAND.success }]}>
+                        - Rs. {selectedPOForDetails.discount.toLocaleString()}
+                      </Text>
+                    </View>
+                  )}
+                  {selectedPOForDetails.freight > 0 && (
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>Freight / Cartage:</Text>
+                      <Text style={styles.summaryVal}>+ Rs. {selectedPOForDetails.freight.toLocaleString()}</Text>
+                    </View>
+                  )}
+                  <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: '#EFE8DC', paddingTop: 6 }]}>
+                    <Text style={[styles.summaryLabel, { fontWeight: '800', color: BRAND.ink }]}>
+                      Total Bill Amount:
+                    </Text>
+                    <Text style={[styles.summaryVal, { fontSize: 16, fontWeight: '900', color: BRAND.burgundy }]}>
+                      Rs. {selectedPOForDetails.totalAmount.toLocaleString()}
+                    </Text>
+                  </View>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Amount Paid (Advance/Receipt):</Text>
+                    <Text style={[styles.summaryVal, { color: BRAND.success, fontWeight: '800' }]}>
+                      Rs. {selectedPOForDetails.amountPaid.toLocaleString()}
+                    </Text>
+                  </View>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Remaining Due on this PO:</Text>
+                    <Text
+                      style={[
+                        styles.summaryVal,
+                        {
+                          color: selectedPOForDetails.balanceDue > 0 ? BRAND.danger : BRAND.success,
+                          fontWeight: '800',
+                        },
+                      ]}
+                    >
+                      Rs. {selectedPOForDetails.balanceDue.toLocaleString()}
+                    </Text>
+                  </View>
+                </View>
+              </ScrollView>
+            )}
+
+            <View style={styles.modalFooter}>
+              {selectedPOForDetails && selectedPOForDetails.balanceDue > 0 && (
+                <TouchableOpacity
+                  style={[styles.primaryBtn, { backgroundColor: BRAND.danger }]}
+                  onPress={() => {
+                    const sup = suppliers.find((s) => s.id === selectedPOForDetails.supplierId);
+                    setIsPODetailsModalOpen(false);
+                    if (sup) handleOpenPaymentModal(sup, selectedPOForDetails);
+                  }}
+                >
+                  <Ionicons name="cash-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.primaryBtnText}>
+                    Pay PO Due (Rs. {selectedPOForDetails.balanceDue.toLocaleString()})
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.primaryBtn} onPress={() => setIsPODetailsModalOpen(false)}>
+                <Text style={styles.primaryBtnText}>Close Bill Details</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -2727,5 +4147,563 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
+  },
+
+  // Payment KPIs & cards
+  paymentKpiRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 14,
+  },
+  paymentKpiCard: {
+    flex: 1,
+    minWidth: 200,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    borderLeftWidth: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  paymentCardFull: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  paymentCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  payIconWrapLarge: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paymentSupplierNameLarge: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: BRAND.ink,
+  },
+  payMethodTag: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  payMethodTagText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  paymentVoucherId: {
+    fontSize: 11,
+    color: BRAND.muted,
+    marginTop: 2,
+  },
+  paymentAmountLarge: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: BRAND.success,
+  },
+  payDetailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    backgroundColor: '#FBFBFC',
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ECEFF1',
+    marginVertical: 8,
+  },
+  payDetailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  payDetailText: {
+    fontSize: 11,
+    color: BRAND.ink,
+  },
+  paymentNoteBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFDE7',
+    padding: 8,
+    borderRadius: 6,
+    marginVertical: 4,
+  },
+  paymentNoteText: {
+    fontSize: 11,
+    color: '#F57F17',
+    fontStyle: 'italic',
+    flex: 1,
+  },
+  paymentCardActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+  },
+  payActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+  },
+  payActionBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: BRAND.burgundy,
+  },
+
+  // Payment Modal Banner & Quick Fill
+  paymentSupBanner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#FDFBF7',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#EFE8DC',
+    marginBottom: 12,
+  },
+  paymentSupBannerName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: BRAND.burgundy,
+  },
+  paymentSupBannerMeta: {
+    fontSize: 11,
+    color: BRAND.muted,
+    marginTop: 2,
+  },
+  paymentSupBannerDueLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: BRAND.muted,
+    textTransform: 'uppercase',
+  },
+  paymentSupBannerDueVal: {
+    fontSize: 16,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  inputHintBold: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: BRAND.ink,
+  },
+  quickFillPill: {
+    backgroundColor: '#F5EBE6',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#EBDAD1',
+  },
+  quickFillPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: BRAND.burgundy,
+  },
+  poAllocPill: {
+    backgroundColor: '#F0F2F5',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginRight: 6,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+  },
+  poAllocPillActive: {
+    backgroundColor: BRAND.burgundy,
+    borderColor: BRAND.burgundy,
+  },
+  poAllocPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: BRAND.ink,
+  },
+  poAllocPillTextActive: {
+    color: '#FFFFFF',
+  },
+
+  // Ledger Strip & Header
+  ledgerSupplierStrip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#FDFBF7',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#EFE8DC',
+    marginBottom: 12,
+    gap: 8,
+  },
+  ledgerSupAddress: {
+    fontSize: 12,
+    color: BRAND.ink,
+    fontWeight: '600',
+  },
+  ledgerBankCopyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  ledgerBankCopyText: {
+    fontSize: 11,
+    color: BRAND.goldDark,
+    fontWeight: '700',
+  },
+  ledgerActionBtnSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  ledgerActionBtnSmallText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: BRAND.burgundy,
+  },
+  ledgerKpiRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 14,
+    flexWrap: 'wrap',
+  },
+  ledgerKpiBox: {
+    flex: 1,
+    minWidth: 160,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    borderLeftWidth: 4,
+  },
+  ledgerKpiLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: BRAND.muted,
+    textTransform: 'uppercase',
+  },
+  ledgerKpiVal: {
+    fontSize: 17,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  ledgerKpiSub: {
+    fontSize: 10,
+    color: BRAND.muted,
+    marginTop: 2,
+  },
+
+  // Ledger Toolbar
+  ledgerToolbar: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  ledgerFilterTabs: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  ledgerTabPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: BRAND.border,
+  },
+  ledgerTabPillActive: {
+    backgroundColor: BRAND.burgundy,
+    borderColor: BRAND.burgundy,
+  },
+  ledgerTabPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: BRAND.ink,
+  },
+  ledgerTabPillTextActive: {
+    color: '#FFFFFF',
+  },
+  ledgerSearchBox: {
+    flex: 1,
+    minWidth: 180,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    height: 34,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+  },
+  ledgerSearchInput: {
+    flex: 1,
+    fontSize: 12,
+    color: BRAND.ink,
+  },
+  ledgerSortBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+  },
+  ledgerSortBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: BRAND.burgundy,
+  },
+
+  // Ledger Table
+  ledgerTableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#F5EBE6',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  ledgerTh: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: BRAND.burgundy,
+    textTransform: 'uppercase',
+  },
+  ledgerTableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+    backgroundColor: '#FFFFFF',
+  },
+  ledgerRowDate: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: BRAND.ink,
+  },
+  ledgerRowTime: {
+    fontSize: 10,
+    color: BRAND.muted,
+  },
+  ledgerTypeBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  ledgerTypeBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  ledgerDocNo: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: BRAND.ink,
+  },
+  ledgerInvNo: {
+    fontSize: 11,
+    color: BRAND.muted,
+  },
+  ledgerRowSubtitle: {
+    fontSize: 11,
+    color: BRAND.muted,
+    marginTop: 2,
+  },
+  ledgerAmountVal: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  ledgerAmountDash: {
+    fontSize: 12,
+    color: BRAND.muted,
+  },
+  ledgerRunBalVal: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: BRAND.ink,
+  },
+  ledgerRunBalStatus: {
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  ledgerRowBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    backgroundColor: '#FAFAFA',
+  },
+  ledgerRowBtnText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: BRAND.burgundy,
+  },
+
+  // Voucher Modal Card
+  voucherContainer: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: BRAND.goldDark,
+    borderRadius: 10,
+    padding: 16,
+  },
+  voucherHeaderBox: {
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EFE8DC',
+    paddingBottom: 12,
+    marginBottom: 12,
+  },
+  voucherBrandTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: BRAND.burgundy,
+    letterSpacing: 0.5,
+  },
+  voucherBrandSub: {
+    fontSize: 11,
+    color: BRAND.muted,
+    marginTop: 2,
+  },
+  voucherNoPill: {
+    backgroundColor: BRAND.burgundy,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 4,
+    marginTop: 8,
+  },
+  voucherNoText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  voucherAmountBox: {
+    alignItems: 'center',
+    backgroundColor: '#FDFBF7',
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#EFE8DC',
+    marginBottom: 12,
+  },
+  voucherAmountLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: BRAND.muted,
+    letterSpacing: 0.5,
+  },
+  voucherAmountNumber: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: BRAND.success,
+    marginVertical: 4,
+  },
+  voucherMethodText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: BRAND.ink,
+  },
+  voucherTable: {
+    borderWidth: 1,
+    borderColor: '#ECEFF1',
+    borderRadius: 6,
+    padding: 8,
+    backgroundColor: '#FAFAFA',
+  },
+  voucherRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ECEFF1',
+  },
+  voucherKey: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: BRAND.muted,
+    flex: 1,
+  },
+  voucherValBold: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: BRAND.ink,
+    flex: 2,
+    textAlign: 'right',
+  },
+  voucherVal: {
+    fontSize: 11,
+    color: BRAND.ink,
+    flex: 2,
+    textAlign: 'right',
+  },
+  voucherSignaturesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 24,
+    paddingTop: 8,
+  },
+  signatureBox: {
+    width: '45%',
+    alignItems: 'center',
+  },
+  signLine: {
+    width: '100%',
+    height: 1,
+    backgroundColor: BRAND.ink,
+    marginBottom: 4,
+  },
+  signLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: BRAND.muted,
   },
 });

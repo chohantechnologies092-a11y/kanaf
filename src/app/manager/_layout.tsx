@@ -15,6 +15,7 @@ import { useRoleGuard } from '../../hooks/useRoleGuard';
 import SyncStatusBadge from '../../components/SyncStatusBadge';
 import SultanLogo from '../../components/SultanLogo';
 import RoleDrawer, { DrawerItem } from '../../components/RoleDrawer';
+import BottomNav from '../../components/BottomNav';
 
 const MANAGER_MENU_ITEMS: DrawerItem[] = [
   { label: 'Dashboard', route: '/manager/dashboard', icon: 'grid-outline' },
@@ -101,6 +102,8 @@ export default function ManagerLayout() {
           }} 
         />
       </View>
+
+      <BottomNav role="manager" onOpenDrawer={() => setIsDrawerOpen(true)} />
 
       <RoleDrawer 
         isOpen={isDrawerOpen}

@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...(StyleSheet.absoluteFill as any),
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   drawer: {
