@@ -6,7 +6,6 @@ import { useAuthStore } from '../store';
 import IslamicBackground from '../components/IslamicBackground';
 import SultanLogo from '../components/SultanLogo';
 import { Ionicons } from '@expo/vector-icons';
-import UniversalPortalNav from '../components/UniversalPortalNav';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -30,12 +29,6 @@ export default function HomeScreen() {
     <IslamicBackground theme="burgundy" showCorners={true} showCenterLattice={true}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <StatusBar barStyle="light-content" backgroundColor="#451014" />
-
-        <UniversalPortalNav
-          portalName="Sultan Grand Suite"
-          portalRole="Welcome"
-          showTabs={false}
-        />
 
         <View style={styles.content}>
           <View style={styles.cardContainer}>
