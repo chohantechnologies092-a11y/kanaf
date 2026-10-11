@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -9,6 +9,7 @@ import {
   Platform, 
   Alert, 
   StatusBar,
+  TextInput,
   useWindowDimensions,
   Modal 
 } from 'react-native';
@@ -16,6 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useRestaurantStore, MenuItem, useAuthStore } from '../../../store';
+import { getTableFloor, getTableSeatingType, getFloorMeta } from '../../../constants/floors';
+import SeatingTypeIcon from '../../../components/SeatingTypeIcon';
 import SyncStatusBadge from '../../../components/SyncStatusBadge';
 import { broadcastImmediately } from '../../../services/syncService';
 
@@ -29,6 +32,7 @@ export default function TableOrderScreen() {
 
   const [activeTab, setActiveTab] = useState<'menu' | 'order'>('menu');
   const [activeCat, setActiveCat] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
   const [newCart, setNewCart] = useState<{ item: MenuItem; qty: number; notes?: string }[]>([]);
   const [variantModalItem, setVariantModalItem] = useState<MenuItem | null>(null);
   const [now] = useState(() => Date.now());
@@ -37,6 +41,7 @@ export default function TableOrderScreen() {
   const tickets = useRestaurantStore(state => state.tickets);
   const menuItems = useRestaurantStore(state => state.menuItems);
   const storeCategories = useRestaurantStore(state => state.categories);
+  const dynamicFloors = useRestaurantStore(state => state.floors) || [];
   const placeOrder = useRestaurantStore(state => state.placeOrder);
   const serveTableTickets = useRestaurantStore(state => state.serveTableTickets);
   const updateTicketStatus = useRestaurantStore(state => state.updateTicketStatus);
@@ -44,6 +49,11 @@ export default function TableOrderScreen() {
 
   const table = tables.find(t => t.id === tableId);
   const tableName = table ? table.name : `Table ${tableId}`;
+  const seatingType = table ? getTableSeatingType(table) : 'tables';
+  const floorName = table ? getTableFloor(table) : 'Ground Floor';
+  const floorMeta = getFloorMeta(floorName, dynamicFloors);
+  const isMajlis = seatingType === 'majlis';
+  const isCouch = seatingType === 'couches';
 
   // Find all active tickets placed for this table
   const activeTickets = tickets.filter(t => t.tableId === tableId);
@@ -171,9 +181,13 @@ export default function TableOrderScreen() {
     goBack();
   };
 
-  const filteredItems = activeCat === 'All' 
-    ? menuItems 
-    : menuItems.filter(i => i.category === activeCat);
+  const filteredItems = useMemo(() => {
+    return menuItems.filter((i) => {
+      if (activeCat !== 'All' && i.category !== activeCat) return false;
+      if (searchQuery.trim() && !i.name.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
+      return true;
+    });
+  }, [menuItems, activeCat, searchQuery]);
 
   const alreadyOrderedTotal = alreadyOrderedItems.reduce((sum, i) => sum + (i.price * i.qty), 0);
   const newCartTotal = newCart.reduce((sum, c) => sum + (c.item.price * c.qty), 0);
@@ -187,8 +201,16 @@ export default function TableOrderScreen() {
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={goBack} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="chevron-back" size={24} color="#D5A943" />
-          <View style={{ marginLeft: 6 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ marginLeft: 6, flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <View
+                style={[
+                  styles.headerIconBubble,
+                  { backgroundColor: isMajlis ? '#D5A94325' : isCouch ? '#E6510025' : '#1976D225' },
+                ]}
+              >
+                <SeatingTypeIcon type={seatingType} size={18} color="#D5A943" />
+              </View>
               <Text style={styles.headerTitle}>{tableName}</Text>
               <View style={[
                 styles.statusBadge, 
@@ -206,9 +228,22 @@ export default function TableOrderScreen() {
                 </Text>
               </View>
             </View>
-            <Text style={styles.headerSubtitle}>
-              {table?.seats || 4} Seats • Zone: {table?.zone || 'Main Hall'}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3, flexWrap: 'wrap' }}>
+              <Text style={styles.headerSubtitleType}>
+                {isMajlis ? '🕌 Majlis Cabin' : isCouch ? '🛋️ Couch Lounge' : '🍽️ Dining Table'}
+              </Text>
+              <Text style={styles.headerDot}>•</Text>
+              <Text style={[styles.headerSubtitle, isMajlis && { color: '#D5A943', fontWeight: '800' }]}>
+                {isMajlis ? `Sitting Capacity: ${table?.seats || 8} Guests` : `${table?.seats || 4} Seats Capacity`}
+              </Text>
+              <Text style={styles.headerDot}>•</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                <Ionicons name={floorMeta.icon || 'business-outline'} size={11} color="rgba(255,255,255,0.85)" />
+                <Text style={styles.headerSubtitleFloor}>
+                  {floorName}
+                </Text>
+              </View>
+            </View>
           </View>
         </TouchableOpacity>
 
@@ -257,6 +292,23 @@ export default function TableOrderScreen() {
         {/* ================= LEFT / MENU SECTION ================= */}
         {(!isMobile || activeTab === 'menu') && (
           <View style={styles.menuSection}>
+            {/* Search Dishes Bar */}
+            <View style={styles.searchBar}>
+              <Ionicons name="search" size={16} color="#8E8E93" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search dishes, drinks, appetizers..."
+                placeholderTextColor="#AEAEB2"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={16} color="#8E8E93" />
+                </TouchableOpacity>
+              )}
+            </View>
+
             {/* Category Pills Bar */}
             <ScrollView 
               horizontal 
@@ -659,15 +711,54 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
+  headerIconBubble: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: {
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: '900',
     color: '#D5A943', // Sultan Gold
   },
+  headerSubtitleType: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#D5A943',
+  },
   headerSubtitle: {
-    fontSize: 12,
+    fontSize: 11,
     color: 'rgba(255,255,255,0.7)',
-    marginTop: 1,
+  },
+  headerSubtitleFloor: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.85)',
+  },
+  headerDot: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.4)',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginHorizontal: 14,
+    marginTop: 10,
+    marginBottom: 8,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#1C1C1E',
   },
   statusBadge: {
     flexDirection: 'row',
