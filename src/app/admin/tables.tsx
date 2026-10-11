@@ -139,12 +139,24 @@ export default function AdminTables() {
   const reservationForTable = (t: Table) =>
     reservations.find((r) => r.status === 'confirmed' && (r.id === t.reservationId || r.tableId === t.id));
 
-  // Floors list
+  // Floors list: strictly user-configured floors, plus any extra floor that actually has tables
   const availableFloors = useMemo(() => {
-    const floorNames = (dynamicFloors || []).map((f) => f.name);
-    const discovered = tables.map((t) => getTableFloor(t));
-    return sortFloors([...floorNames, ...FLOOR_ORDER, ...zones, ...discovered], floorNames);
-  }, [dynamicFloors, tables, zones]);
+    const configured = (dynamicFloors || []).map((f) => f.name.trim()).filter(Boolean);
+    if (configured.length > 0) {
+      // Any other floor name only if there are actually tables assigned to it
+      const extraWithTables = Array.from(
+        new Set(
+          tables
+            .map((t) => getTableFloor(t).trim())
+            .filter((fl) => fl && !configured.some((c) => c.toLowerCase() === fl.toLowerCase()))
+        )
+      );
+      return [...configured, ...extraWithTables];
+    }
+    // Fallback if no floors are configured in store yet
+    const discovered = Array.from(new Set(tables.map((t) => getTableFloor(t)).filter(Boolean)));
+    return sortFloors(discovered.length > 0 ? discovered : FLOOR_ORDER);
+  }, [dynamicFloors, tables]);
 
   // ---------- Metrics ----------
   const counts = useMemo(() => {

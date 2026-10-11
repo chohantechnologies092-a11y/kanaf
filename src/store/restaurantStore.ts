@@ -560,7 +560,7 @@ export const useRestaurantStore = create<RestaurantState>()(
       ],
       menuItems: INITIAL_MENU,
       categories: ['Appetizers', 'Mains', 'Desserts', 'Drinks', 'Deals'],
-      zones: ['Main Hall', 'Rooftop', 'VIP'],
+      zones: INITIAL_FLOORS.map(f => f.name),
       floors: INITIAL_FLOORS,
 
       placeOrder: (tableId, serverName, orderItems, isAddOn) => set((state) => {
@@ -1180,6 +1180,17 @@ export const useRestaurantStore = create<RestaurantState>()(
           if (!state.floors || !Array.isArray(state.floors) || state.floors.length === 0) {
             state.floors = INITIAL_FLOORS;
           }
+          // Clean out legacy ghost zones (e.g. 'Main Hall', 'VIP', 'Majlis Floor 1') that have no tables
+          const validFloorNames = (state.floors || []).map((f) => f.name.toLowerCase());
+          const tablesFloorNames = (state.tables || []).map((t) => (t.floor || t.zone || '').toLowerCase());
+          state.zones = (state.zones || []).filter(
+            (z) => validFloorNames.includes(z.toLowerCase()) || tablesFloorNames.includes(z.toLowerCase())
+          );
+          state.floors.forEach((f) => {
+            if (!state.zones.some((z) => z.toLowerCase() === f.name.toLowerCase())) {
+              state.zones.push(f.name);
+            }
+          });
         }
       },
     }
