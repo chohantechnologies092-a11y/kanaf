@@ -13,10 +13,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import KitchenOpsNav from '../components/KitchenOpsNav';
+import ShiftForecastPanel, { KitchenAutomationSettingsModal, shiftTitle } from '../components/ShiftForecastPanel';
 import { useOpsStore } from '../store/opsStore';
 import { useRestaurantStore } from '../store/restaurantStore';
-import { useKitchenStore, getActiveSession } from '../store/kitchenStore';
+import { useAuthStore } from '../store/authStore';
+import { useKitchenStore, getActiveSessions } from '../store/kitchenStore';
 import { seedKitchenStarter } from '../store/kitchenSeed';
+import type { ShiftKind, ShiftStation } from '../types/kitchen';
+import { SHIFT_KIND_META, SHIFT_STATION_META } from '../types/kitchen';
 import {
   averageDailyUsage,
   formatQty,
@@ -57,8 +61,16 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
     cancelSession,
   } = useKitchenStore();
 
-  const activeSession = getActiveSession(kitchenSessions);
+  // Admin AND manager can both hand over; record who actually did it.
+  const authUser = useAuthStore((s) => s.user);
+  const actor = authUser?.name || (authUser?.role === 'manager' ? 'Manager' : 'Admin');
+
+  // Several handovers can be live on the same day - pick which one to look at.
+  const activeSessions = getActiveSessions(kitchenSessions);
+  const [selectedActiveId, setSelectedActiveId] = useState<string | null>(null);
+  const activeSession = activeSessions.find((s) => s.id === selectedActiveId) || activeSessions[0];
   const draftSession = kitchenSessions.find((s) => s.status === 'draft');
+  const [showAutomation, setShowAutomation] = useState(false);
 
   // Chef candidates from staff
   const kitchenStaff = useMemo(
@@ -90,6 +102,8 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
   const [cashHandedOver, setCashHandedOver] = useState<string>(
     draftSession ? String(draftSession.cashHandedOver) : '5000'
   );
+  const [shift, setShift] = useState<ShiftKind>(draftSession?.shift || 'full');
+  const [station, setStation] = useState<ShiftStation>(draftSession?.station || 'all');
 
   // Line quantities entered by user: { [itemId]: string }
   const [quantities, setQuantities] = useState<Record<string, string>>(() => {
@@ -222,13 +236,12 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
     }));
   };
 
-  const activeIssuedValue = useMemo(() => {
-    if (!activeSession) return 0;
-    return activeSession.lines.reduce(
-      (sum, l) => sum + (l.issued + l.topUp + l.localPurchased) * l.costPerUnit,
-      0
-    );
-  }, [activeSession]);
+  const activeIssuedValue = !activeSession
+    ? 0
+    : activeSession.lines.reduce(
+        (sum, l) => sum + (l.issued + l.topUp + l.localPurchased) * l.costPerUnit,
+        0
+      );
 
   const showAlert = (title: string, msg: string) => {
     if (Platform.OS === 'web') window.alert(`${title}\n\n${msg}`);
@@ -263,7 +276,9 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
       headChef,
       notes,
       cashHandedOver: parseFloat(cashHandedOver) || 0,
-      createdBy: 'Admin',
+      createdBy: actor,
+      shift,
+      station,
       lines,
     });
 
@@ -292,7 +307,9 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
       headChef,
       notes,
       cashHandedOver: parseFloat(cashHandedOver) || 0,
-      createdBy: 'Admin',
+      createdBy: actor,
+      shift,
+      station,
       lines,
     });
 
@@ -302,11 +319,15 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
     }
 
     const sessionId = draftRes.id as string;
-    const issueRes = issueSession(sessionId, 'Admin');
+    const issueRes = issueSession(sessionId, actor);
     if (issueRes.ok) {
+      setSelectedActiveId(sessionId);
+      // Start the next handover (another chef / shift) from a clean sheet.
+      setQuantities({});
+      setNotes('');
       showAlert(
         'Handover Successful',
-        `Inventory deducted from store and successfully handed over to Head Chef (${headChef}).`
+        `Inventory deducted from store and handed over to ${headChef}. POS sales will now be tracked against this handover.`
       );
     } else {
       showAlert('Issue Failed', issueRes.error);
@@ -320,7 +341,7 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
       showAlert('Invalid', 'Please enter a valid quantity.');
       return;
     }
-    const res = issueTopUp(activeSession.id, topUpItemId, q, 'Admin');
+    const res = issueTopUp(activeSession.id, topUpItemId, q, actor);
     if (res.ok) {
       setShowTopUpModal(false);
       setTopUpQty('');
@@ -370,7 +391,13 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
             <View>
               <Text style={styles.kpiLabel}>Kitchen Session Status</Text>
               <Text style={[styles.kpiValue, { color: activeSession ? BRAND.success : BRAND.warn }]}>
-                {activeSession ? 'LIVE ISSUED' : draftSession ? 'DRAFT READY' : 'NO SESSION'}
+                {activeSessions.length > 1
+                  ? `${activeSessions.length} LIVE SHIFTS`
+                  : activeSession
+                    ? 'LIVE ISSUED'
+                    : draftSession
+                      ? 'DRAFT READY'
+                      : 'NO SESSION'}
               </Text>
               <Text style={styles.kpiSub}>
                 {activeSession ? activeSession.dayLabel : 'Ready to prepare requisition'}
@@ -405,6 +432,28 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
               <Ionicons name="sparkles" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
               <Text style={styles.seedBtnText}>Load Starter Recipes</Text>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* LIVE SHIFT SWITCHER (several handovers can run on the same day) */}
+        {activeSessions.length > 1 && (
+          <View style={{ marginBottom: 10 }}>
+            <Text style={styles.inputLabel}>Live handovers today ({activeSessions.length})</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
+              {activeSessions.map((s) => {
+                const on = activeSession?.id === s.id;
+                return (
+                  <TouchableOpacity
+                    key={s.id}
+                    style={[styles.chefPill, on && styles.chefPillActive]}
+                    onPress={() => setSelectedActiveId(s.id)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.chefPillText, on && styles.chefPillTextActive]}>{shiftTitle(s)}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
         )}
 
@@ -476,6 +525,11 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
           </View>
         )}
 
+        {/* EVENING FORECAST for the selected live handover */}
+        {activeSession && (
+          <ShiftForecastPanel session={activeSession} onOpenSettings={() => setShowAutomation(true)} />
+        )}
+
         {/* REQUISITION CREATOR SECTION */}
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
@@ -488,6 +542,14 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
               </Text>
             </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity
+                style={styles.secondaryBtn}
+                onPress={() => setShowAutomation(true)}
+                accessibilityLabel="Automation settings"
+              >
+                <Ionicons name="settings-outline" size={15} color={BRAND.burgundy} style={{ marginRight: 4 }} />
+                <Text style={styles.secondaryBtnText}>Automation</Text>
+              </TouchableOpacity>
               {draftSession && (
                 <TouchableOpacity
                   style={[styles.secondaryBtn, { borderColor: BRAND.danger }]}
@@ -553,6 +615,40 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
                 placeholder="e.g. Friday special banquet dinner"
               />
             </View>
+          </View>
+
+          {/* Shift & kitchen: several handovers can run on the same day */}
+          <View style={[styles.formCol, { marginBottom: 12 }]}>
+            <Text style={styles.inputLabel}>Shift & Kitchen *</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
+              {(Object.keys(SHIFT_KIND_META) as ShiftKind[]).map((k) => (
+                <TouchableOpacity
+                  key={k}
+                  style={[styles.chefPill, shift === k && styles.chefPillActive]}
+                  onPress={() => setShift(k)}
+                >
+                  <Text style={[styles.chefPillText, shift === k && styles.chefPillTextActive]}>
+                    {SHIFT_KIND_META[k].label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <View style={{ width: 14 }} />
+              {(Object.keys(SHIFT_STATION_META) as ShiftStation[]).map((k) => (
+                <TouchableOpacity
+                  key={k}
+                  style={[styles.chefPill, station === k && styles.chefPillActive]}
+                  onPress={() => setStation(k)}
+                >
+                  <Text style={[styles.chefPillText, station === k && styles.chefPillTextActive]}>
+                    {SHIFT_STATION_META[k].label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <Text style={styles.inputHint}>
+              Admin or manager can issue several handovers in one day (morning chef, evening chef, juice bar). POS sales are
+              matched to the right handover automatically.
+            </Text>
           </View>
 
           {/* Requisition Table Filter & Quick Actions Bar */}
@@ -900,6 +996,8 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
           </View>
         </View>
       </Modal>
+
+      <KitchenAutomationSettingsModal visible={showAutomation} onClose={() => setShowAutomation(false)} />
     </View>
   );
 }

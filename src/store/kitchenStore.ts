@@ -14,6 +14,8 @@ import type {
   Recipe,
   SessionLine,
   SessionSummary,
+  ShiftKind,
+  ShiftStation,
 } from '../types/kitchen';
 import { computeItemUsage, computeLiveLines, resolveMenuRef } from '../utils/kitchenMath';
 
@@ -41,7 +43,24 @@ export const DEFAULT_KITCHEN_SETTINGS: KitchenSettings = {
   priceRounding: 10,
   par: {},
   varianceTolerancePct: 3,
+  openingHour: 11,
+  closingHour: 23,
+  shiftLowPct: 25,
+  shiftCriticalPct: 10,
+  runwayAlertMin: 90,
+  alarmSound: true,
+  ingredientDefaults: {},
+  categoryTemplates: {},
 };
+
+/** Older saved / synced settings miss the newer automation keys - fill them in. */
+export const withKitchenDefaults = (s?: Partial<KitchenSettings> | null): KitchenSettings => ({
+  ...DEFAULT_KITCHEN_SETTINGS,
+  ...(s || {}),
+  par: { ...DEFAULT_KITCHEN_SETTINGS.par, ...(s?.par || {}) },
+  ingredientDefaults: { ...(s?.ingredientDefaults || {}) },
+  categoryTemplates: { ...(s?.categoryTemplates || {}) },
+});
 
 export const KITCHEN_SYNC_KEYS: (keyof KitchenData)[] = [
   'recipes',
@@ -60,6 +79,8 @@ export type DraftInput = {
   notes?: string;
   cashHandedOver: number;
   createdBy: string;
+  shift?: ShiftKind;
+  station?: ShiftStation;
   lines: { itemId: string; requested: number; par: number; suggested: number }[];
 };
 
@@ -142,7 +163,7 @@ export const useKitchenStore = create<KitchenState>()(
 
       // ---------------- Settings ----------------
       updateSettings: (patch) =>
-        set((state) => ({ kitchenSettings: { ...state.kitchenSettings, ...patch } })),
+        set((state) => ({ kitchenSettings: withKitchenDefaults({ ...state.kitchenSettings, ...patch }) })),
 
       setPar: (itemId, qty) =>
         set((state) => ({
@@ -196,6 +217,8 @@ export const useKitchenStore = create<KitchenState>()(
                     ...x,
                     headChef: input.headChef.trim(),
                     notes: input.notes,
+                    shift: input.shift,
+                    station: input.station,
                     cashHandedOver: Math.max(0, input.cashHandedOver),
                     lines,
                   }
@@ -205,7 +228,7 @@ export const useKitchenStore = create<KitchenState>()(
           return { ok: true, id: existing.id };
         }
 
-        // one draft at a time keeps things simple
+        // one draft at a time keeps things simple (issue it, then start the next handover)
         const draft = state.kitchenSessions.find((s) => s.status === 'draft');
         const id = draft ? draft.id : uid('ks');
         const session: KitchenSession = {
@@ -216,6 +239,8 @@ export const useKitchenStore = create<KitchenState>()(
           createdAt: Date.now(),
           createdBy: input.createdBy,
           notes: input.notes,
+          shift: input.shift,
+          station: input.station,
           lines,
           cashHandedOver: Math.max(0, input.cashHandedOver),
         };
@@ -232,10 +257,7 @@ export const useKitchenStore = create<KitchenState>()(
         const session = state.kitchenSessions.find((s) => s.id === id);
         if (!session) return fail('Session not found.');
         if (session.status !== 'draft') return fail('This session has already been issued.');
-        const busy = state.kitchenSessions.find(
-          (s) => s.status === 'issued' || s.status === 'pending_approval'
-        );
-        if (busy) return fail(`Another kitchen shift (${busy.dayLabel}) is currently active. Please close or approve it first.`);
+        // Several handovers may be live at the same time (different chefs / shifts / stations).
 
         const ops = useOpsStore.getState();
         const now = Date.now();
@@ -540,26 +562,73 @@ export const useKitchenStore = create<KitchenState>()(
       // ---------------- Auto deduction ----------------
       processNewTickets: () => {
         const k = get();
-        const session = k.kitchenSessions.find((s) => s.status === 'issued');
-        if (!session || !session.issuedAt) return;
+        // Oldest handover first: its stock is consumed before a newer handover's stock (FIFO).
+        const activeSessions = k.kitchenSessions
+          .filter((s) => s.status === 'issued' && !!s.issuedAt)
+          .sort((a, b) => (a.issuedAt as number) - (b.issuedAt as number));
+        if (activeSessions.length === 0) return;
 
         const rest = useRestaurantStore.getState();
         const inventory = useOpsStore.getState().inventory;
         const existing = new Set(k.kitchenConsumption.map((c) => c.id));
         const fresh: ConsumptionEntry[] = [];
 
-        for (const t of rest.tickets || []) {
-          if ((t.timePlaced || 0) < (session.issuedAt as number)) continue;
+        // Running expected-on-hand per shift so we can tell which shift really holds the ingredients.
+        const onHand = new Map<string, Map<string, number>>();
+        for (const s of activeSessions) {
+          const m = new Map<string, number>();
+          computeLiveLines(s, k.kitchenConsumption, k.kitchenManualUsage).forEach((l) =>
+            m.set(l.itemId, l.expectedOnHand)
+          );
+          onHand.set(s.id, m);
+        }
+
+        const pickSession = (
+          placedAt: number,
+          menuStation: string | undefined,
+          usage: { itemId: string; qty: number }[]
+        ): KitchenSession | undefined => {
+          const cands = activeSessions.filter((s) => placedAt >= (s.issuedAt as number));
+          if (cands.length <= 1) return cands[0];
+          let best: KitchenSession | undefined;
+          let bestScore = -Infinity;
+          for (const s of cands) {
+            let score = 0;
+            const st = s.station && s.station !== 'all' ? s.station : undefined;
+            if (st && menuStation) score += st === menuStation ? 1 : -10;
+            const held = onHand.get(s.id);
+            if (held && usage.length > 0) {
+              const cover =
+                usage.reduce((a, u) => a + Math.min(1, Math.max(0, held.get(u.itemId) ?? 0) / (u.qty || 1)), 0) /
+                usage.length;
+              score += cover * 2;
+            }
+            if (score > bestScore) {
+              best = s;
+              bestScore = score;
+            }
+          }
+          return best;
+        };
+
+        const tickets = [...(rest.tickets || [])].sort((a, b) => (a.timePlaced || 0) - (b.timePlaced || 0));
+        for (const t of tickets) {
           for (const it of t.items || []) {
             const id = `ce-${t.id}-${t.timePlaced}-${it.id}`;
             if (existing.has(id)) continue;
+            const placedAt = t.timePlaced || 0;
+            // Tickets placed before any live handover are not part of any shift.
+            if (!activeSessions.some((s) => placedAt >= (s.issuedAt as number))) continue;
+
             existing.add(id);
             const ref = resolveMenuRef(it.id, rest.menuItems || []);
             const qty = it.qty || 1;
             if (!ref) {
+              const target = pickSession(placedAt, undefined, []);
+              if (!target) continue;
               fresh.push({
                 id,
-                sessionId: session.id,
+                sessionId: target.id,
                 ticketId: t.id,
                 menuItemId: it.id,
                 menuItemName: it.name,
@@ -581,9 +650,15 @@ export const useKitchenStore = create<KitchenState>()(
               inventory,
               k.kitchenSettings
             );
+            const target = pickSession(placedAt, ref.menu.station, res.usage);
+            if (!target) continue;
+
+            const held = onHand.get(target.id);
+            if (held) res.usage.forEach((u) => held.set(u.itemId, (held.get(u.itemId) ?? 0) - u.qty));
+
             fresh.push({
               id,
-              sessionId: session.id,
+              sessionId: target.id,
               ticketId: t.id,
               menuItemId: ref.menu.id,
               menuItemName: it.name,
@@ -613,7 +688,7 @@ export const useKitchenStore = create<KitchenState>()(
         if (Array.isArray(remote.kitchenManualUsage)) next.kitchenManualUsage = remote.kitchenManualUsage;
         if (Array.isArray(remote.kitchenCash)) next.kitchenCash = remote.kitchenCash;
         if (remote.kitchenSettings && typeof remote.kitchenSettings === 'object') {
-          next.kitchenSettings = { ...DEFAULT_KITCHEN_SETTINGS, ...remote.kitchenSettings };
+          next.kitchenSettings = withKitchenDefaults(remote.kitchenSettings);
         }
         if (Object.keys(next).length > 0) set((state) => ({ ...state, ...next }));
       },
@@ -621,6 +696,14 @@ export const useKitchenStore = create<KitchenState>()(
     {
       name: 'kitchen-storage',
       storage: appStorage,
+      merge: (persisted, current) => {
+        const p = (persisted || {}) as Partial<KitchenState>;
+        return {
+          ...current,
+          ...p,
+          kitchenSettings: withKitchenDefaults(p.kitchenSettings),
+        };
+      },
     }
   )
 );
@@ -640,6 +723,12 @@ export function getKitchenSyncState(): KitchenData {
 
 export const getActiveSession = (sessions: KitchenSession[]) =>
   sessions.find((s) => s.status === 'issued' || s.status === 'pending_approval');
+
+/** Every handover currently live in the kitchen (several can run on the same day). */
+export const getActiveSessions = (sessions: KitchenSession[]) =>
+  sessions
+    .filter((s) => s.status === 'issued')
+    .sort((a, b) => (a.issuedAt || 0) - (b.issuedAt || 0));
 
 // Auto-deduct raw materials whenever new KOT tickets appear (idempotent per ticket item).
 useRestaurantStore.subscribe(() => {

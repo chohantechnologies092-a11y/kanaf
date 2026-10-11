@@ -406,6 +406,37 @@ export default function ManagerPOS() {
       payments: payments.filter(p => p.amount > 0)
     });
 
+    // Ensure any items not yet sent via KOT are dispatched so kitchen deduction & forecasting capture them
+    const unsentKotItems: { item: MenuItem; qty: number }[] = [];
+    cart.forEach(cartItem => {
+      const loadedQty = loadedCart.filter(lc => lc.id === cartItem.id).reduce((s, lc) => s + lc.qty, 0);
+      if (cartItem.qty > loadedQty) {
+        const baseMenu = menuItems.find(m => m.id === cartItem.id || cartItem.id.startsWith(`${m.id}-`));
+        const itemObj: MenuItem = baseMenu ? {
+          ...baseMenu,
+          id: cartItem.id,
+          name: cartItem.name,
+          price: cartItem.price,
+          station: cartItem.station || baseMenu.station || 'main'
+        } : {
+          id: cartItem.id,
+          name: cartItem.name,
+          price: cartItem.price,
+          category: 'Mains',
+          station: cartItem.station || 'main'
+        };
+        unsentKotItems.push({
+          item: itemObj,
+          qty: cartItem.qty - loadedQty
+        });
+      }
+    });
+
+    if (unsentKotItems.length > 0) {
+      const kotTarget = targetTableId || (orderType === 'delivery' ? 'delivery' : 'takeaway');
+      placeOrder(kotTarget, cashierName, unsentKotItems, loadedCart.length > 0);
+    }
+
     saveInvoice(invoice);
     broadcastImmediately();
     

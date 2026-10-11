@@ -41,8 +41,11 @@ const BRAND = {
   cream: '#FDFBF7',
 };
 
+import { usePortalBase } from '../hooks/usePortalBase';
+
 export default function CostingScreen({ backRoute = '/admin/dashboard' }: { backRoute?: string }) {
   const router = useRouter();
+  const portalBase = usePortalBase();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
@@ -532,7 +535,7 @@ export default function CostingScreen({ backRoute = '/admin/dashboard' }: { back
                     ) : (
                       <TouchableOpacity
                         style={styles.addBOMBadge}
-                        onPress={() => router.push('/admin/recipes' as any)}
+                        onPress={() => router.push(`${portalBase}/recipes` as any)}
                       >
                         <Text style={styles.addBOMText}>Set BOM</Text>
                       </TouchableOpacity>

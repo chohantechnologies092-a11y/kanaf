@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { usePortalBase } from '../hooks/usePortalBase';
 import {
   useOpsStore,
   InventoryItem,
@@ -40,6 +41,7 @@ type TabType = 'raw' | 'receiving' | 'expiries' | 'lowstock' | 'movements' | 'di
 
 export default function InventoryScreen({ backRoute = '/manager/dashboard' }: Props) {
   const router = useRouter();
+  const portalBase = usePortalBase();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
@@ -638,7 +640,7 @@ Please confirm delivery schedule and send invoice copy. Shukriya!`;
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <TouchableOpacity
             style={[styles.addBtn, { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: BRAND.border }]}
-            onPress={() => router.push('/admin/suppliers' as any)}
+            onPress={() => router.push(`${portalBase}/suppliers` as any)}
             activeOpacity={0.85}
           >
             <Ionicons name="bus-outline" size={16} color={BRAND.burgundy} style={{ marginRight: 4 }} />

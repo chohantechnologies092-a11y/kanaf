@@ -11,7 +11,6 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import KitchenOpsNav from '../components/KitchenOpsNav';
 import { useKitchenStore } from '../store/kitchenStore';
 import { useAuthStore } from '../store/authStore';

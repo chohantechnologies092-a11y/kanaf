@@ -2,7 +2,9 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useKitchenStore, getActiveSession } from '../store/kitchenStore';
+import { useKitchenStore, getActiveSessions } from '../store/kitchenStore';
+
+import { usePortalBase } from '../hooks/usePortalBase';
 
 const BRAND = {
   burgundy: '#52171B',
@@ -21,14 +23,17 @@ type TabDef = {
   badge?: string;
 };
 
-export default function KitchenOpsNav({ backRoute = '/admin/dashboard' }: { backRoute?: string }) {
+export default function KitchenOpsNav({ backRoute }: { backRoute?: string }) {
   const router = useRouter();
   const pathname = usePathname() || '';
+  const portalBase = usePortalBase();
+  const resolvedBackRoute = backRoute || `${portalBase}/dashboard`;
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
   const { kitchenSessions, recipes } = useKitchenStore();
-  const activeSession = getActiveSession(kitchenSessions);
+  const liveSessions = getActiveSessions(kitchenSessions);
+  const activeSession = liveSessions[0];
   const pendingApproval = kitchenSessions.find((s) => s.status === 'pending_approval');
   const draftSession = kitchenSessions.find((s) => s.status === 'draft');
 
@@ -36,14 +41,14 @@ export default function KitchenOpsNav({ backRoute = '/admin/dashboard' }: { back
     {
       id: 'handover',
       label: '1. Handover & Requisition',
-      route: '/admin/kitchen-handover',
+      route: `${portalBase}/kitchen-handover`,
       icon: 'clipboard-outline',
-      badge: draftSession ? 'Draft' : activeSession ? 'Issued' : undefined,
+      badge: draftSession ? 'Draft' : activeSession ? (liveSessions.length > 1 ? `${liveSessions.length} Live` : 'Issued') : undefined,
     },
     {
       id: 'recipes',
       label: '2. Recipe BOM (Grams)',
-      route: '/admin/recipes',
+      route: `${portalBase}/recipes`,
       icon: 'restaurant-outline',
       badge: `${recipes.length}`,
     },
@@ -57,14 +62,14 @@ export default function KitchenOpsNav({ backRoute = '/admin/dashboard' }: { back
     {
       id: 'returns',
       label: '4. EOD Returns & Approval',
-      route: '/admin/kitchen-returns',
+      route: `${portalBase}/kitchen-returns`,
       icon: 'checkmark-done-circle-outline',
       badge: pendingApproval ? 'Pending' : undefined,
     },
     {
       id: 'costing',
       label: '5. Costing & Profit',
-      route: '/admin/costing',
+      route: `${portalBase}/costing`,
       icon: 'calculator-outline',
     },
   ];
@@ -75,7 +80,7 @@ export default function KitchenOpsNav({ backRoute = '/admin/dashboard' }: { back
         <View style={styles.titleWrap}>
           <TouchableOpacity
             style={styles.backBtn}
-            onPress={() => (router.canGoBack() ? router.back() : router.replace(backRoute as any))}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace(resolvedBackRoute as any))}
             activeOpacity={0.7}
           >
             <Ionicons name="arrow-back" size={18} color={BRAND.burgundy} />
@@ -86,7 +91,9 @@ export default function KitchenOpsNav({ backRoute = '/admin/dashboard' }: { back
               {activeSession && (
                 <View style={styles.livePill}>
                   <View style={styles.liveDot} />
-                  <Text style={styles.livePillText}>{activeSession.headChef}</Text>
+                  <Text style={styles.livePillText}>
+                    {liveSessions.length > 1 ? `${liveSessions.length} live shifts` : activeSession.headChef}
+                  </Text>
                 </View>
               )}
             </View>

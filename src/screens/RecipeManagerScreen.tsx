@@ -74,6 +74,7 @@ export default function RecipeManagerScreen({ backRoute = '/admin/dashboard' }: 
   // Form draft state inside modal
   const [draftYield, setDraftYield] = useState('1');
   const [draftPackaging, setDraftPackaging] = useState('0');
+  const [draftPrepTime, setDraftPrepTime] = useState('15');
   const [draftNotes, setDraftNotes] = useState('');
   const [draftIngredients, setDraftIngredients] = useState<RecipeIngredient[]>([]);
 
@@ -154,12 +155,14 @@ export default function RecipeManagerScreen({ backRoute = '/admin/dashboard' }: 
       setEditingRecipe(recipeToEdit);
       setDraftYield(String(recipeToEdit.yieldPortions || 1));
       setDraftPackaging(String(recipeToEdit.packagingCost || 0));
+      setDraftPrepTime(String(recipeToEdit.prepTimeMin ?? 15));
       setDraftNotes(recipeToEdit.prepNotes || '');
       setDraftIngredients([...recipeToEdit.ingredients]);
     } else {
       setEditingRecipe(null);
       setDraftYield('1');
       setDraftPackaging('15');
+      setDraftPrepTime('15');
       setDraftNotes('');
       setDraftIngredients([]);
     }
@@ -248,6 +251,7 @@ export default function RecipeManagerScreen({ backRoute = '/admin/dashboard' }: 
       menuItemName: activeDish.name,
       variantName: currentVariantName,
       yieldPortions: yieldNum,
+      prepTimeMin: parseFloat(draftPrepTime) > 0 ? parseFloat(draftPrepTime) : undefined,
       ingredients: draftIngredients,
       packagingCost: parseFloat(draftPackaging) || 0,
       prepNotes: draftNotes.trim() || undefined,
@@ -284,6 +288,7 @@ export default function RecipeManagerScreen({ backRoute = '/admin/dashboard' }: 
       menuItemName: activeDish.name,
       variantName: targetVariant,
       yieldPortions: currentRecipe.yieldPortions,
+      prepTimeMin: currentRecipe.prepTimeMin,
       ingredients: currentRecipe.ingredients.map((i) => ({ ...i })),
       packagingCost: currentRecipe.packagingCost,
       prepNotes: currentRecipe.prepNotes,
@@ -363,9 +368,11 @@ export default function RecipeManagerScreen({ backRoute = '/admin/dashboard' }: 
           {/* Dish list */}
           <ScrollView style={styles.dishList} showsVerticalScrollIndicator={false}>
             {filteredMenuItems.map((item) => {
-              const hasRecipe = recipes.some((r) => r.menuItemId === item.id);
+              const itemRecipes = recipes.filter((r) => r.menuItemId === item.id);
+              const hasRecipe = itemRecipes.length > 0;
               const isSelected = activeDish?.id === item.id;
-              const recipeCount = recipes.filter((r) => r.menuItemId === item.id).length;
+              const recipeCount = itemRecipes.length;
+              const primaryRecipe = itemRecipes[0];
 
               return (
                 <TouchableOpacity
@@ -385,6 +392,13 @@ export default function RecipeManagerScreen({ backRoute = '/admin/dashboard' }: 
                       <Text style={styles.dishCat}>{item.category}</Text>
                       <Text style={styles.dishDot}>•</Text>
                       <Text style={styles.dishPrice}>{money(item.price)}</Text>
+                      {primaryRecipe?.prepTimeMin ? (
+                        <>
+                          <Text style={styles.dishDot}>•</Text>
+                          <Ionicons name="time-outline" size={11} color={BRAND.muted} />
+                          <Text style={styles.dishPrepTime}>{primaryRecipe.prepTimeMin}m</Text>
+                        </>
+                      ) : null}
                       {item.variants && item.variants.length > 0 && (
                         <Text style={styles.dishVariantPill}>{item.variants.length} sizes</Text>
                       )}
@@ -420,9 +434,15 @@ export default function RecipeManagerScreen({ backRoute = '/admin/dashboard' }: 
               <View style={styles.detailCard}>
                 <View style={styles.detailHeader}>
                   <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <Text style={styles.detailDishName}>{activeDish.name}</Text>
                       <Text style={styles.detailCategory}>{activeDish.category}</Text>
+                      {currentRecipe?.prepTimeMin ? (
+                        <View style={styles.prepBadge}>
+                          <Ionicons name="time-outline" size={12} color={BRAND.burgundy} />
+                          <Text style={styles.prepBadgeText}>Prep: {currentRecipe.prepTimeMin} min</Text>
+                        </View>
+                      ) : null}
                     </View>
                     <Text style={styles.detailSellingPrice}>Menu Price: {money(currentPrice)}</Text>
                   </View>
@@ -833,10 +853,10 @@ export default function RecipeManagerScreen({ backRoute = '/admin/dashboard' }: 
             </View>
 
             <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
-              {/* Batch Yield & Packaging inputs */}
+              {/* Batch Yield, Packaging & Prep Time inputs */}
               <View style={styles.formRow}>
                 <View style={[styles.formCol, { flex: 1 }]}>
-                  <Text style={styles.inputLabel}>Batch Yield (Portions / Handi)</Text>
+                  <Text style={styles.inputLabel}>Batch Yield (Portions)</Text>
                   <TextInput
                     style={styles.input}
                     value={draftYield}
@@ -844,11 +864,11 @@ export default function RecipeManagerScreen({ backRoute = '/admin/dashboard' }: 
                     keyboardType="numeric"
                     placeholder="1"
                   />
-                  <Text style={styles.inputHint}>How many plates this recipe produces (usually 1)</Text>
+                  <Text style={styles.inputHint}>Plates per batch</Text>
                 </View>
 
                 <View style={[styles.formCol, { flex: 1 }]}>
-                  <Text style={styles.inputLabel}>Packaging Cost (Rs. per portion)</Text>
+                  <Text style={styles.inputLabel}>Packaging (Rs.)</Text>
                   <TextInput
                     style={styles.input}
                     value={draftPackaging}
@@ -856,7 +876,19 @@ export default function RecipeManagerScreen({ backRoute = '/admin/dashboard' }: 
                     keyboardType="numeric"
                     placeholder="15"
                   />
-                  <Text style={styles.inputHint}>Box, foil wrap, sauces, cutlery per dish</Text>
+                  <Text style={styles.inputHint}>Box, sauces per dish</Text>
+                </View>
+
+                <View style={[styles.formCol, { flex: 1 }]}>
+                  <Text style={styles.inputLabel}>Prep Time (Min)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={draftPrepTime}
+                    onChangeText={setDraftPrepTime}
+                    keyboardType="numeric"
+                    placeholder="15"
+                  />
+                  <Text style={styles.inputHint}>Kitchen cooking time</Text>
                 </View>
               </View>
 
@@ -1944,5 +1976,26 @@ const styles = StyleSheet.create({
   batchCostHighlightText: {
     fontSize: 11,
     color: BRAND.goldDark,
+  },
+  dishPrepTime: {
+    fontSize: 11,
+    color: BRAND.burgundy,
+    fontWeight: '600',
+  },
+  prepBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FAF7F0',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+  },
+  prepBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: BRAND.burgundy,
   },
 });

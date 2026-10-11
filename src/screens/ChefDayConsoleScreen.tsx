@@ -13,7 +13,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import KitchenOpsNav from '../components/KitchenOpsNav';
-import { useKitchenStore, getActiveSession } from '../store/kitchenStore';
+import ShiftForecastPanel, { shiftTitle } from '../components/ShiftForecastPanel';
+import { useKitchenStore, getActiveSessions } from '../store/kitchenStore';
 import type { ManualUsageReason } from '../types/kitchen';
 import { MANUAL_REASON_META } from '../types/kitchen';
 import {
@@ -40,8 +41,11 @@ const BRAND = {
   cream: '#FDFBF7',
 };
 
+import { usePortalBase } from '../hooks/usePortalBase';
+
 export default function ChefDayConsoleScreen({ backRoute = '/admin/dashboard' }: { backRoute?: string }) {
   const router = useRouter();
+  const portalBase = usePortalBase();
   const {
     kitchenSessions,
     kitchenConsumption,
@@ -52,7 +56,10 @@ export default function ChefDayConsoleScreen({ backRoute = '/admin/dashboard' }:
     submitClosing,
   } = useKitchenStore();
 
-  const activeSession = getActiveSession(kitchenSessions);
+  // Several handovers can be live at once (different chefs / shifts) - the chef picks theirs.
+  const activeSessions = getActiveSessions(kitchenSessions);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const activeSession = activeSessions.find((s) => s.id === selectedSessionId) || activeSessions[0];
   const pendingSession = kitchenSessions.find((s) => s.status === 'pending_approval');
 
   // Search & Category filter on kitchen stock
@@ -373,7 +380,7 @@ export default function ChefDayConsoleScreen({ backRoute = '/admin/dashboard' }:
             </View>
             <TouchableOpacity
               style={styles.viewApprovalBtn}
-              onPress={() => router.push('/admin/kitchen-returns' as any)}
+              onPress={() => router.push(`${portalBase}/kitchen-returns` as any)}
             >
               <Text style={styles.viewApprovalBtnText}>View EOD Approval</Text>
             </TouchableOpacity>
@@ -389,13 +396,48 @@ export default function ChefDayConsoleScreen({ backRoute = '/admin/dashboard' }:
             </View>
             <TouchableOpacity
               style={styles.startRequisitionBtn}
-              onPress={() => router.push('/admin/kitchen-handover' as any)}
+              onPress={() => router.push(`${portalBase}/kitchen-handover` as any)}
             >
               <Ionicons name="clipboard-outline" size={16} color="#FFFFFF" />
               <Text style={styles.startRequisitionBtnText}>Prepare Requisition</Text>
             </TouchableOpacity>
           </View>
         )}
+
+        {activeSessions.length > 1 && (
+          <View style={{ marginBottom: 10 }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: BRAND.ink }}>
+              Live handovers ({activeSessions.length}) - choose your shift
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
+              {activeSessions.map((s) => {
+                const on = activeSession?.id === s.id;
+                return (
+                  <TouchableOpacity
+                    key={s.id}
+                    onPress={() => setSelectedSessionId(s.id)}
+                    activeOpacity={0.8}
+                    style={{
+                      paddingHorizontal: 14,
+                      paddingVertical: 8,
+                      marginRight: 8,
+                      borderRadius: 18,
+                      borderWidth: 1,
+                      borderColor: on ? BRAND.burgundy : BRAND.border,
+                      backgroundColor: on ? BRAND.burgundy : '#FFFFFF',
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: on ? '#FFFFFF' : BRAND.ink }}>
+                      {shiftTitle(s)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
+        {activeSession && <ShiftForecastPanel session={activeSession} />}
 
         {/* STATS OVERVIEW CARDS */}
         {activeSession && (

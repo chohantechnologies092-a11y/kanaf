@@ -30,7 +30,39 @@ export type Recipe = {
   /** Fixed extra cost per portion (box, foil, sauce sachet...). */
   packagingCost: number;
   prepNotes?: string;
+  /** Minutes the kitchen needs to get one order of this dish ready. */
+  prepTimeMin?: number;
   version: number;
+  updatedAt: number;
+};
+
+/** Which kitchen a handover feeds. Sales are matched to a shift using the menu item's station. */
+export type ShiftStation = 'all' | 'main' | 'juice';
+
+export type ShiftKind = 'morning' | 'afternoon' | 'evening' | 'night' | 'full';
+
+export const SHIFT_KIND_META: Record<ShiftKind, { label: string; icon: string }> = {
+  morning: { label: 'Morning', icon: 'sunny-outline' },
+  afternoon: { label: 'Afternoon', icon: 'partly-sunny-outline' },
+  evening: { label: 'Evening', icon: 'moon-outline' },
+  night: { label: 'Night', icon: 'cloudy-night-outline' },
+  full: { label: 'Full Day', icon: 'time-outline' },
+};
+
+export const SHIFT_STATION_META: Record<ShiftStation, { label: string }> = {
+  all: { label: 'All Kitchen' },
+  main: { label: 'Main Kitchen' },
+  juice: { label: 'Juice Bar' },
+};
+
+/** Default recipe quantity remembered per inventory item so it auto-fills next time. */
+export type IngredientDefault = { qty: number; unit: RecipeUnit };
+
+/** Starting ingredient list applied to every new recipe of a menu category. */
+export type CategoryTemplate = {
+  ingredients: RecipeIngredient[];
+  packagingCost: number;
+  prepTimeMin?: number;
   updatedAt: number;
 };
 
@@ -67,6 +99,9 @@ export type KitchenSession = {
   createdAt: number;
   createdBy: string;
   notes?: string;
+  /** Several handovers can run on the same day (e.g. morning chef + evening chef). */
+  shift?: ShiftKind;
+  station?: ShiftStation;
   lines: SessionLine[];
 
   issuedAt?: number;
@@ -163,6 +198,24 @@ export type KitchenSettings = {
   par: Record<string, number>;
   /** Variance within this % of issued value is treated as normal. */
   varianceTolerancePct: number;
+
+  // ---- Automation (forecast + alarms) ----
+  /** Hour of day (0-23) the restaurant opens. Used to turn history into an hourly rate. */
+  openingHour: number;
+  /** Hour of day (0-23) the restaurant closes. Evening forecast is projected up to this time. */
+  closingHour: number;
+  /** Alarm (warning) when an item in the kitchen drops to this % of what was handed over. */
+  shiftLowPct: number;
+  /** Alarm (critical) when an item in the kitchen drops to this % of what was handed over. */
+  shiftCriticalPct: number;
+  /** Alarm when an item is forecast to finish within this many minutes. */
+  runwayAlertMin: number;
+  /** Beep / vibrate when a new alarm appears. */
+  alarmSound: boolean;
+  /** Remembered default recipe qty + unit per inventory item. */
+  ingredientDefaults: Record<string, IngredientDefault>;
+  /** Starting recipe per menu category. */
+  categoryTemplates: Record<string, CategoryTemplate>;
 };
 
 export type KitchenData = {

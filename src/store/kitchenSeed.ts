@@ -58,6 +58,7 @@ type RecipeDef = {
   menuId: string;
   base: Spec[];
   packaging: number;
+  prepTimeMin?: number;
   notes: string;
   /** Matches variant names (lowercase substring) -> multiplier on the base quantities. */
   variantScales?: Record<string, number>;
@@ -67,6 +68,7 @@ const DEFS: RecipeDef[] = [
   {
     menuId: 'm1',
     packaging: 0,
+    prepTimeMin: 20,
     notes: 'Mutton + beef keema, kebab spice, charcoal grill. 2 skewers per plate.',
     base: [
       ['mutton', 120, 'g', 5, 'main'],
@@ -83,6 +85,7 @@ const DEFS: RecipeDef[] = [
   {
     menuId: 'm2',
     packaging: 0,
+    prepTimeMin: 30,
     notes: 'Desi ghee karahi, tomato based, finish with green chilli & ginger.',
     base: [
       ['chickenBone', 650, 'g', 10, 'main'],
@@ -99,6 +102,7 @@ const DEFS: RecipeDef[] = [
   {
     menuId: 'm3',
     packaging: 0,
+    prepTimeMin: 10,
     notes: 'Hummus with fresh pita.',
     base: [
       ['chickpeas', 80, 'g', 0, 'main'],
@@ -114,6 +118,7 @@ const DEFS: RecipeDef[] = [
   {
     menuId: 'm4',
     packaging: 0,
+    prepTimeMin: 25,
     notes: 'Kataifi pastry, stretchy cheese, sugar syrup, pistachio.',
     base: [
       ['kataifi', 120, 'g', 3, 'main'],
@@ -126,6 +131,7 @@ const DEFS: RecipeDef[] = [
   {
     menuId: 'm5',
     packaging: 0,
+    prepTimeMin: 5,
     notes: 'Blend mint + lemon + soda over ice.',
     base: [
       ['mint', 15, 'g', 10, 'main'],
@@ -138,6 +144,7 @@ const DEFS: RecipeDef[] = [
   {
     menuId: 'm6',
     packaging: 25,
+    prepTimeMin: 22,
     notes: 'Base = Medium (10"). Other sizes scale automatically.',
     variantScales: { small: 0.6, medium: 1, large: 1.5, family: 2.1 },
     base: [
@@ -154,6 +161,7 @@ const DEFS: RecipeDef[] = [
   {
     menuId: 'm7',
     packaging: 0,
+    prepTimeMin: 45,
     notes: 'Slow smoked ribs, rub marinade overnight. Half KG served = 600 g raw.',
     variantScales: { half: 1, '1 kg': 2 },
     base: [
@@ -241,6 +249,7 @@ export function seedKitchenStarter(): { ingredientsAdded: number; recipesAdded: 
         menuItemName: menu.name,
         variantName,
         yieldPortions: 1,
+        prepTimeMin: def.prepTimeMin || 15,
         ingredients,
         packagingCost: r2(def.packaging * (scale >= 1 ? Math.sqrt(scale) : 1)),
         prepNotes: def.notes,
