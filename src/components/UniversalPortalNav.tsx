@@ -210,7 +210,7 @@ export default function UniversalPortalNav({
   tabs,
   activeTabId,
   onTabPress,
-  showTabs = true,
+  showTabs = false,
 }: UniversalPortalNavProps) {
   const router = useRouter();
   const pathname = usePathname() || '';

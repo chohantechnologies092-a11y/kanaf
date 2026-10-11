@@ -3,16 +3,7 @@ import { View, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { useRoleGuard } from '../../hooks/useRoleGuard';
-import UniversalPortalNav, { NavTabDef } from '../../components/UniversalPortalNav';
-
-const KITCHEN_TABS: NavTabDef[] = [
-  { id: 'kds', label: 'Orders KDS', route: '/kitchen/kds', icon: 'flame-outline', badge: 'LIVE' },
-  { id: 'day', label: 'Chef Day Ops', route: '/kitchen/day', icon: 'timer-outline' },
-  { id: 'availability', label: 'Sold Out (86)', route: '/kitchen/availability', icon: 'close-circle-outline' },
-  { id: 'handover', label: 'BOM & Requisitions', route: '/admin/kitchen-handover', icon: 'clipboard-outline' },
-  { id: 'juicebar', label: 'Juice Bar', route: '/juicebar/kds', icon: 'cafe-outline', badge: 'BAR' },
-  { id: 'waiter', label: 'Order Taker', route: '/waiter', icon: 'walk-outline', badge: 'POS' },
-];
+import UniversalPortalNav from '../../components/UniversalPortalNav';
 
 export default function KitchenLayout() {
   const { ready } = useRoleGuard(['kitchen', 'manager', 'admin']);
@@ -23,12 +14,11 @@ export default function KitchenLayout() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#4a121a" />
 
-      {/* Universal Top Navigation Bar with Kitchen Tabs */}
+      {/* Universal Top Navigation Bar */}
       <UniversalPortalNav
         portalName="Sultan Kitchen KDS"
         portalRole="kitchen"
-        tabs={KITCHEN_TABS}
-        showTabs={true}
+        showTabs={false}
       />
 
       <View style={styles.content}>
