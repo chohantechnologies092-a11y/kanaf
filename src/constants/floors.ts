@@ -153,17 +153,34 @@ const FALLBACK_META = {
   blurb: 'Custom floor',
 };
 
-export function getFloorMeta(zone: string) {
+export function getFloorMeta(
+  zone: string,
+  dynamicFloors?: { name: string; shortCode?: string; color?: string; icon?: string; description?: string; prefix?: string }[]
+) {
+  if (dynamicFloors && dynamicFloors.length > 0) {
+    const foundDyn = dynamicFloors.find((f) => f.name.toLowerCase() === (zone || '').toLowerCase());
+    if (foundDyn) {
+      return {
+        zone: foundDyn.name,
+        short: foundDyn.shortCode || foundDyn.name.slice(0, 2).toUpperCase(),
+        prefix: foundDyn.prefix || foundDyn.shortCode || foundDyn.name.slice(0, 2).toUpperCase(),
+        icon: (foundDyn.icon || 'business-outline') as IconName,
+        color: foundDyn.color || '#546E7A',
+        blurb: foundDyn.description || 'Configured floor',
+      };
+    }
+  }
   const found = FLOOR_TEMPLATE.find((f) => f.zone.toLowerCase() === (zone || '').toLowerCase());
   if (found) return found;
   return { ...FALLBACK_META, zone, short: (zone || '').slice(0, 2).toUpperCase() };
 }
 
-/** Known floors first (Ground -> Rooftop), then any custom zones alphabetically. */
-export function sortFloors(names: string[]): string[] {
+/** Known floors first, then any custom zones alphabetically. */
+export function sortFloors(names: string[], knownOrder?: string[]): string[] {
   const unique = Array.from(new Set(names.filter(Boolean)));
-  const known = FLOOR_ORDER.filter((n) => unique.includes(n));
-  const rest = unique.filter((n) => !FLOOR_ORDER.includes(n)).sort((a, b) => a.localeCompare(b));
+  const order = knownOrder && knownOrder.length > 0 ? knownOrder : FLOOR_ORDER;
+  const known = order.filter((n) => unique.some((u) => u.toLowerCase() === n.toLowerCase()));
+  const rest = unique.filter((n) => !order.some((o) => o.toLowerCase() === n.toLowerCase())).sort((a, b) => a.localeCompare(b));
   return [...known, ...rest];
 }
 

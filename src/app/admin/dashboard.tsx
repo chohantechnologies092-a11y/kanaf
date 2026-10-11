@@ -88,8 +88,15 @@ export default function AdminDashboard() {
       color: '#4a121a'
     },
     {
-      title: 'Table Blueprint',
-      desc: 'Manage dining halls, VIP zones, and tables.',
+      title: 'Floor Management',
+      desc: 'Add, edit, or delete restaurant floors, floor codes & themes.',
+      icon: 'layers-outline' as const,
+      route: '/admin/floors',
+      color: '#2C3E50'
+    },
+    {
+      title: 'Tables & Cabins Blueprint',
+      desc: 'Manage dining tables, couches, majlis cabins & dine-in status.',
       icon: 'grid-outline' as const,
       route: '/admin/tables',
       color: '#4a121a'
@@ -106,13 +113,6 @@ export default function AdminDashboard() {
       desc: 'Reconcile drawer cash and generate X/Z slips.',
       icon: 'cash-outline' as const,
       route: '/manager/shift',
-      color: '#4a121a'
-    },
-    {
-      title: '5-Floor Command Center',
-      desc: 'Ground, 1st, Banquet, VIP Lounge & Rooftop BBQ live overview.',
-      icon: 'business-outline' as const,
-      route: '/admin/floors',
       color: '#4a121a'
     },
     {

@@ -11,7 +11,7 @@ import {
   Platform,
   useWindowDimensions,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useRestaurantStore, Table, Reservation } from '../../store/restaurantStore';
 import SeatingTypeIcon from '../../components/SeatingTypeIcon';
@@ -64,12 +64,14 @@ const confirmAction = (title: string, message: string, confirmText: string, onCo
 
 export default function AdminTables() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ prefillFloor?: string }>();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
   const columns = width < 600 ? 2 : width < 1000 ? 3 : width < 1400 ? 4 : 5;
 
   const tables = useRestaurantStore((s) => s.tables);
   const zones = useRestaurantStore((s) => s.zones);
+  const dynamicFloors = useRestaurantStore((s) => s.floors);
   const tickets = useRestaurantStore((s) => s.tickets);
   const reservations = useRestaurantStore((s) => s.reservations || []);
 
@@ -77,7 +79,6 @@ export default function AdminTables() {
   const updateTable = useRestaurantStore((s) => s.updateTable);
   const deleteTable = useRestaurantStore((s) => s.deleteTable);
   const addZone = useRestaurantStore((s) => s.addZone);
-  const deleteZone = useRestaurantStore((s) => s.deleteZone);
   const settleBill = useRestaurantStore((s) => s.settleBill);
   const transferTable = useRestaurantStore((s) => s.transferTable);
   const mergeTables = useRestaurantStore((s) => s.mergeTables);
@@ -88,10 +89,16 @@ export default function AdminTables() {
 
   const [activeTab, setActiveTab] = useState<TabKey>('tables');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [floorFilter, setFloorFilter] = useState<string>('all');
+  const [floorFilter, setFloorFilter] = useState<string>(() => params.prefillFloor || 'all');
   const [seatingTypeFilter, setSeatingTypeFilter] = useState<'all' | SeatingZoneType>('all');
   const [search, setSearch] = useState('');
   const [resFilter, setResFilter] = useState<'all' | Reservation['status']>('confirmed');
+
+  const [prevPrefill, setPrevPrefill] = useState(params.prefillFloor);
+  if (params.prefillFloor !== prevPrefill) {
+    setPrevPrefill(params.prefillFloor);
+    setFloorFilter(params.prefillFloor || 'all');
+  }
 
   // Action sheet for a tapped table
   const [actionTableId, setActionTableId] = useState<string | null>(null);
@@ -134,9 +141,10 @@ export default function AdminTables() {
 
   // Floors list
   const availableFloors = useMemo(() => {
+    const floorNames = (dynamicFloors || []).map((f) => f.name);
     const discovered = tables.map((t) => getTableFloor(t));
-    return sortFloors([...FLOOR_ORDER, ...zones, ...discovered]);
-  }, [tables, zones]);
+    return sortFloors([...floorNames, ...FLOOR_ORDER, ...zones, ...discovered], floorNames);
+  }, [dynamicFloors, tables, zones]);
 
   // ---------- Metrics ----------
   const counts = useMemo(() => {
@@ -221,7 +229,7 @@ export default function AdminTables() {
       setFormName(`Couch ${nextNum}`);
       setFormSeats('6');
     } else {
-      const meta = getFloorMeta(chosenFloor);
+      const meta = getFloorMeta(chosenFloor, dynamicFloors);
       setFormName(`${meta.short || 'T'}-${String(nextNum).padStart(2, '0')}`);
       setFormSeats('4');
     }
@@ -474,13 +482,6 @@ export default function AdminTables() {
     setFormNewZone('');
   };
 
-  const handleDeleteZone = (zoneName: string) => {
-    if (tables.some((t) => t.zone === zoneName)) {
-      return notify('Zone in use', `Move or delete tables in '${zoneName}' first.`);
-    }
-    confirmAction('Delete zone', `Delete zone '${zoneName}'?`, 'Delete', () => deleteZone(zoneName));
-  };
-
   // ---------- Render helpers ----------
   const renderTile = (table: Table, index?: number) => {
     const meta = STATUS_META[table.status];
@@ -726,9 +727,9 @@ export default function AdminTables() {
   ];
 
   const TABS: { key: TabKey; label: string; icon: IconName; badge?: number }[] = [
-    { key: 'tables', label: 'Floor', icon: 'grid' },
+    { key: 'tables', label: 'Seating Blueprint', icon: 'grid' },
     { key: 'reservations', label: 'Reservations', icon: 'calendar', badge: upcomingCount },
-    { key: 'zones', label: 'Zones', icon: 'map' },
+    { key: 'zones', label: 'Floors & Cabins', icon: 'layers' },
   ];
 
   return (
@@ -736,10 +737,17 @@ export default function AdminTables() {
       {/* Header */}
       <View style={[styles.header, isMobile && { paddingHorizontal: 14 }]}>
         <View style={{ flex: 1, minWidth: 200 }}>
-          <Text style={styles.title}>Floor & Zone Management</Text>
-          <Text style={styles.subtitle}>Floors, Couches, Tables & Arabian Majlis Cabins</Text>
+          <Text style={styles.title}>Table & Cabin Blueprint</Text>
+          <Text style={styles.subtitle}>Dining tables, couches & Arabian majlis cabins floor-wise</Text>
         </View>
         <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={[styles.headerBtn, { backgroundColor: '#34495E' }]}
+            onPress={() => router.push('/admin/floors')}
+          >
+            <Ionicons name="layers-outline" size={16} color="#fff" />
+            <Text style={styles.headerBtnText}>🏛️ Manage Floors</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={[styles.headerBtn, styles.headerBtnGhost]} onPress={() => openAddReservationModal()}>
             <Ionicons name="calendar-outline" size={16} color={STATUS_META.reserved.color} />
             {!isMobile && <Text style={[styles.headerBtnText, { color: STATUS_META.reserved.color }]}>Reservation</Text>}
@@ -792,7 +800,7 @@ export default function AdminTables() {
               <TouchableOpacity key={tab.key} style={[styles.segmentItem, active && styles.segmentItemActive]} onPress={() => setActiveTab(tab.key)}>
                 <Ionicons name={active ? tab.icon : (`${tab.icon}-outline` as IconName)} size={16} color={active ? '#fff' : '#636366'} />
                 <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
-                  {tab.key === 'zones' ? 'Floors & Cabins' : tab.label}
+                  {tab.label}
                 </Text>
                 {!!tab.badge && (
                   <View style={[styles.segmentBadge, active && { backgroundColor: GOLD }]}>
@@ -842,22 +850,32 @@ export default function AdminTables() {
 
             {/* Tier 1: Floor Filter Pills */}
             <View style={{ marginBottom: 6 }}>
-              <Text style={styles.filterSectionTitle}>Select Floor:</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <Text style={styles.filterSectionTitle}>Select Floor:</Text>
+                <TouchableOpacity
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 2, paddingHorizontal: 6 }}
+                  onPress={() => router.push('/admin/floors')}
+                >
+                  <Ionicons name="settings-outline" size={13} color={BRAND} />
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: BRAND }}>Manage Floors</Text>
+                </TouchableOpacity>
+              </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                 {['all', ...availableFloors].map((fl) => {
                   const active = floorFilter === fl;
                   const count = fl === 'all' ? tables.length : tables.filter((t) => getTableFloor(t).toLowerCase() === fl.toLowerCase()).length;
-                  const meta = fl !== 'all' ? getFloorMeta(fl) : null;
+                  const meta = fl !== 'all' ? getFloorMeta(fl, dynamicFloors) : null;
+                  const chipColor = meta?.color || BRAND;
                   return (
                     <TouchableOpacity
                       key={fl}
                       style={[
                         styles.floorFilterChip,
-                        active && { backgroundColor: BRAND, borderColor: BRAND },
+                        active && { backgroundColor: chipColor, borderColor: chipColor },
                       ]}
                       onPress={() => setFloorFilter(fl)}
                     >
-                      {meta && <Ionicons name={meta.icon as any} size={14} color={active ? '#fff' : BRAND} />}
+                      {meta && <Ionicons name={meta.icon as any} size={14} color={active ? '#fff' : chipColor} />}
                       <Text style={[styles.floorFilterChipText, active && { color: '#fff' }]}>
                         {fl === 'all' ? 'All Floors' : fl}
                       </Text>
@@ -1091,9 +1109,30 @@ export default function AdminTables() {
         {/* ---------- FLOORS & CABINS DIRECTORY TAB ---------- */}
         {activeTab === 'zones' && (
           <View style={{ gap: 16 }}>
+            {/* Direct banner to Floor Management */}
+            <View style={styles.floorBannerNotice}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                <View style={styles.floorBannerIcon}>
+                  <Ionicons name="layers" size={20} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.floorBannerTitle}>Looking to Add, Edit, or Delete Floors?</Text>
+                  <Text style={styles.floorBannerSub}>
+                    Floors and table management are separated. Open the Floor Management screen to manage floors, color themes, codes & prefixes.
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.floorBannerBtn}
+                onPress={() => router.push('/admin/floors')}
+              >
+                <Text style={styles.floorBannerBtnText}>Manage Floors Screen ➔</Text>
+              </TouchableOpacity>
+            </View>
+
             {availableFloors.map((floorName) => {
               const floorTables = tables.filter((t) => getTableFloor(t).toLowerCase() === floorName.toLowerCase());
-              const meta = getFloorMeta(floorName);
+              const meta = getFloorMeta(floorName, dynamicFloors);
               const tableItems = floorTables.filter((t) => getTableSeatingType(t) === 'tables');
               const couchItems = floorTables.filter((t) => getTableSeatingType(t) === 'couches');
               const majlisItems = floorTables.filter((t) => getTableSeatingType(t) === 'majlis');
@@ -1113,6 +1152,13 @@ export default function AdminTables() {
                     <View style={styles.floorHeaderStats}>
                       <Text style={styles.floorTotalCount}>{floorTables.length} Total Units</Text>
                       <Text style={styles.floorTotalSeats}>{totalFloorSeats} Total Capacity</Text>
+                      <TouchableOpacity
+                        style={styles.floorEditMiniBtn}
+                        onPress={() => router.push('/admin/floors')}
+                      >
+                        <Ionicons name="create-outline" size={12} color={BRAND} />
+                        <Text style={styles.floorEditMiniBtnText}>Edit Floor</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
 
@@ -1273,18 +1319,29 @@ export default function AdminTables() {
             </View>
 
             {/* Select Floor */}
-            <Text style={styles.label}>Floor Location</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <Text style={styles.label}>Floor Location</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setTableModalVisible(false);
+                  router.push('/admin/floors');
+                }}
+              >
+                <Text style={{ fontSize: 12, color: BRAND, fontWeight: '700' }}>+ Manage Floors</Text>
+              </TouchableOpacity>
+            </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 12 }}>
               {availableFloors.map((fl) => {
                 const active = formFloor === fl;
-                const meta = getFloorMeta(fl);
+                const meta = getFloorMeta(fl, dynamicFloors);
+                const chipColor = meta?.color || BRAND;
                 return (
                   <TouchableOpacity
                     key={fl}
-                    style={[styles.chip, active && { backgroundColor: BRAND, borderColor: BRAND }]}
+                    style={[styles.chip, active && { backgroundColor: chipColor, borderColor: chipColor }]}
                     onPress={() => setFormFloor(fl)}
                   >
-                    <Ionicons name={meta.icon as any} size={13} color={active ? '#fff' : BRAND} />
+                    <Ionicons name={meta.icon as any} size={13} color={active ? '#fff' : chipColor} />
                     <Text style={[styles.chipText, active && { color: '#fff' }]}>{fl}</Text>
                   </TouchableOpacity>
                 );
@@ -1314,7 +1371,7 @@ export default function AdminTables() {
                         const nextNum = floorItems.length + 1;
                         if (type === 'majlis') setFormName(`Cabin ${nextNum}`);
                         else if (type === 'couches') setFormName(`Couch ${nextNum}`);
-                        else setFormName(`${getFloorMeta(formFloor).short || 'T'}-${String(nextNum).padStart(2, '0')}`);
+                        else setFormName(`${getFloorMeta(formFloor, dynamicFloors).short || 'T'}-${String(nextNum).padStart(2, '0')}`);
                       }
                     }}
                   >
@@ -1944,13 +2001,54 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 14,
   },
+  floorBannerNotice: {
+    backgroundColor: '#2C3E50',
+    borderRadius: 14,
+    padding: 14,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  floorBannerIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  floorBannerTitle: { fontSize: 14, fontWeight: '800', color: '#fff' },
+  floorBannerSub: { fontSize: 11, color: '#BDC3C7', marginTop: 2, maxWidth: 520 },
+  floorBannerBtn: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  floorBannerBtnText: { fontSize: 12, fontWeight: '800', color: '#2C3E50' },
   floorCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   floorHeaderBadge: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   floorCardName: { fontSize: 18, fontWeight: '900', color: BRAND },
   floorCardBlurb: { fontSize: 12, color: '#8E8E93', fontWeight: '600' },
-  floorHeaderStats: { alignItems: 'flex-end' },
+  floorHeaderStats: { alignItems: 'flex-end', gap: 4 },
   floorTotalCount: { fontSize: 13, fontWeight: '800', color: '#1C1C1E' },
   floorTotalSeats: { fontSize: 11, color: '#8E8E93', fontWeight: '600' },
+  floorEditMiniBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FAF7F2',
+    borderWidth: 1,
+    borderColor: '#4a121a30',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginTop: 2,
+  },
+  floorEditMiniBtnText: { fontSize: 11, fontWeight: '700', color: BRAND },
 
   floorZonesGrid: { gap: 10 },
   floorZoneBox: {

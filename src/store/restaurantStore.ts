@@ -153,6 +153,17 @@ export type Reservation = {
   createdAt: number;
 };
 
+export type Floor = {
+  id: string;
+  name: string;
+  shortCode: string;
+  prefix: string;
+  color: string;
+  icon: string;
+  description?: string;
+  order?: number;
+};
+
 type RestaurantState = {
   tables: Table[];
   tickets: Ticket[];
@@ -162,6 +173,7 @@ type RestaurantState = {
   menuItems: MenuItem[];
   categories: string[];
   zones: string[];
+  floors: Floor[];
   reservations: Reservation[];
   lastBillPaidAlert?: { tableId: string; tableName: string; billTotal: number; time: number } | null;
   
@@ -190,6 +202,9 @@ type RestaurantState = {
   addTable: (table: Omit<Table, 'id' | 'status'> & { status?: Table['status'] }) => void;
   updateTable: (id: string, table: Partial<Omit<Table, 'id'>>) => void;
   deleteTable: (id: string) => void;
+  addFloor: (floor: Omit<Floor, 'id'>) => void;
+  updateFloor: (id: string, updates: Partial<Omit<Floor, 'id'>>) => void;
+  deleteFloor: (id: string, cascadeDeleteTables?: boolean) => void;
   addZone: (zoneName: string) => void;
   deleteZone: (zoneName: string) => void;
   saveInvoice: (invoice: Invoice) => void;
@@ -203,6 +218,59 @@ type RestaurantState = {
   deleteStaff: (id: string) => void;
   syncFromServer: (remoteState: Partial<RestaurantState>) => void;
 };
+
+export const INITIAL_FLOORS: Floor[] = [
+  {
+    id: 'fl-gf',
+    name: 'Ground Floor',
+    shortCode: 'GF',
+    prefix: 'G',
+    color: '#2E7D32',
+    icon: 'restaurant-outline',
+    description: 'Family dining hall & takeaway counter',
+    order: 1,
+  },
+  {
+    id: 'fl-1f',
+    name: '1st Floor',
+    shortCode: '1F',
+    prefix: 'F1',
+    color: '#1976D2',
+    icon: 'people-outline',
+    description: 'Family hall, Couches & Traditional Majlis',
+    order: 2,
+  },
+  {
+    id: 'fl-2f',
+    name: '2nd Floor',
+    shortCode: '2F',
+    prefix: 'F2',
+    color: '#6A1B9A',
+    icon: 'sparkles-outline',
+    description: 'Banquet hall & Executive lounges',
+    order: 3,
+  },
+  {
+    id: 'fl-3f',
+    name: '3rd Floor',
+    shortCode: '3F',
+    prefix: 'F3',
+    color: '#B8860B',
+    icon: 'diamond-outline',
+    description: 'VIP lounges, Royal Majlis & Private rooms',
+    order: 4,
+  },
+  {
+    id: 'fl-rt',
+    name: 'Rooftop',
+    shortCode: 'RT',
+    prefix: 'R',
+    color: '#E65100',
+    icon: 'moon-outline',
+    description: 'Open-air BBQ & Sky Majlis',
+    order: 5,
+  },
+];
 
 // Initial Mock Data
 const INITIAL_TABLES: Table[] = [
@@ -493,6 +561,7 @@ export const useRestaurantStore = create<RestaurantState>()(
       menuItems: INITIAL_MENU,
       categories: ['Appetizers', 'Mains', 'Desserts', 'Drinks', 'Deals'],
       zones: ['Main Hall', 'Rooftop', 'VIP'],
+      floors: INITIAL_FLOORS,
 
       placeOrder: (tableId, serverName, orderItems, isAddOn) => set((state) => {
         const table = state.tables.find(t => t.id === tableId);
@@ -956,6 +1025,92 @@ export const useRestaurantStore = create<RestaurantState>()(
         tables: state.tables.filter(t => t.id !== id)
       })),
 
+      addFloor: (floor) => set((state) => {
+        const newId = `fl-${Date.now()}`;
+        const newFloor: Floor = {
+          ...floor,
+          id: newId,
+          order: (state.floors || []).length + 1,
+        };
+        const currentFloors = state.floors && state.floors.length > 0 ? state.floors : INITIAL_FLOORS;
+        const updatedFloors = [...currentFloors, newFloor];
+        const updatedZones = state.zones.includes(floor.name) ? state.zones : [...state.zones, floor.name];
+        return {
+          floors: updatedFloors,
+          zones: updatedZones,
+        };
+      }),
+
+      updateFloor: (id, updates) => set((state) => {
+        const currentFloors = state.floors && state.floors.length > 0 ? state.floors : INITIAL_FLOORS;
+        const target = currentFloors.find((f) => f.id === id);
+        if (!target) return state;
+
+        const oldName = target.name;
+        const newName = updates.name ? updates.name.trim() : oldName;
+        const nameChanged = newName && newName.toLowerCase() !== oldName.toLowerCase();
+
+        const updatedFloors = currentFloors.map((f) => (f.id === id ? { ...f, ...updates, name: newName } : f));
+
+        // Cascade floor name rename to tables, zones, and staff assignedZones
+        const updatedTables = nameChanged
+          ? state.tables.map((t) => {
+              const matchesFloor = (t.floor && t.floor.toLowerCase() === oldName.toLowerCase()) ||
+                (t.zone && t.zone.toLowerCase() === oldName.toLowerCase());
+              if (matchesFloor) {
+                return {
+                  ...t,
+                  floor: newName,
+                  zone: newName,
+                };
+              }
+              return t;
+            })
+          : state.tables;
+
+        const updatedZones = nameChanged
+          ? state.zones.map((z) => (z.toLowerCase() === oldName.toLowerCase() ? newName : z))
+          : state.zones;
+
+        const updatedStaff = nameChanged
+          ? (state.staff || []).map((s) => ({
+              ...s,
+              assignedZone: s.assignedZone && s.assignedZone.toLowerCase() === oldName.toLowerCase() ? newName : s.assignedZone,
+              assignedZones: (s.assignedZones || []).map((z) => (z.toLowerCase() === oldName.toLowerCase() ? newName : z)),
+            }))
+          : state.staff;
+
+        return {
+          floors: updatedFloors,
+          tables: updatedTables,
+          zones: updatedZones,
+          staff: updatedStaff,
+        };
+      }),
+
+      deleteFloor: (id, cascadeDeleteTables = false) => set((state) => {
+        const currentFloors = state.floors && state.floors.length > 0 ? state.floors : INITIAL_FLOORS;
+        const target = currentFloors.find((f) => f.id === id);
+        if (!target) return state;
+
+        const floorName = target.name.toLowerCase();
+        const updatedFloors = currentFloors.filter((f) => f.id !== id);
+        const updatedZones = state.zones.filter((z) => z.toLowerCase() !== floorName);
+
+        const updatedTables = cascadeDeleteTables
+          ? state.tables.filter((t) => {
+              const tFloor = (t.floor || t.zone || '').toLowerCase();
+              return tFloor !== floorName;
+            })
+          : state.tables;
+
+        return {
+          floors: updatedFloors,
+          zones: updatedZones,
+          tables: updatedTables,
+        };
+      }),
+
       addZone: (zoneName) => set((state) => ({
         zones: [...state.zones, zoneName]
       })),
@@ -1008,6 +1163,7 @@ export const useRestaurantStore = create<RestaurantState>()(
           ...(remoteState.menuItems ? { menuItems: remoteState.menuItems } : {}),
           ...(remoteState.categories ? { categories: remoteState.categories } : {}),
           ...(remoteState.zones ? { zones: remoteState.zones } : {}),
+          ...(remoteState.floors ? { floors: remoteState.floors } : {}),
           ...(remoteState.staff ? { staff: remoteState.staff } : {}),
           ...(remoteState.customers ? { customers: remoteState.customers } : {}),
           ...(remoteState.reservations ? { reservations: remoteState.reservations } : {}),
@@ -1021,6 +1177,9 @@ export const useRestaurantStore = create<RestaurantState>()(
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.tables = reconcileTablesWithTickets(state.tables, state.tickets);
+          if (!state.floors || !Array.isArray(state.floors) || state.floors.length === 0) {
+            state.floors = INITIAL_FLOORS;
+          }
         }
       },
     }
