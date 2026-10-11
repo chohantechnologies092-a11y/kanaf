@@ -120,6 +120,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF', // Clean top status bar area
+    ...Platform.select({
+      web: {
+        height: '100vh' as any,
+        maxHeight: '100vh' as any,
+        overflow: 'hidden',
+      },
+    }),
   },
   header: {
     backgroundColor: '#FFFFFF',
@@ -209,5 +216,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     backgroundColor: '#F8F9FA',
+    overflow: 'hidden',
   }
 });

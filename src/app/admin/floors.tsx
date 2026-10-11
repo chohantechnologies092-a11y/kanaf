@@ -666,7 +666,7 @@ const styles = StyleSheet.create({
   },
   actionBtnText: { color: '#fff', fontSize: 13, fontWeight: '800' },
 
-  content: { padding: 18, paddingBottom: 40, gap: 16 },
+  content: { padding: 18, paddingBottom: 80, gap: 16 },
 
   // KPI Row
   kpiRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },

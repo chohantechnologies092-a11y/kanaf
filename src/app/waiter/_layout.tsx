@@ -1,5 +1,4 @@
-import React from 'react';
-import { View, StyleSheet, StatusBar } from 'react-native';
+import { View, StyleSheet, StatusBar, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { useRoleGuard } from '../../hooks/useRoleGuard';
@@ -39,9 +38,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#4a121a', // Sultan Burgundy for status bar area
+    ...Platform.select({
+      web: {
+        height: '100vh' as any,
+        maxHeight: '100vh' as any,
+        overflow: 'hidden',
+      },
+    }),
   },
   content: {
     flex: 1,
     backgroundColor: '#F8F9FA',
+    overflow: 'hidden',
   },
 });

@@ -120,6 +120,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#4a121a', // Sultan Burgundy covers safe area
+    ...Platform.select({
+      web: {
+        height: '100vh' as any,
+        maxHeight: '100vh' as any,
+        overflow: 'hidden',
+      },
+    }),
   },
   header: {
     backgroundColor: '#4a121a',
@@ -211,5 +218,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     backgroundColor: '#F8F9FA',
+    overflow: 'hidden',
   }
 });

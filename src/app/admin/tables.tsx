@@ -1706,7 +1706,7 @@ const styles = StyleSheet.create({
   },
   headerBtnGhost: { backgroundColor: '#F4ECF7', borderWidth: 1, borderColor: '#D7BDE2' },
   headerBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { padding: 20, paddingBottom: 80 },
 
   statsRow: { gap: 10, paddingBottom: 4 },
   statCard: {

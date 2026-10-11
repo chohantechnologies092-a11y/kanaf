@@ -275,7 +275,11 @@ export default function AdminDashboard() {
   const totalActionsCount = ACTION_GROUPS.reduce((acc, g) => acc + g.items.length, 0);
 
   return (
-    <ScrollView style={[styles.container, isMobile && styles.containerMobile]} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      style={styles.container} 
+      contentContainerStyle={[styles.scrollContent, isMobile && styles.scrollContentMobile]}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.content}>
 
         {/* ================= ROYAL HERO EXECUTIVE BANNER ================= */}
@@ -512,17 +516,21 @@ export default function AdminDashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 22,
     backgroundColor: '#F5F5F7', // Apple clean background
   },
-  containerMobile: {
+  scrollContent: {
+    padding: 22,
+    paddingBottom: 80,
+  },
+  scrollContentMobile: {
     padding: 12,
+    paddingBottom: 95,
   },
   content: {
     maxWidth: 1280,
     width: '100%',
     alignSelf: 'center',
-    paddingBottom: 40,
+    paddingBottom: 30,
   },
 
   /* ================= HERO EXECUTIVE BANNER ================= */
