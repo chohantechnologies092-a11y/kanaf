@@ -343,30 +343,63 @@ export default function TableOrderScreen() {
               contentContainerStyle={styles.menuGrid}
               columnWrapperStyle={menuColumns > 1 ? styles.menuGridRow : undefined}
               showsVerticalScrollIndicator={false}
-              renderItem={({ item, index }) => {
+              renderItem={({ item }) => {
                 const inCartItem = newCart.find(c => c.item.id === item.id);
                 return (
-                  <TouchableOpacity 
-                    style={[styles.menuItemCard, { backgroundColor: COLORS[index % COLORS.length] }]}
-                    onPress={() => addToCart(item)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.cardTopRow}>
-                      <Text style={styles.menuItemCat}>{item.category}</Text>
-                      {inCartItem && (
-                        <View style={styles.cartCountPill}>
-                          <Text style={styles.cartCountPillText}>+{inCartItem.qty}</Text>
+                  <View style={[styles.menuItemCard, inCartItem && styles.menuItemCardInCart]}>
+                    <TouchableOpacity 
+                      style={styles.menuItemCardTouch}
+                      onPress={() => addToCart(item)}
+                      activeOpacity={0.8}
+                    >
+                      <View style={styles.cardTopRow}>
+                        <View style={styles.categoryPill}>
+                          <Text style={styles.menuItemCat} numberOfLines={1}>{item.category}</Text>
                         </View>
+                        {inCartItem && (
+                          <View style={styles.cartCountPill}>
+                            <Text style={styles.cartCountPillText}>{inCartItem.qty} in cart</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.menuItemName} numberOfLines={2}>{item.name}</Text>
+                      <Text style={styles.menuItemPrice}>Rs. {item.price.toLocaleString()}</Text>
+                    </TouchableOpacity>
+
+                    {/* Quick Add or Quantity Stepper */}
+                    <View style={styles.cardActionRow}>
+                      {inCartItem ? (
+                        <View style={styles.cardInlineStepper}>
+                          <TouchableOpacity
+                            style={styles.stepperSubBtn}
+                            onPress={() => updateCartQty(item.id, -1)}
+                            activeOpacity={0.7}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                          >
+                            <Ionicons name="remove" size={14} color="#C0392B" />
+                          </TouchableOpacity>
+                          <Text style={styles.cardStepperQty}>{inCartItem.qty}</Text>
+                          <TouchableOpacity
+                            style={styles.stepperAddBtn}
+                            onPress={() => updateCartQty(item.id, 1)}
+                            activeOpacity={0.7}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                          >
+                            <Ionicons name="add" size={14} color="#27AE60" />
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          style={styles.quickAddButton}
+                          onPress={() => addToCart(item)}
+                          activeOpacity={0.75}
+                        >
+                          <Ionicons name="add" size={15} color="#4a121a" style={{ marginRight: 2 }} />
+                          <Text style={styles.quickAddText}>Add</Text>
+                        </TouchableOpacity>
                       )}
                     </View>
-                    <Text style={styles.menuItemName} numberOfLines={2}>{item.name}</Text>
-                    <View style={styles.cardBottomRow}>
-                      <Text style={styles.menuItemPrice}>Rs. {item.price.toLocaleString()}</Text>
-                      <View style={styles.addIconCircle}>
-                        <Ionicons name="add" size={18} color="#4a121a" />
-                      </View>
-                    </View>
-                  </TouchableOpacity>
+                  </View>
                 );
               }}
             />
@@ -638,7 +671,7 @@ export default function TableOrderScreen() {
                   onPress={handleSendToKitchen}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="paper-plane" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                  <Ionicons name="paper-plane" size={18} color="#4a121a" style={{ marginRight: 8 }} />
                   <Text style={styles.sendButtonText}>
                     {isExistingOrderActive 
                       ? `Send Add-on to Kitchen (Round ${activeTickets.length + 1})` 
@@ -861,60 +894,121 @@ const styles = StyleSheet.create({
   },
   menuItemCard: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
     borderRadius: 14,
-    padding: 14,
-    minHeight: 110,
+    padding: 12,
+    minHeight: 125,
     justifyContent: 'space-between',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
     elevation: 2,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.04)',
+    borderWidth: 1.2,
+    borderColor: '#ECE8DF',
+  },
+  menuItemCardInCart: {
+    borderColor: '#D5A943',
+    backgroundColor: '#FFFEFA',
+  },
+  menuItemCardTouch: {
+    flex: 1,
+  },
+  categoryPill: {
+    backgroundColor: '#F5F5F7',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
   },
   cardTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   menuItemCat: {
-    fontSize: 11,
-    color: '#8E8E93',
+    fontSize: 10,
+    color: '#8A6D3B',
     textTransform: 'uppercase',
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   cartCountPill: {
-    backgroundColor: '#4a121a',
-    paddingHorizontal: 6,
+    backgroundColor: '#D5A943',
+    paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 10,
   },
   cartCountPillText: {
-    color: '#FFFFFF',
+    color: '#4a121a',
     fontSize: 10,
     fontWeight: '800',
   },
   menuItemName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1C1C1E',
-    marginBottom: 8,
-  },
-  cardBottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  menuItemPrice: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#4a121a',
+    color: '#1C1C1E',
+    marginBottom: 4,
+    lineHeight: 18,
   },
-  addIconCircle: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 15,
+  menuItemPrice: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#4a121a',
+    marginTop: 2,
+  },
+  cardActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F5F2EB',
+    paddingTop: 6,
+  },
+  quickAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(213, 169, 67, 0.18)',
+    borderWidth: 1,
+    borderColor: '#D5A943',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  quickAddText: {
+    color: '#4a121a',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  cardInlineStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: '#D5A943',
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    gap: 8,
+  },
+  stepperSubBtn: {
+    padding: 3,
+  },
+  cardStepperQty: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#1C1C1E',
+    minWidth: 16,
+    textAlign: 'center',
+  },
+  stepperAddBtn: {
+    padding: 3,
+  },
+  addBtn: {
+    backgroundColor: '#D5A943',
+    borderRadius: 8,
     width: 30,
     height: 30,
     alignItems: 'center',
@@ -1283,22 +1377,25 @@ const styles = StyleSheet.create({
     color: '#4a121a', // Sultan Burgundy
   },
   sendButton: {
-    backgroundColor: '#27ae60',
+    backgroundColor: '#D5A943',
+    borderWidth: 1.5,
+    borderColor: '#E8C76D',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 12,
-    shadowColor: '#27ae60',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowColor: '#D5A943',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
   },
   sendButtonText: {
-    color: '#FFFFFF',
+    color: '#4a121a',
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '900',
+    letterSpacing: 0.4,
   },
   backToTablesBtn: {
     backgroundColor: '#F6F3EC',

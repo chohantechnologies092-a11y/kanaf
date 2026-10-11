@@ -192,65 +192,122 @@ export default function OrderTakerScreen() {
       <TouchableOpacity
         style={[
           styles.tableCard,
-          { borderTopColor: isMajlis ? '#4a121a' : isCouch ? '#E65100' : statusColor },
           isMajlis && styles.majlisTableCard,
+          isCouch && styles.couchTableCard,
           isFoodReady && styles.tableCardFoodReady,
           isBilled && styles.tableCardBilled,
+          isOccupied && !isFoodReady && !isBilled && styles.tableCardOccupied,
         ]}
         onPress={() => handleTablePress(item.id)}
-        activeOpacity={0.8}
+        activeOpacity={0.84}
       >
+        {/* Zone Top Accent Stripe */}
+        <View
+          style={[
+            styles.cardAccentStripe,
+            { backgroundColor: isMajlis ? '#D5A943' : isCouch ? '#E65100' : isFoodReady ? '#007AFF' : statusColor },
+          ]}
+        />
+
         {/* Card Header */}
         <View style={styles.cardHeader}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
             <View
               style={[
                 styles.seatingIconBubble,
-                { backgroundColor: isMajlis ? '#4a121a15' : isCouch ? '#E6510015' : '#1976D215' },
+                isMajlis
+                  ? styles.majlisIconBubble
+                  : isCouch
+                  ? styles.couchIconBubble
+                  : styles.tableIconBubble,
               ]}
             >
-              <SeatingTypeIcon type={seatingType} size={18} color={zoneMeta.color} />
+              <SeatingTypeIcon type={seatingType} size={20} color={isMajlis ? '#D5A943' : zoneMeta.color} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.tableName} numberOfLines={1}>{item.name}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
-                <Text style={[styles.zoneTypeBadge, { color: zoneMeta.color }]}>
-                  {isMajlis ? '🕌 Majlis Cabin' : isCouch ? '🛋️ Couch' : '🍽️ Table'}
-                </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 }}>
+                <View
+                  style={[
+                    styles.zoneMiniTag,
+                    isMajlis && { backgroundColor: 'rgba(213, 169, 67, 0.15)', borderColor: '#D5A943' },
+                    isCouch && { backgroundColor: 'rgba(230, 81, 0, 0.12)', borderColor: '#E65100' },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.zoneTypeBadge,
+                      { color: isMajlis ? '#8A5D00' : zoneMeta.color },
+                    ]}
+                  >
+                    {isMajlis ? '🕌 Majlis Cabin' : isCouch ? '🛋️ Couch Lounge' : '🍽️ Dining Table'}
+                  </Text>
+                </View>
                 <Text style={styles.dot}>•</Text>
                 <Ionicons name={floorMeta.icon || 'business-outline'} size={11} color={floorMeta.color || '#8E8E93'} />
-                <Text style={[styles.floorTagText, { color: floorMeta.color || '#8E8E93' }]} numberOfLines={1}>{floorName}</Text>
+                <Text style={[styles.floorTagText, { color: floorMeta.color || '#8E8E93' }]} numberOfLines={1}>
+                  {floorName}
+                </Text>
               </View>
             </View>
           </View>
 
-          {/* Status Indicator Pill */}
-          <View style={[styles.statusIndicator, { backgroundColor: statusColor + '20', borderColor: statusColor + '50' }]}>
+          {/* Status Indicator Pill with glowing dot */}
+          <View
+            style={[
+              styles.statusIndicator,
+              {
+                backgroundColor:
+                  statusColor === '#34C759'
+                    ? '#E8F8EE'
+                    : statusColor === '#007AFF'
+                    ? '#E8F2FF'
+                    : statusColor === '#E67E22'
+                    ? '#FEF5E7'
+                    : '#FDEDEC',
+                borderColor: statusColor + '55',
+              },
+            ]}
+          >
             <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
             <Text style={[styles.statusIndicatorText, { color: statusColor }]}>
-              {isFoodReady ? 'READY' : isBilled ? 'PAID' : item.status.toUpperCase()}
+              {isFoodReady ? 'READY' : isBilled ? 'BILLED' : item.status.toUpperCase()}
             </Text>
           </View>
         </View>
 
         {/* Card Body */}
         <View style={styles.cardBody}>
-          {/* Capacity Row */}
+          {/* Capacity and Guest Tag */}
           <View style={[styles.capacityRow, isMajlis && styles.majlisCapacityRow]}>
-            <Ionicons name="people" size={13} color={isMajlis ? '#4a121a' : '#636366'} />
+            <Ionicons name="people" size={13} color={isMajlis ? '#4a121a' : '#555'} />
             <Text style={[styles.capacityText, isMajlis && { color: '#4a121a', fontWeight: '800' }]}>
-              {isMajlis ? `Sitting Capacity: ${item.seats} Guests` : `${item.seats} Seats Capacity`}
+              {isMajlis
+                ? `🕌 Capacity: ${item.seats} Guests (Family Cabin)`
+                : isCouch
+                ? `🛋️ Seating: ${item.seats} Guests (Lounge)`
+                : `🍽️ Seating: ${item.seats} Guests`}
             </Text>
           </View>
 
-          {/* Running Bill and Server */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+          {/* Running Bill and Server Assigned */}
+          <View style={styles.billServerRow}>
             {item.billTotal !== undefined && item.billTotal > 0 ? (
-              <Text style={styles.billText}>Rs. {item.billTotal.toLocaleString()}</Text>
+              <View style={styles.billBadge}>
+                <Text style={styles.billCurrency}>Rs.</Text>
+                <Text style={styles.billText}>{item.billTotal.toLocaleString()}</Text>
+              </View>
             ) : (
-              <Text style={[styles.freeNoticeText, { color: statusColor }]}>
-                {item.status === 'available' ? 'Ready for Guests' : 'No Bill Yet'}
-              </Text>
+              <View style={[styles.freeNoticePill, { backgroundColor: statusColor + '12' }]}>
+                <Ionicons
+                  name={item.status === 'available' ? 'sparkles' : 'time-outline'}
+                  size={12}
+                  color={statusColor}
+                />
+                <Text style={[styles.freeNoticeText, { color: statusColor }]}>
+                  {item.status === 'available' ? 'Ready for Seating' : 'No Order Yet'}
+                </Text>
+              </View>
             )}
 
             {assignedServer && (isOccupied || isBilled) && (
@@ -266,7 +323,7 @@ export default function OrderTakerScreen() {
             <View style={styles.foodReadyPill}>
               <Ionicons name="restaurant" size={12} color="#007AFF" />
               <Text style={styles.foodReadyPillText}>
-                {roundCount > 1 ? `FOOD READY (Round #${roundCount})` : 'FOOD READY AT PASS!'}
+                {roundCount > 1 ? `FOOD READY AT PASS (Round #${roundCount})` : 'FOOD READY AT PASS!'}
               </Text>
             </View>
           )}
@@ -274,17 +331,27 @@ export default function OrderTakerScreen() {
             <View style={styles.cookingPill}>
               <Ionicons name="flame" size={12} color="#FF9500" />
               <Text style={styles.cookingPillText}>
-                {roundCount > 1 ? `Cooking in Kitchen (R#${roundCount})` : 'Order In Kitchen...'}
+                {roundCount > 1 ? `In Kitchen Prep (Round #${roundCount})` : 'Order Cooking in Kitchen...'}
               </Text>
             </View>
           )}
         </View>
 
         {/* Card Footer Actions */}
-        <View style={[styles.cardFooter, { backgroundColor: isMajlis ? '#4a121a08' : '#F9F9FA' }]}>
+        <View style={[styles.cardFooter, { backgroundColor: isMajlis ? 'rgba(213, 169, 67, 0.08)' : '#FAFAFA' }]}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.tapToOrderPrompt}>
-              {isOccupied ? 'Tap to view / add items ➔' : isBilled ? 'Guests Seated ➔' : 'Tap to take order ➔'}
+            <Text
+              style={[
+                styles.tapToOrderPrompt,
+                isFoodReady && { color: '#007AFF' },
+                isOccupied && !isFoodReady && { color: '#C0392B' },
+              ]}
+            >
+              {isOccupied
+                ? 'View items / Add punch ➔'
+                : isBilled
+                ? 'Guests Dining / Billed ➔'
+                : 'Take customer order ➔'}
             </Text>
           </View>
 
@@ -302,7 +369,7 @@ export default function OrderTakerScreen() {
               }}
               activeOpacity={0.8}
             >
-              <Ionicons name="checkmark-done" size={14} color="#fff" style={{ marginRight: 3 }} />
+              <Ionicons name="checkmark-done" size={14} color="#fff" style={{ marginRight: 4 }} />
               <Text style={styles.serveNowBtnText}>Serve Now</Text>
             </TouchableOpacity>
           )}
@@ -530,32 +597,89 @@ export default function OrderTakerScreen() {
               !isMobile && { width: '100%', justifyContent: 'space-between' },
             ]}
           >
-            <View style={[styles.zoneSummaryItem, isMobile && styles.zoneSummaryItemMobile]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <SeatingTypeIcon type="tables" size={14} color="#1976D2" />
-                <Text style={[styles.zoneSummaryItemTitle, { color: '#1976D2' }]}>Dining Tables</Text>
+            <TouchableOpacity
+              style={[
+                styles.zoneSummaryItem,
+                styles.zoneSummaryItemTables,
+                seatingTypeFilter === 'tables' && styles.zoneSummaryItemActiveTables,
+                isMobile && styles.zoneSummaryItemMobile,
+              ]}
+              onPress={() => setSeatingTypeFilter(seatingTypeFilter === 'tables' ? 'all' : 'tables')}
+              activeOpacity={0.82}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={[styles.zoneMiniIconCircle, { backgroundColor: '#E3F2FD' }]}>
+                    <SeatingTypeIcon type="tables" size={14} color="#1976D2" />
+                  </View>
+                  <Text style={[styles.zoneSummaryItemTitle, { color: '#1976D2' }]}>Dining Tables</Text>
+                </View>
+                {seatingTypeFilter === 'tables' && (
+                  <Ionicons name="checkmark-circle" size={15} color="#1976D2" />
+                )}
               </View>
               <Text style={styles.zoneSummaryCount}>{zoneSummary.tables.count} Tables</Text>
-              <Text style={styles.zoneSummarySub}>{zoneSummary.tables.seats} Seats • {zoneSummary.tables.available} Free</Text>
-            </View>
+              <View style={styles.zoneSummaryPillRow}>
+                <View style={[styles.freeGreenDot, { backgroundColor: '#1976D2' }]} />
+                <Text style={styles.zoneSummarySub}>{zoneSummary.tables.available} Free • {zoneSummary.tables.seats} Seats</Text>
+              </View>
+            </TouchableOpacity>
 
-            <View style={[styles.zoneSummaryItem, isMobile && styles.zoneSummaryItemMobile]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <SeatingTypeIcon type="couches" size={14} color="#E65100" />
-                <Text style={[styles.zoneSummaryItemTitle, { color: '#E65100' }]}>Couches</Text>
+            <TouchableOpacity
+              style={[
+                styles.zoneSummaryItem,
+                styles.zoneSummaryItemCouches,
+                seatingTypeFilter === 'couches' && styles.zoneSummaryItemActiveCouches,
+                isMobile && styles.zoneSummaryItemMobile,
+              ]}
+              onPress={() => setSeatingTypeFilter(seatingTypeFilter === 'couches' ? 'all' : 'couches')}
+              activeOpacity={0.82}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={[styles.zoneMiniIconCircle, { backgroundColor: '#FFF3E0' }]}>
+                    <SeatingTypeIcon type="couches" size={14} color="#E65100" />
+                  </View>
+                  <Text style={[styles.zoneSummaryItemTitle, { color: '#E65100' }]}>Luxury Couches</Text>
+                </View>
+                {seatingTypeFilter === 'couches' && (
+                  <Ionicons name="checkmark-circle" size={15} color="#E65100" />
+                )}
               </View>
               <Text style={styles.zoneSummaryCount}>{zoneSummary.couches.count} Couches</Text>
-              <Text style={styles.zoneSummarySub}>{zoneSummary.couches.seats} Seats • {zoneSummary.couches.available} Free</Text>
-            </View>
-
-            <View style={[styles.zoneSummaryItem, styles.zoneSummaryItemMajlis, isMobile && styles.zoneSummaryItemMobile]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <SeatingTypeIcon type="majlis" size={14} color="#4a121a" />
-                <Text style={[styles.zoneSummaryItemTitle, { color: '#4a121a' }]}>Majlis Sitting</Text>
+              <View style={styles.zoneSummaryPillRow}>
+                <View style={[styles.freeGreenDot, { backgroundColor: '#E65100' }]} />
+                <Text style={styles.zoneSummarySub}>{zoneSummary.couches.available} Free • {zoneSummary.couches.seats} Seats</Text>
               </View>
-              <Text style={[styles.zoneSummaryCount, { color: '#4a121a' }]}>{zoneSummary.majlis.cabinsCount} Cabins</Text>
-              <Text style={styles.zoneSummarySub}>{zoneSummary.majlis.sittingCapacity} Guests Capacity • {zoneSummary.majlis.availableCabins} Free</Text>
-            </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.zoneSummaryItem,
+                styles.zoneSummaryItemMajlis,
+                seatingTypeFilter === 'majlis' && styles.zoneSummaryItemActiveMajlis,
+                isMobile && styles.zoneSummaryItemMobile,
+              ]}
+              onPress={() => setSeatingTypeFilter(seatingTypeFilter === 'majlis' ? 'all' : 'majlis')}
+              activeOpacity={0.82}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={[styles.zoneMiniIconCircle, { backgroundColor: '#FDF3E1' }]}>
+                    <SeatingTypeIcon type="majlis" size={14} color="#8A5D00" />
+                  </View>
+                  <Text style={[styles.zoneSummaryItemTitle, { color: '#8A5D00' }]}>Majlis Cabins</Text>
+                </View>
+                {seatingTypeFilter === 'majlis' && (
+                  <Ionicons name="checkmark-circle" size={15} color="#8A5D00" />
+                )}
+              </View>
+              <Text style={[styles.zoneSummaryCount, { color: '#4a121a' }]}>{zoneSummary.majlis.cabinsCount} Royal Cabins</Text>
+              <View style={styles.zoneSummaryPillRow}>
+                <View style={[styles.freeGreenDot, { backgroundColor: '#34C759' }]} />
+                <Text style={styles.zoneSummarySub}>{zoneSummary.majlis.availableCabins} Free • {zoneSummary.majlis.sittingCapacity} Guests</Text>
+              </View>
+            </TouchableOpacity>
           </ScrollView>
         </View>
 
@@ -794,44 +918,92 @@ const styles = StyleSheet.create({
   zoneSummaryContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   zoneSummaryItem: {
     flex: 1,
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 10,
-    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1.5,
     borderColor: '#ECEAE4',
-    gap: 3,
+    gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 2,
   },
   zoneSummaryItemMobile: {
     flex: 0,
-    minWidth: 155,
+    minWidth: 165,
+  },
+  zoneSummaryItemTables: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D0E3F5',
+  },
+  zoneSummaryItemCouches: {
+    backgroundColor: '#FFFDF9',
+    borderColor: '#F8DCBA',
   },
   zoneSummaryItemMajlis: {
-    backgroundColor: '#FDFBF8',
-    borderColor: '#4a121a30',
+    backgroundColor: '#FCFAF6',
+    borderColor: '#E8D2A4',
+  },
+  zoneSummaryItemActiveTables: {
+    borderColor: '#1976D2',
+    backgroundColor: '#F0F7FF',
+    borderWidth: 2,
+  },
+  zoneSummaryItemActiveCouches: {
+    borderColor: '#E65100',
+    backgroundColor: '#FFF7EE',
+    borderWidth: 2,
+  },
+  zoneSummaryItemActiveMajlis: {
+    borderColor: '#D5A943',
+    backgroundColor: '#FFFBF2',
+    borderWidth: 2,
+  },
+  zoneMiniIconCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   zoneSummaryItemTitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
   },
   zoneSummaryCount: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '900',
     color: '#1C1C1E',
+    marginTop: 2,
+  },
+  zoneSummaryPillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 2,
+  },
+  freeGreenDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
   zoneSummarySub: {
-    fontSize: 10,
-    color: '#8E8E93',
+    fontSize: 11,
+    color: '#636366',
+    fontWeight: '600',
   },
 
   readyAlertBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#E8F2FF',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#B8D7FF',
     borderRadius: 12,
     padding: 12,
@@ -883,36 +1055,48 @@ const styles = StyleSheet.create({
   },
 
   listContent: {
-    paddingBottom: 28,
+    paddingBottom: 36,
   },
   rowWrapper: {
     justifyContent: 'space-between',
-    gap: 10,
-    marginBottom: 10,
+    gap: 12,
+    marginBottom: 12,
   },
 
   // Table & Cabin Cards
   tableCard: {
     flex: 1,
     backgroundColor: '#fff',
-    borderRadius: 14,
-    borderTopWidth: 4,
-    borderWidth: 1,
-    borderColor: '#ECEAE4',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#E8E5DD',
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  cardAccentStripe: {
+    height: 4,
+    width: '100%',
   },
   majlisTableCard: {
-    backgroundColor: '#FDFBF8',
-    borderColor: '#4a121a30',
+    backgroundColor: '#FCFAF6',
+    borderColor: 'rgba(213, 169, 67, 0.45)',
+  },
+  couchTableCard: {
+    backgroundColor: '#FFFDFB',
+    borderColor: 'rgba(230, 81, 0, 0.35)',
+  },
+  tableCardOccupied: {
+    borderColor: 'rgba(214, 69, 65, 0.45)',
   },
   tableCardFoodReady: {
     borderColor: '#007AFF',
     borderWidth: 2,
+    shadowColor: '#007AFF',
+    shadowOpacity: 0.15,
   },
   tableCardBilled: {
     borderColor: '#E67E22',
@@ -927,16 +1111,38 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   seatingIconBubble: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  majlisIconBubble: {
+    backgroundColor: 'rgba(213, 169, 67, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(213, 169, 67, 0.35)',
+  },
+  couchIconBubble: {
+    backgroundColor: 'rgba(230, 81, 0, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(230, 81, 0, 0.25)',
+  },
+  tableIconBubble: {
+    backgroundColor: 'rgba(25, 118, 210, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(25, 118, 210, 0.25)',
   },
   tableName: {
     fontSize: 16,
     fontWeight: '900',
     color: '#1C1C1E',
+  },
+  zoneMiniTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   zoneTypeBadge: {
     fontSize: 10,
@@ -949,46 +1155,46 @@ const styles = StyleSheet.create({
   floorTagText: {
     fontSize: 10,
     color: '#8E8E93',
-    fontWeight: '600',
+    fontWeight: '700',
   },
 
   statusIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1.2,
   },
   statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
   statusIndicatorText: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '900',
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
   },
 
   cardBody: {
     paddingHorizontal: 12,
     paddingBottom: 8,
-    gap: 4,
+    gap: 6,
   },
   capacityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#F7F7F8',
+    gap: 6,
+    backgroundColor: '#F5F5F7',
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingVertical: 5,
+    borderRadius: 8,
     alignSelf: 'flex-start',
   },
   majlisCapacityRow: {
-    backgroundColor: '#4a121a10',
+    backgroundColor: 'rgba(213, 169, 67, 0.14)',
   },
   capacityText: {
     fontSize: 11,
@@ -996,10 +1202,34 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
+  billServerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  billBadge: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 3,
+  },
+  billCurrency: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#D5A943',
+  },
   billText: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '900',
     color: '#1C1C1E',
+  },
+  freeNoticePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   freeNoticeText: {
     fontSize: 11,
@@ -1009,12 +1239,12 @@ const styles = StyleSheet.create({
   waiterBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F6F0E8',
+    backgroundColor: '#F9F4EC',
     borderWidth: 1,
     borderColor: '#D5A943',
     borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
   },
   waiterBadgeText: {
     fontSize: 10,
@@ -1025,13 +1255,13 @@ const styles = StyleSheet.create({
   foodReadyPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     backgroundColor: '#E8F2FF',
-    borderWidth: 1,
+    borderWidth: 1.2,
     borderColor: '#B8D7FF',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
     marginTop: 4,
   },
   foodReadyPillText: {
@@ -1042,13 +1272,13 @@ const styles = StyleSheet.create({
   cookingPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     backgroundColor: '#FFF3E0',
-    borderWidth: 1,
+    borderWidth: 1.2,
     borderColor: '#FFE0B2',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
     marginTop: 4,
   },
   cookingPillText: {
