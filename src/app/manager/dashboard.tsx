@@ -177,6 +177,23 @@ export default function ManagerDashboard() {
 
           <TouchableOpacity 
             style={[styles.card, isMobile && styles.cardMobile]}
+            onPress={() => router.push('/manager/returns' as any)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.iconBox, { backgroundColor: '#FEE2E2' }]}>
+              <Ionicons name="return-down-back" size={24} color="#C62828" />
+            </View>
+            <View style={styles.cardInfo}>
+              <Text style={styles.cardTitle}>Sales Returns & Refunds</Text>
+              <Text style={styles.cardDesc}>Issue item returns, taste/quality refunds & credit vouchers.</Text>
+            </View>
+            {isMobile && (
+              <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.card, isMobile && styles.cardMobile]}
             onPress={() => router.push('/manager/shift')}
             activeOpacity={0.7}
           >

@@ -96,6 +96,9 @@ export type Payment = {
   amount: number;
 };
 
+export * from '../types/returns';
+import type { SalesReturn } from '../types/returns';
+
 export type Invoice = {
   id: string;
   orderType: 'dine-in' | 'takeaway' | 'delivery';
@@ -118,6 +121,9 @@ export type Invoice = {
   voidedAt?: number;
   voidedBy?: string;
   notes?: string;
+  refundAmount?: number;
+  returnStatus?: 'none' | 'partial' | 'full';
+  returnIds?: string[];
 };
 
 export type StaffRole = 'Admin' | 'Manager' | 'Waiter' | 'Kitchen' | 'JuiceBar' | 'Playland';
@@ -207,9 +213,12 @@ type RestaurantState = {
   deleteFloor: (id: string, cascadeDeleteTables?: boolean) => void;
   addZone: (zoneName: string) => void;
   deleteZone: (zoneName: string) => void;
+  salesReturns: SalesReturn[];
   saveInvoice: (invoice: Invoice) => void;
   voidInvoice: (invoiceId: string, reason?: string, voidedBy?: string) => void;
   deleteInvoice: (invoiceId: string) => void;
+  processSalesReturn: (input: Omit<SalesReturn, 'id' | 'returnedAt' | 'status'> & { id?: string }) => { ok: true; id: string } | { ok: false; error: string };
+  cancelSalesReturn: (returnId: string, by: string) => void;
   addCustomer: (customer: Omit<Customer, 'id' | 'totalOrders' | 'totalSpent'>) => void;
   updateCustomer: (id: string, customer: Partial<Customer>) => void;
   deleteCustomer: (id: string) => void;
@@ -542,6 +551,7 @@ export const useRestaurantStore = create<RestaurantState>()(
     (set) => ({
       tables: INITIAL_TABLES,
       invoices: [],
+      salesReturns: [],
       customers: INITIAL_CUSTOMERS,
       staff: INITIAL_STAFF,
       reservations: INITIAL_RESERVATIONS,
@@ -972,6 +982,92 @@ export const useRestaurantStore = create<RestaurantState>()(
         invoices: state.invoices.filter(inv => inv.id !== invoiceId)
       })),
 
+      processSalesReturn: (input) => {
+        const returnId = input.id || `RET-${Math.floor(10000 + Math.random() * 90000)}`;
+        let success = false;
+        let errorMessage = '';
+
+        set((state) => {
+          const invoice = state.invoices.find(inv => inv.id === input.invoiceId);
+          if (!invoice) {
+            errorMessage = 'Original invoice not found.';
+            return state;
+          }
+
+          const now = Date.now();
+          const refundAmt = Math.max(0, input.refundAmount);
+
+          const newReturn: SalesReturn = {
+            ...input,
+            id: returnId,
+            returnedAt: now,
+            status: 'completed',
+            refundAmount: refundAmt,
+          };
+
+          const existingRefund = invoice.refundAmount || 0;
+          const newTotalRefund = existingRefund + refundAmt;
+          const isFullRefund = input.returnType === 'full' || newTotalRefund >= invoice.total;
+
+          const updatedInvoices = state.invoices.map(inv => {
+            if (inv.id !== invoice.id) return inv;
+            return {
+              ...inv,
+              status: isFullRefund ? ('refunded' as const) : inv.status,
+              returnStatus: isFullRefund ? ('full' as const) : ('partial' as const),
+              refundAmount: newTotalRefund,
+              returnIds: [...(inv.returnIds || []), returnId],
+            };
+          });
+
+          // Adjust customer spent if customer linked
+          let updatedCustomers = state.customers;
+          if (invoice.customer?.id) {
+            updatedCustomers = state.customers.map(c => {
+              if (c.id === invoice.customer!.id) {
+                return {
+                  ...c,
+                  totalSpent: Math.max(0, c.totalSpent - refundAmt),
+                };
+              }
+              return c;
+            });
+          }
+
+          // Restock items marked 'restock'
+          let updatedMenuItems = state.menuItems;
+          input.items.forEach(retItem => {
+            if (retItem.condition === 'restock' && retItem.quantityReturned > 0) {
+              updatedMenuItems = updatedMenuItems.map(m => {
+                if (m.id === retItem.itemId || retItem.itemId.startsWith(`${m.id}-`)) {
+                  if (m.trackStock && typeof m.stockQty === 'number') {
+                    return { ...m, stockQty: m.stockQty + retItem.quantityReturned };
+                  }
+                }
+                return m;
+              });
+            }
+          });
+
+          success = true;
+          return {
+            salesReturns: [newReturn, ...(state.salesReturns || [])],
+            invoices: updatedInvoices,
+            customers: updatedCustomers,
+            menuItems: updatedMenuItems,
+          };
+        });
+
+        if (!success) return { ok: false, error: errorMessage || 'Failed to process return.' };
+        return { ok: true, id: returnId };
+      },
+
+      cancelSalesReturn: (returnId, by) => set((state) => ({
+        salesReturns: (state.salesReturns || []).map(r => 
+          r.id === returnId ? { ...r, status: 'cancelled' as const, notes: `${r.notes ? r.notes + ' | ' : ''}Cancelled by ${by}` } : r
+        )
+      })),
+
       addCustomer: (customer) => set((state) => ({
         customers: [...state.customers, { ...customer, id: `c${Date.now()}`, totalOrders: 0, totalSpent: 0 }]
       })),
@@ -1167,6 +1263,7 @@ export const useRestaurantStore = create<RestaurantState>()(
           ...(remoteState.staff ? { staff: remoteState.staff } : {}),
           ...(remoteState.customers ? { customers: remoteState.customers } : {}),
           ...(remoteState.reservations ? { reservations: remoteState.reservations } : {}),
+          ...(remoteState.salesReturns ? { salesReturns: remoteState.salesReturns } : {}),
           ...(remoteState.lastBillPaidAlert !== undefined ? { lastBillPaidAlert: remoteState.lastBillPaidAlert } : {}),
         };
       }),

@@ -23,6 +23,7 @@ const MANAGER_MENU_ITEMS: DrawerItem[] = [
   { label: 'Floor Plan', route: '/manager/floor-plan', icon: 'business-outline' },
   { label: 'Live Shift', route: '/manager/shift', icon: 'time-outline' },
   { label: 'Invoices & Orders', route: '/manager/invoices', icon: 'receipt-outline' },
+  { label: 'Sales Returns & Refunds', route: '/manager/returns', icon: 'return-down-back-outline' },
   { label: 'Inventory', route: '/manager/inventory', icon: 'cube-outline' },
   { label: 'Suppliers', route: '/manager/suppliers', icon: 'bus-outline' },
   { label: 'Live Expenses', route: '/manager/expenses', icon: 'wallet-outline' },

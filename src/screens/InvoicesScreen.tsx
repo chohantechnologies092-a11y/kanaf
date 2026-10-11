@@ -63,7 +63,7 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'month'>('all');
   const [orderTypeFilter, setOrderTypeFilter] = useState<'all' | 'dine-in' | 'takeaway' | 'delivery'>('all');
   const [paymentFilter, setPaymentFilter] = useState<'all' | 'cash' | 'card' | 'online'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'settled' | 'voided'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'settled' | 'voided' | 'refunded'>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'amount_high' | 'amount_low'>('newest');
 
   // Selected Invoice for Details Modal
@@ -127,9 +127,11 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
 
     // Status Filter
     if (statusFilter === 'settled') {
-      result = result.filter((inv) => inv.status !== 'voided');
+      result = result.filter((inv) => inv.status !== 'voided' && inv.status !== 'refunded');
     } else if (statusFilter === 'voided') {
       result = result.filter((inv) => inv.status === 'voided');
+    } else if (statusFilter === 'refunded') {
+      result = result.filter((inv) => inv.status === 'refunded' || inv.returnStatus === 'full' || inv.returnStatus === 'partial');
     }
 
     // Search Query (Invoice ID, Table, Server, Customer Name/Phone, or Items)
@@ -549,12 +551,12 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
 
             {/* Status Filter */}
             <Text style={styles.filterLabel}>Status:</Text>
-            {(['all', 'settled', 'voided'] as const).map((st) => (
+            {(['all', 'settled', 'refunded', 'voided'] as const).map((st) => (
               <TouchableOpacity
                 key={st}
                 style={[
                   styles.filterChip,
-                  statusFilter === st && (st === 'voided' ? styles.filterChipVoidActive : styles.filterChipActive),
+                  statusFilter === st && (st === 'voided' ? styles.filterChipVoidActive : st === 'refunded' ? styles.filterChipRefundActive : styles.filterChipActive),
                 ]}
                 onPress={() => setStatusFilter(st)}
               >
@@ -564,7 +566,7 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
                     statusFilter === st && (st === 'voided' ? styles.filterChipVoidTextActive : styles.filterChipTextActive),
                   ]}
                 >
-                  {st === 'all' ? 'All Status' : st === 'settled' ? '✅ Settled' : '❌ Voided'}
+                  {st === 'all' ? 'All Status' : st === 'settled' ? '✅ Settled' : st === 'refunded' ? '↩️ Returned / Refunded' : '❌ Voided'}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -606,6 +608,8 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
           <View style={styles.invoicesList}>
             {filteredInvoices.map((inv) => {
               const isVoided = inv.status === 'voided';
+              const isRefunded = inv.status === 'refunded' || inv.returnStatus === 'full';
+              const isPartialReturn = inv.returnStatus === 'partial';
               const itemsCount = inv.items?.reduce((sum, it) => sum + (it.qty || 1), 0) || 0;
               const itemsPreview = (inv.items || [])
                 .slice(0, 3)
@@ -619,22 +623,37 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
                   style={[
                     styles.invoiceCard,
                     isVoided && styles.invoiceCardVoided,
+                    isRefunded && styles.invoiceCardRefunded,
                   ]}
                 >
                   {/* Card Header Row */}
                   <View style={styles.cardHeader}>
                     <View style={styles.cardHeaderLeft}>
-                      <View style={[styles.statusPill, isVoided ? styles.statusPillVoided : styles.statusPillSettled]}>
-                        <Ionicons
-                          name={isVoided ? 'close-circle' : 'checkmark-circle'}
-                          size={13}
-                          color={isVoided ? '#C62828' : '#2E7D32'}
-                          style={{ marginRight: 4 }}
-                        />
-                        <Text style={[styles.statusPillText, isVoided ? styles.statusPillTextVoided : styles.statusPillTextSettled]}>
-                          {isVoided ? 'VOIDED' : 'PAID'}
-                        </Text>
-                      </View>
+                      {isVoided ? (
+                        <View style={[styles.statusPill, styles.statusPillVoided]}>
+                          <Ionicons name="close-circle" size={13} color="#C62828" style={{ marginRight: 4 }} />
+                          <Text style={[styles.statusPillText, styles.statusPillTextVoided]}>VOIDED</Text>
+                        </View>
+                      ) : isRefunded ? (
+                        <View style={[styles.statusPill, styles.statusPillRefunded]}>
+                          <Ionicons name="return-down-back" size={13} color="#6A1B9A" style={{ marginRight: 4 }} />
+                          <Text style={[styles.statusPillText, styles.statusPillTextRefunded]}>REFUNDED</Text>
+                        </View>
+                      ) : (
+                        <View style={[styles.statusPill, styles.statusPillSettled]}>
+                          <Ionicons name="checkmark-circle" size={13} color="#2E7D32" style={{ marginRight: 4 }} />
+                          <Text style={[styles.statusPillText, styles.statusPillTextSettled]}>PAID</Text>
+                        </View>
+                      )}
+
+                      {isPartialReturn && (
+                        <View style={[styles.statusPill, styles.statusPillPartialReturn]}>
+                          <Ionicons name="alert-circle" size={12} color="#D84315" style={{ marginRight: 3 }} />
+                          <Text style={[styles.statusPillText, styles.statusPillTextPartialReturn]}>
+                            PARTIAL RETURN (-Rs. {(inv.refundAmount || 0).toLocaleString()})
+                          </Text>
+                        </View>
+                      )}
 
                       <Text style={styles.invoiceIdText}>#{inv.id}</Text>
 
@@ -752,6 +771,20 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
                         <Ionicons name="print-outline" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
                         <Text style={styles.printActionBtnText}>Receipt</Text>
                       </TouchableOpacity>
+
+                      {!isVoided && !isRefunded && (
+                        <TouchableOpacity
+                          style={[styles.cardReturnBtn, isSmallMobile && styles.cardReturnBtnMobile]}
+                          onPress={() => {
+                            const targetPath = userRole === 'admin' ? '/admin/returns' : '/manager/returns';
+                            router.push(targetPath as any);
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="return-down-back-outline" size={15} color="#D84315" style={{ marginRight: 4 }} />
+                          <Text style={styles.cardReturnBtnText}>Return</Text>
+                        </TouchableOpacity>
+                      )}
 
                       {!isVoided && (
                         <TouchableOpacity
@@ -1148,6 +1181,21 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
                     <Text style={[styles.modalPrintBtnText, isSmallMobile && { fontSize: 13 }]}>Print / Share Receipt</Text>
                   </TouchableOpacity>
 
+                  {selectedInvoice.status !== 'voided' && selectedInvoice.status !== 'refunded' && (
+                    <TouchableOpacity
+                      style={[styles.modalReturnBtn, isSmallMobile && { paddingVertical: 10, paddingHorizontal: 12 }]}
+                      onPress={() => {
+                        setSelectedInvoice(null);
+                        const targetPath = userRole === 'admin' ? '/admin/returns' : '/manager/returns';
+                        router.push(targetPath as any);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="return-down-back" size={18} color="#D84315" style={{ marginRight: 4 }} />
+                      <Text style={[styles.modalReturnBtnText, isSmallMobile && { fontSize: 12 }]}>Return / Refund</Text>
+                    </TouchableOpacity>
+                  )}
+
                   {selectedInvoice.status !== 'voided' && (
                     <TouchableOpacity
                       style={[styles.modalVoidBtn, isSmallMobile && { paddingVertical: 10, paddingHorizontal: 12 }]}
@@ -1452,6 +1500,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#C62828',
     borderColor: '#C62828',
   },
+  filterChipRefundActive: {
+    backgroundColor: '#6A1B9A',
+    borderColor: '#6A1B9A',
+  },
   filterChipText: {
     fontSize: 12,
     color: '#3A3A3C',
@@ -1536,6 +1588,10 @@ const styles = StyleSheet.create({
     borderLeftColor: '#E74C3C',
     backgroundColor: '#FFFDFD',
   },
+  invoiceCardRefunded: {
+    borderLeftColor: '#6A1B9A',
+    backgroundColor: '#FAF5FF',
+  },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1573,6 +1629,18 @@ const styles = StyleSheet.create({
   },
   statusPillTextVoided: {
     color: '#C62828',
+  },
+  statusPillRefunded: {
+    backgroundColor: '#F3E5F5',
+  },
+  statusPillTextRefunded: {
+    color: '#6A1B9A',
+  },
+  statusPillPartialReturn: {
+    backgroundColor: '#FFF3E0',
+  },
+  statusPillTextPartialReturn: {
+    color: '#D84315',
   },
   invoiceIdText: {
     fontSize: 15,
@@ -1750,6 +1818,25 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#FFCDD2',
+  },
+  cardReturnBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFE0B2',
+  },
+  cardReturnBtnMobile: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  cardReturnBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#D84315',
   },
 
   /* MODAL STYLES */
@@ -2195,6 +2282,22 @@ const styles = StyleSheet.create({
   },
   modalVoidBtnText: {
     color: '#C62828',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  modalReturnBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FFE0B2',
+  },
+  modalReturnBtnText: {
+    color: '#D84315',
     fontWeight: '700',
     fontSize: 13,
   },

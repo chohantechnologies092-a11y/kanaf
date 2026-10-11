@@ -21,6 +21,7 @@ const ADMIN_MENU_ITEMS: DrawerItem[] = [
   { label: 'Dashboard', route: '/admin/dashboard', icon: 'grid-outline' },
   { label: 'POS Terminal', route: '/admin/pos', icon: 'calculator-outline' },
   { label: 'Invoices & Orders', route: '/admin/invoices', icon: 'receipt-outline' },
+  { label: 'Sales Returns & Refunds', route: '/admin/returns', icon: 'return-down-back-outline' },
   { label: 'Menu Catalog', route: '/admin/menu', icon: 'restaurant-outline' },
   { label: 'Staff & Roles', route: '/admin/staff', icon: 'people-outline' },
   { label: 'Financial Reports', route: '/admin/reports', icon: 'bar-chart-outline' },

@@ -53,6 +53,13 @@ export default function AdminDashboard() {
       color: '#4a121a'
     },
     {
+      title: 'Sales Returns & Refunds',
+      desc: 'Customer order cancellations, item returns, culinary waste & refunds.',
+      icon: 'return-down-back-outline' as const,
+      route: '/admin/returns',
+      color: '#C62828'
+    },
+    {
       title: 'Menu Catalog',
       desc: 'Add or edit categories, items, and pricing.',
       icon: 'restaurant-outline' as const,
