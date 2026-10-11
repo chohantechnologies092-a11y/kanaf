@@ -9,6 +9,7 @@ import {
   TextInput,
   useWindowDimensions,
   Platform,
+  Pressable,
 } from 'react-native';
 import { useRouter, usePathname, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -62,7 +63,7 @@ const ALL_PORTALS_CONFIG: PortalGroup[] = [
         title: 'Order Taker Terminal',
         subtitle: 'Floor tables, couches & Arabian majlis cabins',
         route: '/waiter',
-        icon: 'walk-outline' as const,
+        icon: 'walk-outline',
         color: '#4a121a',
         badge: 'LIVE POS',
       },
@@ -71,7 +72,7 @@ const ALL_PORTALS_CONFIG: PortalGroup[] = [
         title: 'Cashier POS Counter',
         subtitle: 'Fast billing, payments & receipt printing',
         route: '/admin/pos',
-        icon: 'card-outline' as const,
+        icon: 'card-outline',
         color: '#2E7D32',
       },
       {
@@ -79,7 +80,7 @@ const ALL_PORTALS_CONFIG: PortalGroup[] = [
         title: 'Customer Digital Menu',
         subtitle: 'Interactive food catalog with pictures',
         route: '/menu',
-        icon: 'restaurant-outline' as const,
+        icon: 'restaurant-outline',
         color: '#D5A943',
       },
     ],
@@ -92,7 +93,7 @@ const ALL_PORTALS_CONFIG: PortalGroup[] = [
         title: 'Kitchen Display (KDS)',
         subtitle: 'Live kitchen orders & course timings',
         route: '/kitchen/kds',
-        icon: 'flame-outline' as const,
+        icon: 'flame-outline',
         color: '#C62828',
         badge: 'LIVE',
       },
@@ -101,7 +102,7 @@ const ALL_PORTALS_CONFIG: PortalGroup[] = [
         title: 'Juice Bar Display',
         subtitle: 'Beverages, mocktails & fresh juices',
         route: '/juicebar/kds',
-        icon: 'cafe-outline' as const,
+        icon: 'cafe-outline',
         color: '#E65100',
         badge: 'BAR',
       },
@@ -110,7 +111,7 @@ const ALL_PORTALS_CONFIG: PortalGroup[] = [
         title: 'Chef Day Console',
         subtitle: 'Session start, mid-day adjustments & yield',
         route: '/kitchen/day',
-        icon: 'timer-outline' as const,
+        icon: 'timer-outline',
         color: '#6A1B9A',
       },
       {
@@ -118,7 +119,7 @@ const ALL_PORTALS_CONFIG: PortalGroup[] = [
         title: 'Kitchen BOM & Requisitions',
         subtitle: 'Ingredient handovers, recipes & returns',
         route: '/admin/kitchen-handover',
-        icon: 'clipboard-outline' as const,
+        icon: 'clipboard-outline',
         color: '#1565C0',
       },
     ],
@@ -131,7 +132,7 @@ const ALL_PORTALS_CONFIG: PortalGroup[] = [
         title: 'Executive Dashboard',
         subtitle: 'Live revenue, active tables & shift summary',
         route: '/admin/dashboard',
-        icon: 'grid-outline' as const,
+        icon: 'grid-outline',
         color: '#1A237E',
       },
       {
@@ -139,7 +140,7 @@ const ALL_PORTALS_CONFIG: PortalGroup[] = [
         title: 'Floors & Zones Setup',
         subtitle: 'Add/edit restaurant floors & seating zones',
         route: '/admin/floors',
-        icon: 'business-outline' as const,
+        icon: 'business-outline',
         color: '#00695C',
       },
       {
@@ -147,7 +148,7 @@ const ALL_PORTALS_CONFIG: PortalGroup[] = [
         title: 'Tables & Majlis Cabins',
         subtitle: 'Configure cabins capacity & table arrangements',
         route: '/admin/tables',
-        icon: 'apps-outline' as const,
+        icon: 'apps-outline',
         color: '#4a121a',
       },
       {
@@ -155,7 +156,7 @@ const ALL_PORTALS_CONFIG: PortalGroup[] = [
         title: 'Menu Catalog Management',
         subtitle: 'Dishes, pricing, variants & categories',
         route: '/admin/menu',
-        icon: 'fast-food-outline' as const,
+        icon: 'fast-food-outline',
         color: '#D84315',
       },
       {
@@ -163,7 +164,7 @@ const ALL_PORTALS_CONFIG: PortalGroup[] = [
         title: 'Staff & Order Takers',
         subtitle: 'Employees, roles, PINs & floor assignments',
         route: '/admin/staff',
-        icon: 'people-outline' as const,
+        icon: 'people-outline',
         color: '#283593',
       },
       {
@@ -171,7 +172,7 @@ const ALL_PORTALS_CONFIG: PortalGroup[] = [
         title: 'Sales & Business Reports',
         subtitle: 'Daily ledger, item breakdown & profits',
         route: '/admin/reports',
-        icon: 'bar-chart-outline' as const,
+        icon: 'bar-chart-outline',
         color: '#00838F',
       },
       {
@@ -179,7 +180,7 @@ const ALL_PORTALS_CONFIG: PortalGroup[] = [
         title: 'Raw Materials & Stock',
         subtitle: 'Inventory, suppliers & unit costs',
         route: '/admin/inventory',
-        icon: 'cube-outline' as const,
+        icon: 'cube-outline',
         color: '#4E342E',
       },
       {
@@ -187,7 +188,7 @@ const ALL_PORTALS_CONFIG: PortalGroup[] = [
         title: 'Playland Rides & Tickets',
         subtitle: 'Basement kids zone ticketing counter',
         route: '/playland',
-        icon: 'game-controller-outline' as const,
+        icon: 'game-controller-outline',
         color: '#AD1457',
       },
     ],
@@ -219,15 +220,16 @@ export default function UniversalPortalNav({
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
-  const [modalVisible, setModalVisible] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const handlePortalNavigate = (route: string) => {
-    setModalVisible(false);
+    setSidebarOpen(false);
     router.push(route as Href);
   };
 
   const handleLogout = () => {
+    setSidebarOpen(false);
     logout();
     router.replace('/login');
   };
@@ -245,8 +247,17 @@ export default function UniversalPortalNav({
     <View style={styles.navRoot}>
       {/* 1. Main Top Header Bar */}
       <View style={[styles.topBar, isMobile && styles.topBarMobile]}>
-        {/* Left: Brand Logo & Portal Title */}
+        {/* Left: Hamburger Button (Opens Sidebar) + Brand Logo & Portal Title */}
         <View style={styles.brandContainer}>
+          <TouchableOpacity
+            style={styles.hamburgerBtn}
+            onPress={() => setSidebarOpen(true)}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="menu" size={24} color="#D5A943" />
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.logoTouch}
             onPress={() => router.push('/')}
@@ -254,7 +265,7 @@ export default function UniversalPortalNav({
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <SultanLogo size="sm" width={26} height={26} />
-            <View style={{ marginLeft: 6 }}>
+            <View style={{ marginLeft: 8 }}>
               <Text style={styles.brandTitle}>
                 {isMobile ? 'Sultan' : 'Sultan Restaurant'}
               </Text>
@@ -269,6 +280,18 @@ export default function UniversalPortalNav({
 
         {/* Center / Right: Quick Navigation Actions */}
         <View style={styles.actionsRight}>
+          {/* Sidebar Trigger Button */}
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.sidebarTriggerBtn]}
+            onPress={() => setSidebarOpen(true)}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="apps" size={15} color="#4a121a" />
+            <Text style={styles.sidebarTriggerBtnText}>
+              {isMobile ? 'Menu' : '☰ Side Bar'}
+            </Text>
+          </TouchableOpacity>
+
           {/* Quick Home Jump */}
           <TouchableOpacity
             style={[styles.actionBtn, styles.homeBtn]}
@@ -277,18 +300,6 @@ export default function UniversalPortalNav({
           >
             <Ionicons name="home" size={15} color="#D5A943" />
             {!isMobile && <Text style={styles.homeBtnText}>Home</Text>}
-          </TouchableOpacity>
-
-          {/* Quick All-Portals Switcher Button (Crucial user-friendly feature) */}
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.portalsSwitchBtn]}
-            onPress={() => setModalVisible(true)}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="grid" size={15} color="#4a121a" />
-            <Text style={styles.portalsSwitchBtnText}>
-              {isMobile ? 'Portals' : '☰ All Portals'}
-            </Text>
           </TouchableOpacity>
 
           {/* LAN Sync Status */}
@@ -380,123 +391,144 @@ export default function UniversalPortalNav({
         </View>
       )}
 
-      {/* 3. Universal All-Portals Quick Jump Modal */}
+      {/* 3. Left Slide-In Side Bar Navigation Drawer */}
       <Modal
-        visible={modalVisible}
+        visible={sidebarOpen}
         transparent
         animationType="fade"
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={() => setSidebarOpen(false)}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalContent, isMobile && styles.modalContentMobile]}>
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <SultanLogo size="xs" width={26} height={26} />
-                <View>
-                  <Text style={styles.modalTitle}>Sultan System Navigation</Text>
-                  <Text style={styles.modalSubtitle}>
-                    Jump directly to any module across the restaurant
+        <View style={styles.sidebarOverlay}>
+          {/* Backdrop (tap to close) */}
+          <Pressable
+            style={styles.sidebarBackdrop}
+            onPress={() => setSidebarOpen(false)}
+          />
+
+          {/* The Sidebar Drawer */}
+          <View
+            style={[
+              styles.sidebarDrawer,
+              isMobile ? styles.sidebarDrawerMobile : styles.sidebarDrawerTablet,
+            ]}
+          >
+            {/* Sidebar Royal Header */}
+            <View style={styles.sidebarHeader}>
+              <View style={styles.sidebarBrandRow}>
+                <SultanLogo size="sm" width={32} height={32} />
+                <View style={{ marginLeft: 10, flex: 1 }}>
+                  <Text style={styles.sidebarTitle}>Sultan Restaurant</Text>
+                  <Text style={styles.sidebarSubtitle}>Royal Operations System</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.sidebarCloseBtn}
+                  onPress={() => setSidebarOpen(false)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="close" size={20} color="#D5A943" />
+                </TouchableOpacity>
+              </View>
+
+              {/* User Profile Card inside Sidebar */}
+              <View style={styles.sidebarProfileCard}>
+                <View style={styles.profileAvatarBox}>
+                  <Ionicons name="person" size={16} color="#4a121a" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.profileName} numberOfLines={1}>
+                    {user?.name || 'Staff User'}
+                  </Text>
+                  <Text style={styles.profileRole}>
+                    {portalRole ? portalRole.toUpperCase() : 'ACTIVE SESSION'}
                   </Text>
                 </View>
+                <View style={styles.profileLiveDot} />
               </View>
-              <TouchableOpacity
-                style={styles.modalCloseBtn}
-                onPress={() => setModalVisible(false)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="close" size={20} color="#fff" />
-              </TouchableOpacity>
             </View>
 
-            {/* Quick Search Bar */}
-            <View style={styles.searchBar}>
-              <Ionicons name="search" size={17} color="#8E8E93" />
+            {/* Sidebar Search Bar */}
+            <View style={styles.sidebarSearchBar}>
+              <Ionicons name="search" size={15} color="#8E8E93" />
               <TextInput
-                style={styles.searchInput}
-                placeholder="Search modules (e.g. Floors, Tables, KDS, Reports, POS)..."
+                style={styles.sidebarSearchInput}
+                placeholder="Search modules..."
                 placeholderTextColor="#AEAEB2"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                autoFocus={Platform.OS === 'web'}
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={16} color="#8E8E93" />
+                  <Ionicons name="close-circle" size={15} color="#8E8E93" />
                 </TouchableOpacity>
               )}
             </View>
 
-            {/* Categorized Portals Scroll */}
+            {/* Modules List inside Sidebar */}
             <ScrollView
-              style={styles.modalScroll}
+              style={styles.sidebarScroll}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 24 }}
+              contentContainerStyle={{ paddingBottom: 20 }}
             >
               {filteredPortals.map((group) => (
-                <View key={group.category} style={styles.portalGroup}>
-                  <Text style={styles.groupHeader}>{group.category}</Text>
-                  <View style={styles.cardsGrid}>
+                <View key={group.category} style={styles.sidebarGroup}>
+                  <Text style={styles.sidebarGroupHeader}>{group.category}</Text>
+                  <View style={styles.sidebarItemsList}>
                     {group.items.map((item) => {
                       const isCurrent = pathname === item.route;
                       return (
                         <TouchableOpacity
                           key={item.id}
                           style={[
-                            styles.portalCard,
-                            isCurrent && styles.portalCardCurrent,
-                            isMobile && styles.portalCardMobile,
+                            styles.sidebarItem,
+                            isCurrent && styles.sidebarItemCurrent,
                           ]}
                           onPress={() => handlePortalNavigate(item.route)}
-                          activeOpacity={0.8}
+                          activeOpacity={0.75}
                         >
                           <View
                             style={[
-                              styles.portalCardIconBox,
+                              styles.sidebarItemIconBox,
                               { backgroundColor: item.color + '15' },
+                              isCurrent && { backgroundColor: item.color },
                             ]}
                           >
-                            <Ionicons name={item.icon} size={20} color={item.color} />
+                            <Ionicons
+                              name={item.icon}
+                              size={18}
+                              color={isCurrent ? '#FFFFFF' : item.color}
+                            />
                           </View>
                           <View style={{ flex: 1 }}>
-                            <View
-                              style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                              }}
+                            <Text
+                              style={[
+                                styles.sidebarItemTitle,
+                                isCurrent && styles.sidebarItemTitleCurrent,
+                              ]}
+                              numberOfLines={1}
                             >
-                              <Text style={styles.portalCardTitle} numberOfLines={1}>
-                                {item.title}
-                              </Text>
-                              {item.badge && (
-                                <View
-                                  style={[
-                                    styles.itemBadge,
-                                    { backgroundColor: item.color + '20' },
-                                  ]}
-                                >
-                                  <Text
-                                    style={[
-                                      styles.itemBadgeText,
-                                      { color: item.color },
-                                    ]}
-                                  >
-                                    {item.badge}
-                                  </Text>
-                                </View>
-                              )}
-                            </View>
-                            <Text style={styles.portalCardSubtitle} numberOfLines={2}>
+                              {item.title}
+                            </Text>
+                            <Text style={styles.sidebarItemSubtitle} numberOfLines={1}>
                               {item.subtitle}
                             </Text>
                           </View>
-                          <Ionicons
-                            name="chevron-forward"
-                            size={16}
-                            color="#C7C7CC"
-                            style={{ marginLeft: 4 }}
-                          />
+                          {item.badge && (
+                            <View
+                              style={[
+                                styles.sidebarBadge,
+                                { backgroundColor: item.color + '20' },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.sidebarBadgeText,
+                                  { color: item.color },
+                                ]}
+                              >
+                                {item.badge}
+                              </Text>
+                            </View>
+                          )}
                         </TouchableOpacity>
                       );
                     })}
@@ -505,15 +537,24 @@ export default function UniversalPortalNav({
               ))}
             </ScrollView>
 
-            {/* Quick Home Footer */}
-            <View style={styles.modalFooter}>
+            {/* Sidebar Bottom Sticky Actions */}
+            <View style={styles.sidebarFooter}>
               <TouchableOpacity
-                style={styles.footerHomeBtn}
+                style={styles.sidebarHomeBtn}
                 onPress={() => handlePortalNavigate('/')}
                 activeOpacity={0.8}
               >
-                <Ionicons name="home-outline" size={16} color="#D5A943" />
-                <Text style={styles.footerHomeText}>Return to Main Landing Page</Text>
+                <Ionicons name="home-outline" size={17} color="#D5A943" />
+                <Text style={styles.sidebarHomeText}>Home Landing</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.sidebarLogoutBtn}
+                onPress={handleLogout}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="log-out-outline" size={17} color="#FF3B30" />
+                <Text style={styles.sidebarLogoutText}>Logout</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -544,6 +585,16 @@ const styles = StyleSheet.create({
   },
   brandContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  hamburgerBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(213, 169, 67, 0.35)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   logoTouch: {
@@ -584,18 +635,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
   },
-  homeBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(213, 169, 67, 0.4)',
-    gap: 4,
-  },
-  homeBtnText: {
-    color: BRAND.gold,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  portalsSwitchBtn: {
+  sidebarTriggerBtn: {
     backgroundColor: BRAND.gold,
     gap: 5,
     paddingHorizontal: 11,
@@ -607,10 +647,21 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  portalsSwitchBtnText: {
+  sidebarTriggerBtnText: {
     color: BRAND.burgundy,
     fontSize: 12,
     fontWeight: '900',
+  },
+  homeBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(213, 169, 67, 0.4)',
+    gap: 4,
+  },
+  homeBtnText: {
+    color: BRAND.gold,
+    fontSize: 12,
+    fontWeight: '700',
   },
   userBadge: {
     flexDirection: 'row',
@@ -703,53 +754,61 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 3,
   },
 
-  // Modal Styles
-  modalBackdrop: {
+  // Left Sidebar Drawer Styles
+  sidebarOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  modalContent: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 18,
-    width: '100%',
-    maxWidth: 720,
-    maxHeight: '90%',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  modalContentMobile: {
-    maxHeight: '94%',
-    borderRadius: 14,
-  },
-  modalHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  },
+  sidebarBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+  },
+  sidebarDrawer: {
+    backgroundColor: '#FFFFFF',
+    height: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 4, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 15,
+    elevation: 16,
+    zIndex: 1000,
+  },
+  sidebarDrawerMobile: {
+    width: '82%',
+    maxWidth: 320,
+  },
+  sidebarDrawerTablet: {
+    width: 330,
+  },
+  sidebarHeader: {
     backgroundColor: BRAND.burgundy,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 48 : 16,
+    paddingBottom: 14,
     borderBottomWidth: 1.5,
     borderBottomColor: 'rgba(213, 169, 67, 0.4)',
   },
-  modalTitle: {
+  sidebarBrandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sidebarTitle: {
     fontSize: 16,
     fontWeight: '900',
     color: '#FFFFFF',
     letterSpacing: 0.3,
   },
-  modalSubtitle: {
+  sidebarSubtitle: {
     fontSize: 11,
     color: BRAND.goldLight,
     marginTop: 1,
   },
-  modalCloseBtn: {
+  sidebarCloseBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -757,109 +816,158 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  searchBar: {
+  sidebarProfileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 8,
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 13,
-    color: '#1C1C1E',
-  },
-  modalScroll: {
-    paddingHorizontal: 16,
-  },
-  portalGroup: {
-    marginTop: 12,
-  },
-  groupHeader: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#8E8E93',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-    marginLeft: 2,
-  },
-  cardsGrid: {
-    gap: 8,
-  },
-  portalCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E8E1D5',
-    gap: 12,
-  },
-  portalCardMobile: {
     padding: 10,
-    gap: 10,
+    marginTop: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(213, 169, 67, 0.25)',
   },
-  portalCardCurrent: {
-    borderColor: BRAND.burgundy,
-    backgroundColor: '#FFFDF9',
-    borderWidth: 2,
-  },
-  portalCardIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+  profileAvatarBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: BRAND.gold,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  portalCardTitle: {
-    fontSize: 14,
+  profileName: {
+    fontSize: 13,
     fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  profileRole: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: BRAND.goldLight,
+  },
+  profileLiveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#34C759',
+  },
+  sidebarSearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginHorizontal: 14,
+    marginTop: 12,
+    marginBottom: 6,
+    gap: 8,
+  },
+  sidebarSearchInput: {
+    flex: 1,
+    fontSize: 12,
     color: '#1C1C1E',
   },
-  portalCardSubtitle: {
-    fontSize: 11,
-    color: '#636366',
-    marginTop: 2,
-    lineHeight: 15,
+  sidebarScroll: {
+    flex: 1,
+    paddingHorizontal: 14,
   },
-  itemBadge: {
-    paddingHorizontal: 6,
+  sidebarGroup: {
+    marginTop: 14,
+  },
+  sidebarGroupHeader: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#8E8E93',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 6,
+    marginLeft: 4,
+  },
+  sidebarItemsList: {
+    gap: 4,
+  },
+  sidebarItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 10,
+    gap: 10,
+  },
+  sidebarItemCurrent: {
+    backgroundColor: 'rgba(74, 18, 26, 0.08)',
+    borderLeftWidth: 4,
+    borderLeftColor: BRAND.burgundy,
+  },
+  sidebarItemIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sidebarItemTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1C1C1E',
+  },
+  sidebarItemTitleCurrent: {
+    color: BRAND.burgundy,
+    fontWeight: '900',
+  },
+  sidebarItemSubtitle: {
+    fontSize: 10,
+    color: '#8E8E93',
+    marginTop: 1,
+  },
+  sidebarBadge: {
+    paddingHorizontal: 5,
     paddingVertical: 1.5,
     borderRadius: 4,
   },
-  itemBadgeText: {
+  sidebarBadgeText: {
     fontSize: 9,
     fontWeight: '800',
-    letterSpacing: 0.3,
   },
-  modalFooter: {
+  sidebarFooter: {
     padding: 12,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E8E1D5',
-    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
-  footerHomeBtn: {
+  sidebarHomeBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: '#4a121a',
+    backgroundColor: BRAND.burgundy,
   },
-  footerHomeText: {
+  sidebarHomeText: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#D5A943',
+    color: BRAND.gold,
+  },
+  sidebarLogoutBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#FFF0F0',
+    borderWidth: 1,
+    borderColor: '#FFCDD2',
+  },
+  sidebarLogoutText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#D32F2F',
   },
 });
