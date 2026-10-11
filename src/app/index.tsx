@@ -27,7 +27,6 @@ export default function HomeScreen() {
   const isCompactMobile = width < 380;
   const isMobile = width < 600;
   const isTablet = width >= 600 && width < 1024;
-  const isDesktop = width >= 1024;
   const isShortScreen = height < 700;
 
   // Dynamically compute dimensions based on screen resolution
@@ -147,7 +146,10 @@ export default function HomeScreen() {
             >
               <Link href="/login?role=waiter" asChild>
                 <TouchableOpacity
-                  style={[styles.primaryButton, { paddingVertical: dynamicMetrics.buttonPaddingVertical }]}
+                  style={StyleSheet.flatten([
+                    styles.primaryButton,
+                    { paddingVertical: dynamicMetrics.buttonPaddingVertical },
+                  ])}
                   activeOpacity={0.88}
                 >
                   <Ionicons name="walk" size={isMobile ? 18 : 20} color="#451014" style={{ marginRight: 8 }} />
@@ -157,7 +159,10 @@ export default function HomeScreen() {
 
               <Link href="/menu" asChild>
                 <TouchableOpacity
-                  style={[styles.secondaryButton, { paddingVertical: dynamicMetrics.buttonPaddingVertical }]}
+                  style={StyleSheet.flatten([
+                    styles.secondaryButton,
+                    { paddingVertical: dynamicMetrics.buttonPaddingVertical },
+                  ])}
                   activeOpacity={0.88}
                 >
                   <Ionicons name="restaurant-outline" size={isMobile ? 18 : 19} color="#D5A943" style={{ marginRight: 8 }} />
@@ -166,9 +171,12 @@ export default function HomeScreen() {
               </Link>
 
               <View style={styles.quickRow}>
-                <Link href="/kitchen/kds" asChild style={{ flex: 1 }}>
+                <Link href="/kitchen/kds" asChild>
                   <TouchableOpacity
-                    style={[styles.compactPortalBtn, { paddingVertical: isShortScreen ? 10 : 12 }]}
+                    style={StyleSheet.flatten([
+                      styles.compactPortalBtn,
+                      { paddingVertical: isShortScreen ? 10 : 12 },
+                    ])}
                     activeOpacity={0.88}
                   >
                     <Ionicons name="flame-outline" size={16} color="#FF6B6B" style={{ marginRight: 5 }} />
@@ -176,9 +184,12 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                 </Link>
 
-                <Link href="/juicebar/kds" asChild style={{ flex: 1 }}>
+                <Link href="/juicebar/kds" asChild>
                   <TouchableOpacity
-                    style={[styles.compactPortalBtn, { paddingVertical: isShortScreen ? 10 : 12 }]}
+                    style={StyleSheet.flatten([
+                      styles.compactPortalBtn,
+                      { paddingVertical: isShortScreen ? 10 : 12 },
+                    ])}
                     activeOpacity={0.88}
                   >
                     <Ionicons name="cafe-outline" size={16} color="#FFA94D" style={{ marginRight: 5 }} />
@@ -189,7 +200,10 @@ export default function HomeScreen() {
 
               <Link href="/login?all=true" asChild>
                 <TouchableOpacity
-                  style={[styles.adminPortalButton, { paddingVertical: dynamicMetrics.buttonPaddingVertical }]}
+                  style={StyleSheet.flatten([
+                    styles.adminPortalButton,
+                    { paddingVertical: dynamicMetrics.buttonPaddingVertical },
+                  ])}
                   activeOpacity={0.88}
                 >
                   <Ionicons name="key-outline" size={15} color="#A38F78" style={{ marginRight: 6 }} />
@@ -315,6 +329,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   compactPortalBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
