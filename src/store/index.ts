@@ -5,3 +5,5 @@ export * from './playlandStore';
 export * from './kitchenStore';
 export * from './kitchenSeed';
 export * from './storage';
+export * from './shiftStore';
+export * from './discountStore';

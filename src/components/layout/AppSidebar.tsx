@@ -55,17 +55,17 @@ function groupItems(items: NavItem[], role: 'admin' | 'manager') {
       {
         title: 'OPERATIONS & POS',
         icon: 'flash-outline' as const,
-        routes: ['/admin/dashboard', '/admin/pos', '/admin/invoices', '/admin/returns', '/admin/tables', '/admin/floors'],
+        routes: ['/admin/dashboard', '/admin/pos', '/admin/shift', '/admin/invoices', '/admin/returns', '/admin/tables', '/admin/floors'],
       },
       {
-        title: 'CATALOG & INVENTORY',
-        icon: 'cube-outline' as const,
-        routes: ['/admin/menu', '/admin/inventory', '/admin/recipes', '/admin/costing', '/admin/suppliers'],
+        title: 'CATALOG & PROMOTIONS',
+        icon: 'pricetags-outline' as const,
+        routes: ['/admin/discounts', '/admin/menu', '/admin/inventory', '/admin/recipes', '/admin/costing', '/admin/suppliers'],
       },
       {
         title: 'INTELLIGENCE & FINANCE',
         icon: 'bar-chart-outline' as const,
-        routes: ['/admin/reports', '/admin/insights', '/admin/expenses', '/admin/staff', '/admin/customers'],
+        routes: ['/admin/reports', '/admin/insights', '/admin/expenses', '/admin/assets', '/admin/damages', '/admin/staff', '/admin/customers'],
       },
       {
         title: 'KITCHEN & PLAYLAND',
@@ -81,9 +81,9 @@ function groupItems(items: NavItem[], role: 'admin' | 'manager') {
         routes: ['/manager/dashboard', '/manager/pos', '/manager/floor-plan', '/manager/floors', '/manager/shift'],
       },
       {
-        title: 'BILLING & AUDIT',
+        title: 'BILLING & PROMOTIONS',
         icon: 'receipt-outline' as const,
-        routes: ['/manager/invoices', '/manager/returns', '/manager/expenses'],
+        routes: ['/manager/discounts', '/manager/invoices', '/manager/reports', '/manager/returns', '/manager/expenses', '/manager/damages', '/manager/assets'],
       },
       {
         title: 'INVENTORY & RECIPES',
@@ -319,6 +319,76 @@ export default function AppSidebar({
               </View>
             );
           })}
+
+          {(() => {
+            const allGroupedRoutes = groups.flatMap(g => g.routes);
+            const unassignedItems = items.filter(it => !allGroupedRoutes.includes(it.route));
+            if (unassignedItems.length === 0) return null;
+
+            return (
+              <View style={styles.groupSection}>
+                {showExpanded ? (
+                  <View style={styles.groupHeaderRow}>
+                    <Ionicons name="apps-outline" size={12} color={BRAND.gold} style={{ opacity: 0.8, marginRight: 6 }} />
+                    <Text style={styles.groupHeaderTitle}>MORE OPERATIONS</Text>
+                  </View>
+                ) : (
+                  <View style={styles.groupDividerMini} />
+                )}
+
+                {unassignedItems.map((item, iIdx) => {
+                  const isActive = pathname === item.route;
+
+                  return (
+                    <TouchableOpacity
+                      key={`unassigned-${iIdx}`}
+                      style={[
+                        styles.navItem,
+                        !showExpanded && styles.navItemCollapsed,
+                        isActive && styles.navItemActive,
+                      ]}
+                      onPress={() => handleNavigate(item.route)}
+                      activeOpacity={0.75}
+                      {...({ dataSet: { sidebarNav: 'item' } } as any)}
+                    >
+                      {isActive && <View style={styles.activeIndicatorBar} />}
+
+                      <View style={[styles.navIconContainer, isActive && styles.navIconContainerActive]}>
+                        <Ionicons
+                          name={item.icon}
+                          size={showExpanded ? 19 : 21}
+                          color={isActive ? BRAND.gold : BRAND.textMuted}
+                        />
+                      </View>
+
+                      {showExpanded && (
+                        <View style={styles.navLabelContainer}>
+                          <Text
+                            style={[
+                              styles.navLabel,
+                              isActive && styles.navLabelActive,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {item.label}
+                          </Text>
+                          {item.badge && (
+                            <View style={styles.itemBadge}>
+                              <Text style={styles.itemBadgeText}>{item.badge}</Text>
+                            </View>
+                          )}
+                        </View>
+                      )}
+
+                      {showExpanded && isActive && (
+                        <Ionicons name="chevron-forward" size={14} color={BRAND.gold} style={styles.activeChevron} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            );
+          })()}
         </ScrollView>
 
         {/* 4. FOOTER QUICK ACTION & LOGOUT */}

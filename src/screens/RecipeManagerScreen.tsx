@@ -64,6 +64,7 @@ export default function RecipeManagerScreen({ backRoute = '/admin/dashboard' }: 
 
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [selectedMenuId, setSelectedMenuId] = useState<string | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<string | undefined>(undefined);
 
@@ -347,23 +348,98 @@ export default function RecipeManagerScreen({ backRoute = '/admin/dashboard' }: 
             )}
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catChips}>
+          {/* Category Dropdown Selector */}
+          <View style={styles.categoryDropdownWrap}>
             <TouchableOpacity
-              style={[styles.catChip, selectedCategory === 'all' && styles.catChipActive]}
-              onPress={() => setSelectedCategory('all')}
+              style={[styles.categoryDropdownTrigger, categoryDropdownOpen && styles.categoryDropdownTriggerActive]}
+              onPress={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
+              activeOpacity={0.8}
             >
-              <Text style={[styles.catChipText, selectedCategory === 'all' && styles.catChipTextActive]}>All</Text>
+              <View style={styles.categoryDropdownTriggerLeft}>
+                <Ionicons name="filter" size={14} color={BRAND.burgundy} />
+                <Text style={styles.categoryDropdownSelectedLabel}>
+                  {selectedCategory === 'all' ? 'All Categories' : selectedCategory}
+                </Text>
+                <View style={styles.categoryPillCount}>
+                  <Text style={styles.categoryPillCountText}>
+                    {selectedCategory === 'all'
+                      ? menuItems.length
+                      : menuItems.filter((m) => m.category === selectedCategory).length}
+                  </Text>
+                </View>
+              </View>
+              <Ionicons
+                name={categoryDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color={BRAND.muted}
+              />
             </TouchableOpacity>
-            {categories.map((c) => (
-              <TouchableOpacity
-                key={c}
-                style={[styles.catChip, selectedCategory === c && styles.catChipActive]}
-                onPress={() => setSelectedCategory(c)}
-              >
-                <Text style={[styles.catChipText, selectedCategory === c && styles.catChipTextActive]}>{c}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+
+            {categoryDropdownOpen && (
+              <View style={styles.categoryDropdownMenu}>
+                <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+                  <TouchableOpacity
+                    style={[
+                      styles.categoryDropdownItem,
+                      selectedCategory === 'all' && styles.categoryDropdownItemActive,
+                    ]}
+                    onPress={() => {
+                      setSelectedCategory('all');
+                      setCategoryDropdownOpen(false);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      {selectedCategory === 'all' && (
+                        <Ionicons name="checkmark" size={14} color={BRAND.burgundy} />
+                      )}
+                      <Text
+                        style={[
+                          styles.categoryDropdownItemText,
+                          selectedCategory === 'all' && styles.categoryDropdownItemTextActive,
+                        ]}
+                      >
+                        All Categories
+                      </Text>
+                    </View>
+                    <Text style={styles.categoryDropdownItemCount}>({menuItems.length})</Text>
+                  </TouchableOpacity>
+
+                  {categories.map((c) => {
+                    const count = menuItems.filter((m) => m.category === c).length;
+                    const isSelected = selectedCategory === c;
+                    return (
+                      <TouchableOpacity
+                        key={c}
+                        style={[
+                          styles.categoryDropdownItem,
+                          isSelected && styles.categoryDropdownItemActive,
+                        ]}
+                        onPress={() => {
+                          setSelectedCategory(c);
+                          setCategoryDropdownOpen(false);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          {isSelected && <Ionicons name="checkmark" size={14} color={BRAND.burgundy} />}
+                          <Text
+                            style={[
+                              styles.categoryDropdownItemText,
+                              isSelected && styles.categoryDropdownItemTextActive,
+                            ]}
+                          >
+                            {c}
+                          </Text>
+                        </View>
+                        <Text style={styles.categoryDropdownItemCount}>({count})</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+          </View>
 
           {/* Dish list */}
           <ScrollView style={styles.dishList} showsVerticalScrollIndicator={false}>
@@ -1195,27 +1271,87 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: BRAND.ink,
   },
-  catChips: {
-    paddingHorizontal: 14,
-    paddingBottom: 8,
-    gap: 6,
+  categoryDropdownWrap: {
+    marginHorizontal: 14,
+    marginBottom: 8,
+    zIndex: 30,
+    position: 'relative',
   },
-  catChip: {
-    paddingVertical: 5,
-    paddingHorizontal: 11,
-    borderRadius: 16,
-    backgroundColor: '#F0ECE1',
+  categoryDropdownTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F7F4EE',
+    borderWidth: 1.5,
+    borderColor: BRAND.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  catChipActive: {
-    backgroundColor: BRAND.burgundy,
+  categoryDropdownTriggerActive: {
+    borderColor: BRAND.burgundy,
+    backgroundColor: '#FFFFFF',
   },
-  catChipText: {
+  categoryDropdownTriggerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  categoryDropdownSelectedLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: BRAND.ink,
+  },
+  categoryPillCount: {
+    backgroundColor: BRAND.goldLight,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 8,
+  },
+  categoryPillCountText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: BRAND.goldDark,
+  },
+  categoryDropdownMenu: {
+    position: 'absolute',
+    top: 42,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: BRAND.border,
+    borderRadius: 8,
+    paddingVertical: 4,
+    zIndex: 99,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  categoryDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  categoryDropdownItemActive: {
+    backgroundColor: '#F6F3EC',
+  },
+  categoryDropdownItemText: {
     fontSize: 12,
     fontWeight: '600',
     color: BRAND.ink,
   },
-  catChipTextActive: {
-    color: '#FFFFFF',
+  categoryDropdownItemTextActive: {
+    fontWeight: '800',
+    color: BRAND.burgundy,
+  },
+  categoryDropdownItemCount: {
+    fontSize: 11,
+    color: BRAND.muted,
   },
   dishList: {
     flex: 1,

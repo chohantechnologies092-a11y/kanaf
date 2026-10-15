@@ -59,6 +59,8 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
     issueSession,
     issueTopUp,
     cancelSession,
+    submitClosing,
+    approveSession,
   } = useKitchenStore();
 
   // Admin AND manager can both hand over; record who actually did it.
@@ -134,6 +136,12 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [topUpItemId, setTopUpItemId] = useState(cookingItems[0]?.id || '');
   const [topUpQty, setTopUpQty] = useState('');
+
+  // Shift closing modal state
+  const [showCloseShiftModal, setShowCloseShiftModal] = useState(false);
+  const [closingCounts, setClosingCounts] = useState<Record<string, string>>({});
+  const [closingCashReturned, setClosingCashReturned] = useState('5000');
+  const [closingNotes, setClosingNotes] = useState('');
 
   const shortUnit = (unit: string) => {
     const u = (unit || '').toLowerCase().trim();
@@ -351,6 +359,43 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
     }
   };
 
+  const handleConfirmCloseKitchenShift = () => {
+    if (!activeSession) return;
+    const numericCounts: Record<string, number> = {};
+    Object.entries(closingCounts).forEach(([itemId, valStr]) => {
+      const num = parseFloat(valStr);
+      numericCounts[itemId] = Number.isFinite(num) && num >= 0 ? num : 0;
+    });
+
+    const cashRet = parseFloat(closingCashReturned) || 0;
+
+    const subRes = submitClosing({
+      sessionId: activeSession.id,
+      counts: numericCounts,
+      cashReturned: cashRet,
+      notes: closingNotes.trim() || 'Kitchen Shift Closed & Stock Returned',
+      by: actor,
+    });
+
+    if (!subRes.ok) {
+      showAlert('Closing Error', subRes.error || 'Failed to submit closing.');
+      return;
+    }
+
+    approveSession(
+      activeSession.id,
+      actor,
+      closingNotes.trim() || 'Approved at shift close. Returned stock restored to inventory.'
+    );
+
+    setShowCloseShiftModal(false);
+
+    showAlert(
+      'Kitchen Shift Closed',
+      `Kitchen Shift "${activeSession.dayLabel}" has been successfully closed!\n• Remaining stock returned to store inventory.\n• Hand cash (Rs. ${cashRet.toLocaleString()}) returned to drawer.`
+    );
+  };
+
   return (
     <View style={styles.container}>
       <KitchenOpsNav backRoute={backRoute} />
@@ -473,7 +518,25 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
                 </Text>
               </View>
 
-              <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                <TouchableOpacity
+                  style={styles.closeShiftActionBtn}
+                  onPress={() => {
+                    const initCounts: Record<string, string> = {};
+                    activeSession.lines.forEach((l) => {
+                      initCounts[l.itemId] = '0';
+                    });
+                    setClosingCounts(initCounts);
+                    setClosingCashReturned(String(activeSession.cashHandedOver || 0));
+                    setClosingNotes('Shift closing handover completed. Unused ingredients returned to cold storage.');
+                    setShowCloseShiftModal(true);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="lock-closed" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
+                  <Text style={styles.closeShiftActionBtnText}>Close Kitchen Shift</Text>
+                </TouchableOpacity>
+
                 <TouchableOpacity
                   style={styles.topUpBtn}
                   onPress={() => setShowTopUpModal(true)}
@@ -997,6 +1060,122 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
         </View>
       </Modal>
 
+      {/* KITCHEN SHIFT CLOSING MODAL */}
+      <Modal visible={showCloseShiftModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { maxWidth: 640 }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="lock-closed" size={20} color={BRAND.burgundy} />
+                <Text style={styles.modalTitle}>Close Kitchen Shift & Return Stock</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowCloseShiftModal(false)}>
+                <Ionicons name="close" size={22} color={BRAND.muted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
+              <View style={styles.closeShiftIntroCard}>
+                <Text style={styles.closeShiftIntroTitle}>
+                  Reconciling: {activeSession?.dayLabel} • Head Chef: {activeSession?.headChef}
+                </Text>
+                <Text style={styles.closeShiftIntroSub}>
+                  Record any unused raw materials returned back to the main store / cold room and settle handed cash.
+                </Text>
+              </View>
+
+              {/* Hand Cash Settlement */}
+              <View style={styles.cashCloseSection}>
+                <Text style={styles.sectionHeading}>1. Kitchen Hand Cash Settlement</Text>
+                <View style={styles.cashCloseRow}>
+                  <Text style={styles.cashCloseLabel}>
+                    Cash Issued at Shift Start: <Text style={{ fontWeight: '800' }}>{money(activeSession?.cashHandedOver || 0)}</Text>
+                  </Text>
+                  <View style={styles.cashInputBox}>
+                    <Text style={styles.cashInputPrefix}>Cash Returned: Rs.</Text>
+                    <TextInput
+                      style={styles.cashInput}
+                      value={closingCashReturned}
+                      onChangeText={setClosingCashReturned}
+                      keyboardType="numeric"
+                      placeholder="0"
+                    />
+                  </View>
+                </View>
+              </View>
+
+              {/* Raw Materials Return Table */}
+              <View style={styles.itemsCloseSection}>
+                <Text style={styles.sectionHeading}>2. Raw Materials Returned to Store (اسٹاک واپسی)</Text>
+                <View style={styles.closeItemsTable}>
+                  <View style={styles.closeItemsHeader}>
+                    <Text style={[styles.closeTh, { flex: 3 }]}>Raw Material Item</Text>
+                    <Text style={[styles.closeTh, { flex: 1.5, textAlign: 'right' }]}>Total in Kitchen</Text>
+                    <Text style={[styles.closeTh, { flex: 2, textAlign: 'right' }]}>Returned Qty</Text>
+                  </View>
+                  {activeSession?.lines.map((l) => {
+                    const totalKitchen = l.issued + l.topUp + l.localPurchased;
+                    return (
+                      <View key={l.itemId} style={styles.closeItemsRow}>
+                        <View style={{ flex: 3 }}>
+                          <Text style={styles.closeItemName}>{l.itemName}</Text>
+                          <Text style={styles.closeItemCategory}>{l.category}</Text>
+                        </View>
+                        <Text style={[styles.closeItemQty, { flex: 1.5, textAlign: 'right' }]}>
+                          {formatQty(totalKitchen, l.unit)}
+                        </Text>
+                        <View style={{ flex: 2, alignItems: 'flex-end' }}>
+                          <View style={styles.returnInputWrap}>
+                            <TextInput
+                              style={styles.returnInput}
+                              value={closingCounts[l.itemId] ?? '0'}
+                              onChangeText={(val) =>
+                                setClosingCounts((prev) => ({ ...prev, [l.itemId]: val }))
+                              }
+                              keyboardType="numeric"
+                              placeholder="0"
+                            />
+                            <Text style={styles.returnUnit}>{l.unit}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Closing Notes */}
+              <View style={{ marginTop: 14 }}>
+                <Text style={styles.sectionHeading}>3. Handover Remarks / Reason</Text>
+                <TextInput
+                  style={[styles.input, { height: 60 }]}
+                  value={closingNotes}
+                  onChangeText={setClosingNotes}
+                  placeholder="e.g. Unused chicken and rice returned to cold store. Cash settled."
+                  multiline
+                />
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.secondaryBtn}
+                onPress={() => setShowCloseShiftModal(false)}
+              >
+                <Text style={styles.secondaryBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.primaryBtn, { backgroundColor: BRAND.burgundy }]}
+                onPress={handleConfirmCloseKitchenShift}
+              >
+                <Ionicons name="checkmark-done" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.primaryBtnText}>Confirm Shift Close & Restock</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <KitchenAutomationSettingsModal visible={showAutomation} onClose={() => setShowAutomation(false)} />
     </View>
   );
@@ -1151,6 +1330,153 @@ const styles = StyleSheet.create({
     color: BRAND.burgundy,
     fontWeight: '800',
     fontSize: 12,
+  },
+  closeShiftActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: BRAND.burgundy,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  closeShiftActionBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  closeShiftIntroCard: {
+    backgroundColor: '#F6F3EC',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#E8DFC9',
+  },
+  closeShiftIntroTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: BRAND.burgundy,
+  },
+  closeShiftIntroSub: {
+    fontSize: 11,
+    color: BRAND.muted,
+    marginTop: 2,
+  },
+  sectionHeading: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: BRAND.ink,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  cashCloseSection: {
+    marginBottom: 14,
+    backgroundColor: '#FFFFFF',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+  },
+  cashCloseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  cashCloseLabel: {
+    fontSize: 12,
+    color: BRAND.ink,
+  },
+  cashInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: BRAND.border,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    backgroundColor: '#F8F9FA',
+  },
+  cashInputPrefix: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: BRAND.muted,
+    marginRight: 4,
+  },
+  cashInput: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: BRAND.ink,
+    paddingVertical: 6,
+    width: 100,
+  },
+  itemsCloseSection: {
+    marginBottom: 10,
+  },
+  closeItemsTable: {
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  closeItemsHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#F6F3EC',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: BRAND.border,
+  },
+  closeTh: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: BRAND.muted,
+  },
+  closeItemsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+    backgroundColor: '#FFFFFF',
+  },
+  closeItemName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: BRAND.ink,
+  },
+  closeItemCategory: {
+    fontSize: 10,
+    color: BRAND.muted,
+  },
+  closeItemQty: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: BRAND.ink,
+  },
+  returnInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: BRAND.border,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    backgroundColor: '#F8F9FA',
+  },
+  returnInput: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: BRAND.burgundy,
+    paddingVertical: 4,
+    width: 60,
+    textAlign: 'right',
+  },
+  returnUnit: {
+    fontSize: 10,
+    color: BRAND.muted,
+    marginLeft: 4,
   },
   activeTable: {
     backgroundColor: '#FDFBF7',

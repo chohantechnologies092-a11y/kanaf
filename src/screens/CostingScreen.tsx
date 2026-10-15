@@ -428,8 +428,12 @@ export default function CostingScreen({ backRoute = '/admin/dashboard' }: { back
             </View>
           </View>
 
-          {/* Category Chips */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catChips}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.catChipsScroll}
+            contentContainerStyle={styles.catChips}
+          >
             <TouchableOpacity
               style={[styles.catChip, selectedCat === 'all' && styles.catChipActive]}
               onPress={() => setSelectedCat('all')}
@@ -896,22 +900,31 @@ const styles = StyleSheet.create({
   statusFilterTextActive: {
     color: '#FFFFFF',
   },
+  catChipsScroll: {
+    flexGrow: 0,
+    height: 38,
+    maxHeight: 38,
+    marginBottom: 8,
+  },
   catChips: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
-    paddingBottom: 10,
   },
   catChip: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+    height: 28,
+    paddingHorizontal: 12,
     borderRadius: 14,
     backgroundColor: '#F0ECE1',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   catChipActive: {
     backgroundColor: BRAND.burgundy,
   },
   catChipText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
     color: BRAND.ink,
   },
   catChipTextActive: {

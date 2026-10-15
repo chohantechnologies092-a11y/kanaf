@@ -146,6 +146,8 @@ export type Invoice = {
   items: OrderItem[];
   subTotal: number;
   discount: number;
+  discountEventId?: string;
+  discountEventTitle?: string;
   tax: number;
   total: number;
   payments: Payment[];

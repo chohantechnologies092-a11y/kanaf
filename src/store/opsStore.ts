@@ -763,6 +763,461 @@ export const INITIAL_SUPPLIER_PAYMENTS: SupplierPayment[] = [
   },
 ];
 
+// ---------- Assets & Capital Purchases ----------
+
+export const ASSET_CATEGORIES = [
+  'Kitchen Machinery & Heavy Line',
+  'Refrigeration & Cold Storage',
+  'Dining Furniture & Seating',
+  'Crockery & Cutlery (Bulk Assets)',
+  'HVAC, Electrical & Generators',
+  'IT, POS & Surveillance Hardware',
+  'Amusement & Playland Rides',
+  'Interior, Signage & Royal Decor',
+  'Other Capital Assets',
+] as const;
+
+export type AssetCategory = typeof ASSET_CATEGORIES[number];
+
+export type AssetCondition = 'brand_new' | 'good' | 'fair' | 'needs_maintenance';
+export type AssetStatus = 'active' | 'in_maintenance' | 'retired' | 'written_off';
+
+export type AssetMaintenanceLog = {
+  id: string;
+  date: number;
+  cost: number;
+  description: string;
+  performedBy?: string;
+  vendor?: string;
+  invoiceNo?: string;
+};
+
+export type Asset = {
+  id: string;
+  assetCode: string;
+  name: string;
+  urduName?: string;
+  category: AssetCategory;
+  purchaseDate: number;
+  cost: number;
+  quantity: number;
+  totalCost: number;
+  vendor: string;
+  vendorPhone?: string;
+  invoiceNo?: string;
+  warrantyExpiry?: number;
+  location: string;
+  condition: AssetCondition;
+  status: AssetStatus;
+  depreciationRateYearly?: number; // e.g. 10%
+  currentValue: number;
+  serialNumber?: string;
+  notes?: string;
+  maintenanceLogs: AssetMaintenanceLog[];
+  createdAt: number;
+  updatedAt: number;
+};
+
+// ---------- Damage Control & Breakages ----------
+
+export const DAMAGE_CATEGORIES = [
+  'Crockery (Plates & Bowls)',
+  'Glassware & Tumblers',
+  'Cutlery & Utensils',
+  'Clayware & Specialty Pots',
+  'Kitchen Equipment & Tools',
+  'Dining Furniture & Decor',
+  'Playland Assets & Rides',
+  'Other Breakage',
+] as const;
+
+export type DamageCategory = typeof DAMAGE_CATEGORIES[number];
+
+export const DAMAGE_REASONS = [
+  'Staff Accidental Drop',
+  'Customer / Guest Mishap',
+  'Dishwashing Pit Collision',
+  'Thermal Shock / Heat Crack',
+  'Wear & Tear / Chipped Edge',
+  'Storage & Transit Slip',
+  'Equipment Burnout / Overheating',
+  'Other Incident',
+] as const;
+
+export type DamageReason = typeof DAMAGE_REASONS[number];
+
+export type DamageResponsibility = 'staff' | 'customer' | 'dishwashing' | 'wear_and_tear' | 'unknown';
+
+export const DAMAGE_ACTIONS = [
+  'Written Off (Restaurant Loss)',
+  'Deducted from Staff Salary',
+  'Charged to Customer Bill',
+  'Replaced from Buffer Stock',
+  'Sent for Repair / Welding',
+] as const;
+
+export type DamageAction = typeof DAMAGE_ACTIONS[number];
+export type DamageStatus = 'logged' | 'approved_writeoff' | 'recovered' | 'repaired';
+
+export type DamageRecord = {
+  id: string;
+  incidentCode: string;
+  itemName: string;
+  category: DamageCategory;
+  quantity: number;
+  unitCost: number;
+  totalLoss: number;
+  incidentDate: number;
+  location: string;
+  reason: DamageReason;
+  reportedBy: string;
+  responsibleParty: DamageResponsibility;
+  responsiblePersonName?: string;
+  actionTaken: DamageAction;
+  status: DamageStatus;
+  amountRecovered: number;
+  netLoss: number;
+  notes?: string;
+  createdAt: number;
+  resolvedAt?: number;
+};
+
+export const INITIAL_ASSETS: Asset[] = [
+  {
+    id: 'ast-1',
+    assetCode: 'AST-KTC-01',
+    name: 'Rational Combi Steamer Oven (10-Tray)',
+    urduName: 'کومبی اسٹیمر اوون',
+    category: 'Kitchen Machinery & Heavy Line',
+    purchaseDate: Date.now() - 180 * 86400000,
+    cost: 1850000,
+    quantity: 1,
+    totalCost: 1850000,
+    vendor: 'Pak Commercial Kitchen Tech',
+    vendorPhone: '+92 300 8472910',
+    invoiceNo: 'PCK-9921',
+    warrantyExpiry: Date.now() + 185 * 86400000,
+    location: 'Main Kitchen Line 1',
+    condition: 'good',
+    status: 'active',
+    depreciationRateYearly: 10,
+    currentValue: 1757500,
+    serialNumber: 'RAT-X10-99482',
+    notes: 'Premium intelligent cooking center for karahi roasts, baking, and steaming.',
+    maintenanceLogs: [
+      {
+        id: 'm-1',
+        date: Date.now() - 30 * 86400000,
+        cost: 15000,
+        description: 'Scheduled descaling and door gasket inspection',
+        performedBy: 'Engr. Kamran',
+        vendor: 'Pak Commercial Kitchen Tech',
+      },
+    ],
+    createdAt: Date.now() - 180 * 86400000,
+    updatedAt: Date.now() - 30 * 86400000,
+  },
+  {
+    id: 'ast-2',
+    assetCode: 'AST-KTC-02',
+    name: 'Commercial Double Gas Fryer (24L)',
+    urduName: 'کمرشل گیس ڈیپ فرائیر',
+    category: 'Kitchen Machinery & Heavy Line',
+    purchaseDate: Date.now() - 150 * 86400000,
+    cost: 240000,
+    quantity: 2,
+    totalCost: 480000,
+    vendor: 'Lahore Kitchenware Hub',
+    vendorPhone: '+92 321 7766554',
+    invoiceNo: 'LKH-4412',
+    warrantyExpiry: Date.now() + 215 * 86400000,
+    location: 'Main Kitchen - Starters Station',
+    condition: 'good',
+    status: 'active',
+    depreciationRateYearly: 12,
+    currentValue: 456000,
+    serialNumber: 'FRY-GF-24-08',
+    notes: 'Fast recovery gas fryers for broast, fries, and tempura.',
+    maintenanceLogs: [],
+    createdAt: Date.now() - 150 * 86400000,
+    updatedAt: Date.now() - 150 * 86400000,
+  },
+  {
+    id: 'ast-3',
+    assetCode: 'AST-PWR-01',
+    name: 'Perkins 50 kVA Silent Diesel Generator',
+    urduName: 'پرکنز 50 کے وی اے جنریٹر',
+    category: 'HVAC, Electrical & Generators',
+    purchaseDate: Date.now() - 300 * 86400000,
+    cost: 2650000,
+    quantity: 1,
+    totalCost: 2650000,
+    vendor: 'Allied Engineering & Power Ltd',
+    vendorPhone: '+92 301 9922881',
+    invoiceNo: 'AEP-GEN-1029',
+    warrantyExpiry: Date.now() + 65 * 86400000,
+    location: 'Rear Power Yard',
+    condition: 'good',
+    status: 'active',
+    depreciationRateYearly: 8,
+    currentValue: 2475000,
+    serialNumber: 'PERK-50KVA-88192',
+    notes: 'Automated ATS panel. Powers complete restaurant, chillers, and basement amusement.',
+    maintenanceLogs: [
+      {
+        id: 'm-2',
+        date: Date.now() - 45 * 86400000,
+        cost: 28000,
+        description: 'Engine oil 15W40 change, oil filter & diesel fuel filters replaced',
+        performedBy: 'Allied Power Tech Team',
+        vendor: 'Allied Engineering',
+      },
+    ],
+    createdAt: Date.now() - 300 * 86400000,
+    updatedAt: Date.now() - 45 * 86400000,
+  },
+  {
+    id: 'ast-4',
+    assetCode: 'AST-COLD-01',
+    name: 'Walk-in Blast Chiller & Cold Room (10x8 ft)',
+    urduName: 'واک ان کولڈ روم چیلر',
+    category: 'Refrigeration & Cold Storage',
+    purchaseDate: Date.now() - 240 * 86400000,
+    cost: 1420000,
+    quantity: 1,
+    totalCost: 1420000,
+    vendor: 'CoolTech Refrigeration Systems',
+    vendorPhone: '+92 333 4455667',
+    invoiceNo: 'CTR-8812',
+    warrantyExpiry: Date.now() + 125 * 86400000,
+    location: 'Basement Storage Area',
+    condition: 'good',
+    status: 'active',
+    depreciationRateYearly: 10,
+    currentValue: 1325000,
+    serialNumber: 'CT-COLD-108-01',
+    notes: 'Digital thermostat maintained at -2C to +4C for daily meat and poultry storage.',
+    maintenanceLogs: [],
+    createdAt: Date.now() - 240 * 86400000,
+    updatedAt: Date.now() - 240 * 86400000,
+  },
+  {
+    id: 'ast-5',
+    assetCode: 'AST-FUR-01',
+    name: 'Solid Teak Wood Dining Tables & Royal Velvet Chairs (6-Seater)',
+    urduName: 'شاہی شیشم ڈائننگ ٹیبلز اور کرسیاں',
+    category: 'Dining Furniture & Seating',
+    purchaseDate: Date.now() - 210 * 86400000,
+    cost: 65000,
+    quantity: 18,
+    totalCost: 1170000,
+    vendor: 'Chiniot Heritage Woodworks',
+    vendorPhone: '+92 300 6677889',
+    invoiceNo: 'CHW-3319',
+    location: 'Ground Floor & 1st Floor Halls',
+    condition: 'good',
+    status: 'active',
+    depreciationRateYearly: 10,
+    currentValue: 1102000,
+    notes: 'Custom carved Sultan imperial insignia with stain-resistant velvet fabric.',
+    maintenanceLogs: [],
+    createdAt: Date.now() - 210 * 86400000,
+    updatedAt: Date.now() - 210 * 86400000,
+  },
+  {
+    id: 'ast-6',
+    assetCode: 'AST-CRK-01',
+    name: 'Sultan Royal Gold Rim Bone China Dinner Set (500 Pcs)',
+    urduName: 'شاہی گولڈ رم کراکری سیٹ',
+    category: 'Crockery & Cutlery (Bulk Assets)',
+    purchaseDate: Date.now() - 160 * 86400000,
+    cost: 550000,
+    quantity: 1,
+    totalCost: 550000,
+    vendor: 'Imperial Tableware Importers',
+    vendorPhone: '+92 304 9988771',
+    invoiceNo: 'ITI-7712',
+    location: 'Main Service Stations',
+    condition: 'good',
+    status: 'active',
+    depreciationRateYearly: 15,
+    currentValue: 513000,
+    notes: 'Premium 24K gold rim porcelain plates, handi bowls, and platters for dining service.',
+    maintenanceLogs: [],
+    createdAt: Date.now() - 160 * 86400000,
+    updatedAt: Date.now() - 160 * 86400000,
+  },
+  {
+    id: 'ast-7',
+    assetCode: 'AST-POS-01',
+    name: 'Sunmi Dual-Screen Touch POS Terminals + Thermal ESC/POS Printers',
+    urduName: 'ٹچ پی او ایس اور تھرمل پرنٹر سسٹم',
+    category: 'IT, POS & Surveillance Hardware',
+    purchaseDate: Date.now() - 120 * 86400000,
+    cost: 165000,
+    quantity: 3,
+    totalCost: 495000,
+    vendor: 'Retail Solutions Tech Ltd',
+    vendorPhone: '+92 302 3344556',
+    invoiceNo: 'RST-9912',
+    warrantyExpiry: Date.now() + 245 * 86400000,
+    location: 'Cashier Counters & Manager Desk',
+    condition: 'brand_new',
+    status: 'active',
+    depreciationRateYearly: 20,
+    currentValue: 462000,
+    serialNumber: 'SNM-D2-882194',
+    notes: 'Handles cashier billing, kitchen slip printing, and offline sync hub.',
+    maintenanceLogs: [],
+    createdAt: Date.now() - 120 * 86400000,
+    updatedAt: Date.now() - 120 * 86400000,
+  },
+  {
+    id: 'ast-8',
+    assetCode: 'AST-AMU-01',
+    name: 'Basement Amusement Carousel & Bumper Cars Set',
+    urduName: 'بیسمنٹ پلے لینڈ جھولے و بمپر کاریں',
+    category: 'Amusement & Playland Rides',
+    purchaseDate: Date.now() - 190 * 86400000,
+    cost: 3200000,
+    quantity: 1,
+    totalCost: 3200000,
+    vendor: 'Sino Amusement Rides Imports',
+    vendorPhone: '+92 334 1122334',
+    invoiceNo: 'SARI-4019',
+    warrantyExpiry: Date.now() + 175 * 86400000,
+    location: 'Playland Basement Zone',
+    condition: 'good',
+    status: 'active',
+    depreciationRateYearly: 10,
+    currentValue: 3034000,
+    notes: 'Includes 8-seat motorized carousel, 4 electric bumper cars with floor grid.',
+    maintenanceLogs: [
+      {
+        id: 'm-3',
+        date: Date.now() - 20 * 86400000,
+        cost: 35000,
+        description: 'Monthly motor bearing lubrication and DC controller diagnostics',
+        performedBy: 'Ustad Farooq Rides Specialist',
+      },
+    ],
+    createdAt: Date.now() - 190 * 86400000,
+    updatedAt: Date.now() - 20 * 86400000,
+  },
+];
+
+export const INITIAL_DAMAGES: DamageRecord[] = [
+  {
+    id: 'dmg-1',
+    incidentCode: 'DMG-2026-001',
+    itemName: 'Sultan Royal Gold Rim Dinner Plate 11"',
+    category: 'Crockery (Plates & Bowls)',
+    quantity: 2,
+    unitCost: 950,
+    totalLoss: 1900,
+    incidentDate: Date.now() - 3 * 86400000,
+    location: 'Main Hall - Table T-04',
+    reason: 'Staff Accidental Drop',
+    reportedBy: 'Sara Ahmed (Waiter)',
+    responsibleParty: 'staff',
+    responsiblePersonName: 'Waiter Bilal',
+    actionTaken: 'Written Off (Restaurant Loss)',
+    status: 'approved_writeoff',
+    amountRecovered: 0,
+    netLoss: 1900,
+    notes: 'Waiter slipped while busing large party table during busy evening dinner rush.',
+    createdAt: Date.now() - 3 * 86400000,
+    resolvedAt: Date.now() - 3 * 86400000,
+  },
+  {
+    id: 'dmg-2',
+    incidentCode: 'DMG-2026-002',
+    itemName: 'Water Goblet Crystal Glass (350ml)',
+    category: 'Glassware & Tumblers',
+    quantity: 4,
+    unitCost: 420,
+    totalLoss: 1680,
+    incidentDate: Date.now() - 2 * 86400000,
+    location: 'Dishwashing Pit',
+    reason: 'Thermal Shock / Heat Crack',
+    reportedBy: 'Chef Omar',
+    responsibleParty: 'dishwashing',
+    responsiblePersonName: 'Dishwashing Crew',
+    actionTaken: 'Written Off (Restaurant Loss)',
+    status: 'approved_writeoff',
+    amountRecovered: 0,
+    netLoss: 1680,
+    notes: 'Hot sanitizing rinse followed immediately by ice cold wash water caused thermal crack.',
+    createdAt: Date.now() - 2 * 86400000,
+    resolvedAt: Date.now() - 2 * 86400000,
+  },
+  {
+    id: 'dmg-3',
+    incidentCode: 'DMG-2026-003',
+    itemName: 'Heavy Clay Biryani Handi (1kg Pot)',
+    category: 'Clayware & Specialty Pots',
+    quantity: 1,
+    unitCost: 650,
+    totalLoss: 650,
+    incidentDate: Date.now() - 1 * 86400000,
+    location: 'Tandoor & Dum Counter',
+    reason: 'Thermal Shock / Heat Crack',
+    reportedBy: 'Chef Omar',
+    responsibleParty: 'wear_and_tear',
+    actionTaken: 'Replaced from Buffer Stock',
+    status: 'approved_writeoff',
+    amountRecovered: 0,
+    netLoss: 650,
+    notes: 'Cracked along base rim during high heat dum finishing. Replaced from store.',
+    createdAt: Date.now() - 1 * 86400000,
+    resolvedAt: Date.now() - 1 * 86400000,
+  },
+  {
+    id: 'dmg-4',
+    incidentCode: 'DMG-2026-004',
+    itemName: 'Commercial Blender Polycarbonate Pitcher Jug (2L)',
+    category: 'Kitchen Equipment & Tools',
+    quantity: 1,
+    unitCost: 4500,
+    totalLoss: 4500,
+    incidentDate: Date.now() - 4 * 86400000,
+    location: 'Juice Bar Prep Counter',
+    reason: 'Staff Accidental Drop',
+    reportedBy: 'Barista Hamza',
+    responsibleParty: 'staff',
+    responsiblePersonName: 'Barista Hamza',
+    actionTaken: 'Deducted from Staff Salary',
+    status: 'recovered',
+    amountRecovered: 2250,
+    netLoss: 2250,
+    notes: 'Dropped during rush hour shake prep. 50% subsidized by management, 50% salary adjustment.',
+    createdAt: Date.now() - 4 * 86400000,
+    resolvedAt: Date.now() - 4 * 86400000,
+  },
+  {
+    id: 'dmg-5',
+    incidentCode: 'DMG-2026-005',
+    itemName: 'Mint Margarita Stem Glass',
+    category: 'Glassware & Tumblers',
+    quantity: 1,
+    unitCost: 550,
+    totalLoss: 550,
+    incidentDate: Date.now() - 5 * 86400000,
+    location: 'Rooftop Lounge - Table R-02',
+    reason: 'Customer / Guest Mishap',
+    reportedBy: 'Sara Ahmed',
+    responsibleParty: 'customer',
+    responsiblePersonName: 'Table R-02 Guest',
+    actionTaken: 'Written Off (Restaurant Loss)',
+    status: 'approved_writeoff',
+    amountRecovered: 0,
+    netLoss: 550,
+    notes: 'Guest child accidentally knocked over glass. Waived off as VIP courtesy.',
+    createdAt: Date.now() - 5 * 86400000,
+    resolvedAt: Date.now() - 5 * 86400000,
+  },
+];
+
 export type OpsData = {
   serviceRequests: ServiceRequest[];
   inventory: InventoryItem[];
@@ -773,6 +1228,8 @@ export type OpsData = {
   suppliers: Supplier[];
   purchaseOrders: PurchaseOrder[];
   supplierPayments: SupplierPayment[];
+  assets: Asset[];
+  damageRecords: DamageRecord[];
 };
 
 /** Keys exchanged with the LAN sync hub (kept in sync with server.js allowedKeys). */
@@ -786,6 +1243,8 @@ export const OPS_SYNC_KEYS: (keyof OpsData)[] = [
   'suppliers',
   'purchaseOrders',
   'supplierPayments',
+  'assets',
+  'damageRecords',
 ];
 
 type NewServiceRequest = {
@@ -860,6 +1319,40 @@ type OpsState = OpsData & {
   ) => void;
   deleteSupplierPayment: (id: string) => void;
 
+  // Assets & Capital Purchases
+  addAsset: (
+    asset: Omit<Asset, 'id' | 'createdAt' | 'updatedAt' | 'totalCost' | 'currentValue' | 'maintenanceLogs'> & {
+      totalCost?: number;
+      currentValue?: number;
+    }
+  ) => void;
+  updateAsset: (id: string, patch: Partial<Omit<Asset, 'id' | 'createdAt'>>) => void;
+  deleteAsset: (id: string) => void;
+  addAssetMaintenanceLog: (
+    assetId: string,
+    log: Omit<AssetMaintenanceLog, 'id'>,
+    options?: { autoRecordExpense?: boolean; paidBy?: string }
+  ) => void;
+
+  // Damage Control & Breakages
+  logDamageIncident: (
+    record: Omit<DamageRecord, 'id' | 'createdAt' | 'totalLoss' | 'netLoss'> & {
+      totalLoss?: number;
+      netLoss?: number;
+    }
+  ) => void;
+  updateDamageRecord: (id: string, patch: Partial<Omit<DamageRecord, 'id' | 'createdAt'>>) => void;
+  deleteDamageRecord: (id: string) => void;
+  resolveDamageRecord: (
+    id: string,
+    resolution: {
+      actionTaken: DamageAction;
+      status?: DamageStatus;
+      amountRecovered?: number;
+      notes?: string;
+    }
+  ) => void;
+
   syncFromServer: (remote: Partial<OpsData>) => void;
 };
 
@@ -875,6 +1368,8 @@ export const useOpsStore = create<OpsState>()(
       suppliers: INITIAL_SUPPLIERS,
       purchaseOrders: INITIAL_PURCHASE_ORDERS,
       supplierPayments: INITIAL_SUPPLIER_PAYMENTS,
+      assets: INITIAL_ASSETS,
+      damageRecords: INITIAL_DAMAGES,
 
       addServiceRequest: (req) => {
         const duplicate = get().serviceRequests.some(
@@ -1339,6 +1834,146 @@ export const useOpsStore = create<OpsState>()(
           };
         }),
 
+      // Assets & Capital Purchases
+      addAsset: (asset) =>
+        set((state) => {
+          const now = Date.now();
+          const totalCost = asset.totalCost !== undefined ? asset.totalCost : asset.cost * asset.quantity;
+          const currentValue = asset.currentValue !== undefined ? asset.currentValue : totalCost;
+          const newAsset: Asset = {
+            ...asset,
+            id: uid('ast'),
+            assetCode: asset.assetCode || `AST-${Date.now().toString().slice(-4)}`,
+            totalCost,
+            currentValue,
+            maintenanceLogs: [],
+            createdAt: now,
+            updatedAt: now,
+          };
+          return { assets: [newAsset, ...state.assets] };
+        }),
+
+      updateAsset: (id, patch) =>
+        set((state) => {
+          const updated = state.assets.map((ast) => {
+            if (ast.id !== id) return ast;
+            const cost = patch.cost !== undefined ? patch.cost : ast.cost;
+            const quantity = patch.quantity !== undefined ? patch.quantity : ast.quantity;
+            const totalCost = patch.totalCost !== undefined ? patch.totalCost : cost * quantity;
+            return {
+              ...ast,
+              ...patch,
+              cost,
+              quantity,
+              totalCost,
+              updatedAt: Date.now(),
+            };
+          });
+          return { assets: updated };
+        }),
+
+      deleteAsset: (id) =>
+        set((state) => ({ assets: state.assets.filter((a) => a.id !== id) })),
+
+      addAssetMaintenanceLog: (assetId, log, options) => {
+        const now = Date.now();
+        const newLog: AssetMaintenanceLog = {
+          ...log,
+          id: uid('mlog'),
+        };
+
+        let nextExpenses = get().expenses;
+        if (options?.autoRecordExpense && log.cost > 0) {
+          const targetAsset = get().assets.find((a) => a.id === assetId);
+          const assetName = targetAsset ? `[${targetAsset.assetCode}] ${targetAsset.name}` : 'Asset';
+          const newExp: Expense = {
+            id: uid('exp'),
+            category: 'Maintenance & Repair',
+            amount: log.cost,
+            note: `Maintenance for ${assetName}: ${log.description}`,
+            method: 'cash',
+            paidBy: options.paidBy || 'Manager',
+            at: now,
+          };
+          nextExpenses = [newExp, ...nextExpenses];
+        }
+
+        set((state) => ({
+          expenses: nextExpenses,
+          assets: state.assets.map((ast) => {
+            if (ast.id !== assetId) return ast;
+            return {
+              ...ast,
+              maintenanceLogs: [newLog, ...(ast.maintenanceLogs || [])],
+              updatedAt: now,
+            };
+          }),
+        }));
+      },
+
+      // Damage Control & Breakages
+      logDamageIncident: (record) =>
+        set((state) => {
+          const now = Date.now();
+          const totalLoss = record.totalLoss !== undefined ? record.totalLoss : record.quantity * record.unitCost;
+          const amountRecovered = record.amountRecovered || 0;
+          const netLoss = record.netLoss !== undefined ? record.netLoss : Math.max(0, totalLoss - amountRecovered);
+          const newDmg: DamageRecord = {
+            ...record,
+            id: uid('dmg'),
+            incidentCode: record.incidentCode || `DMG-${Date.now().toString().slice(-4)}`,
+            totalLoss,
+            amountRecovered,
+            netLoss,
+            createdAt: now,
+          };
+          return { damageRecords: [newDmg, ...state.damageRecords] };
+        }),
+
+      updateDamageRecord: (id, patch) =>
+        set((state) => {
+          const updated = state.damageRecords.map((d) => {
+            if (d.id !== id) return d;
+            const quantity = patch.quantity !== undefined ? patch.quantity : d.quantity;
+            const unitCost = patch.unitCost !== undefined ? patch.unitCost : d.unitCost;
+            const totalLoss = patch.totalLoss !== undefined ? patch.totalLoss : quantity * unitCost;
+            const amountRecovered = patch.amountRecovered !== undefined ? patch.amountRecovered : d.amountRecovered;
+            const netLoss = Math.max(0, totalLoss - amountRecovered);
+            return {
+              ...d,
+              ...patch,
+              quantity,
+              unitCost,
+              totalLoss,
+              amountRecovered,
+              netLoss,
+            };
+          });
+          return { damageRecords: updated };
+        }),
+
+      deleteDamageRecord: (id) =>
+        set((state) => ({ damageRecords: state.damageRecords.filter((d) => d.id !== id) })),
+
+      resolveDamageRecord: (id, resolution) =>
+        set((state) => {
+          const updated = state.damageRecords.map((d) => {
+            if (d.id !== id) return d;
+            const amountRecovered = resolution.amountRecovered !== undefined ? resolution.amountRecovered : d.amountRecovered;
+            const netLoss = Math.max(0, d.totalLoss - amountRecovered);
+            return {
+              ...d,
+              actionTaken: resolution.actionTaken,
+              status: resolution.status || 'approved_writeoff',
+              amountRecovered,
+              netLoss,
+              notes: resolution.notes !== undefined ? resolution.notes : d.notes,
+              resolvedAt: Date.now(),
+            };
+          });
+          return { damageRecords: updated };
+        }),
+
       syncFromServer: (remote) =>
         set((state) => {
           const next: Partial<OpsData> = {};
@@ -1351,6 +1986,8 @@ export const useOpsStore = create<OpsState>()(
           if (Array.isArray(remote.suppliers)) next.suppliers = remote.suppliers;
           if (Array.isArray(remote.purchaseOrders)) next.purchaseOrders = remote.purchaseOrders;
           if (Array.isArray(remote.supplierPayments)) next.supplierPayments = remote.supplierPayments;
+          if (Array.isArray(remote.assets)) next.assets = remote.assets;
+          if (Array.isArray(remote.damageRecords)) next.damageRecords = remote.damageRecords;
           return { ...state, ...next };
         }),
     }),
@@ -1374,5 +2011,7 @@ export function getOpsSyncState(): OpsData {
     suppliers: s.suppliers,
     purchaseOrders: s.purchaseOrders,
     supplierPayments: s.supplierPayments,
+    assets: s.assets,
+    damageRecords: s.damageRecords,
   };
 }

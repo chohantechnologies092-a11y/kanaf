@@ -65,7 +65,9 @@ const INITIAL_STATE = {
       notes: 'Birthday celebration, requested quiet corner',
       createdAt: Date.now() - 3600000,
     }
-  ]
+  ],
+  assets: [],
+  damageRecords: []
 };
 
 // Load or create state
@@ -167,7 +169,7 @@ function applyStateUpdate(partialState, senderId, originWs = null) {
   if (!partialState || typeof partialState !== 'object') return;
 
   // Merge state keys safely
-  const allowedKeys = ['tables', 'tickets', 'invoices', 'menuItems', 'categories', 'zones', 'staff', 'customers', 'reservations', 'lastBillPaidAlert', 'serviceRequests', 'inventory', 'stockMovements', 'expenses', 'feedback', 'unavailableItemIds', 'suppliers', 'purchaseOrders', 'supplierPayments', 'recipes', 'kitchenSessions', 'kitchenConsumption', 'kitchenManualUsage', 'kitchenCash', 'kitchenSettings'];
+  const allowedKeys = ['tables', 'tickets', 'invoices', 'menuItems', 'categories', 'zones', 'staff', 'customers', 'reservations', 'lastBillPaidAlert', 'serviceRequests', 'inventory', 'stockMovements', 'expenses', 'feedback', 'unavailableItemIds', 'suppliers', 'purchaseOrders', 'supplierPayments', 'recipes', 'kitchenSessions', 'kitchenConsumption', 'kitchenManualUsage', 'kitchenCash', 'kitchenSettings', 'assets', 'damageRecords'];
   let modified = false;
 
   for (const key of allowedKeys) {

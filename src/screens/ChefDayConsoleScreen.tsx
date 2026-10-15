@@ -537,8 +537,12 @@ export default function ChefDayConsoleScreen({ backRoute = '/admin/dashboard' }:
               </View>
             )}
 
-            {/* Category Filter Chips */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catChips}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.catChipsScroll}
+              contentContainerStyle={styles.catChips}
+            >
               <TouchableOpacity
                 style={[styles.catChip, selectedCat === 'all' && !filterAttentionOnly && styles.catChipActive]}
                 onPress={() => {
@@ -1425,22 +1429,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: BRAND.burgundy,
   },
+  catChipsScroll: {
+    flexGrow: 0,
+    height: 38,
+    maxHeight: 38,
+    marginBottom: 8,
+  },
   catChips: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
-    paddingBottom: 10,
   },
   catChip: {
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    height: 28,
+    paddingHorizontal: 12,
     borderRadius: 14,
     backgroundColor: '#F0ECE1',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   catChipActive: {
     backgroundColor: BRAND.burgundy,
   },
   catChipText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
     color: BRAND.ink,
   },
   catChipTextActive: {

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Platform, useWindowDimensions, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRestaurantStore, MenuItem, OrderItem, Payment, Invoice, useAuthStore } from '../../store';
+import { useRestaurantStore, MenuItem, OrderItem, Payment, Invoice, useAuthStore, useDiscountStore, EventDiscount } from '../../store';
+import { calculateOrderDiscount, checkCampaignValidity } from '../../utils/discountCalculator';
 import { broadcastImmediately } from '../../services/syncService';
 import InvoiceComponent from '../../components/Invoice';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -66,7 +67,12 @@ export default function AdminPOS() {
   const [customerAddress, setCustomerAddress] = useState('');
   const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
 
-  // Payment State
+  // Payment & Event Promo State
+  const campaigns = useDiscountStore(state => state.campaigns);
+  const recordRedemption = useDiscountStore(state => state.recordRedemption);
+  const [selectedEventCampaign, setSelectedEventCampaign] = useState<EventDiscount | null>(null);
+  const [promoModalVisible, setPromoModalVisible] = useState(false);
+  const [promoCodeInput, setPromoCodeInput] = useState('');
   const [discountAmount, setDiscountAmount] = useState('0');
   const [payments, setPayments] = useState<Payment[]>([{ type: 'cash', amount: 0 }]);
 
@@ -186,6 +192,90 @@ export default function AdminPOS() {
 
   const selectedCustomerObj = customers.find(c => c.id === selectedCustomerId);
   const selectedTableObj = tables.find(t => t.id === selectedTableId);
+
+  // Auto Recalculate Promo Discount when cart or event campaign changes
+  useEffect(() => {
+    if (selectedEventCampaign) {
+      if (cart.length === 0) {
+        setDiscountAmount('0');
+        return;
+      }
+      const cartWithCat = cart.map(ci => {
+        const baseId = ci.id.split('-')[0];
+        const mi = menuItems.find(m => m.id === baseId || m.id === ci.id);
+        return {
+          id: ci.id,
+          name: ci.name,
+          price: ci.price,
+          qty: ci.qty,
+          category: mi?.category || 'Mains'
+        };
+      });
+      const res = calculateOrderDiscount(selectedEventCampaign, cartWithCat, subTotal);
+      if (res.eligible && res.discountAmount > 0) {
+        setDiscountAmount(res.discountAmount.toString());
+      } else {
+        setDiscountAmount('0');
+      }
+    }
+  }, [cart, selectedEventCampaign, subTotal]);
+
+  const handleApplyPromoCampaign = (campaign: EventDiscount) => {
+    if (cart.length === 0) {
+      const msg = 'Please add items to cart before applying an event promotion.';
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Cart is Empty', msg);
+      return;
+    }
+
+    const cartWithCat = cart.map(ci => {
+      const baseId = ci.id.split('-')[0];
+      const mi = menuItems.find(m => m.id === baseId || m.id === ci.id);
+      return {
+        id: ci.id,
+        name: ci.name,
+        price: ci.price,
+        qty: ci.qty,
+        category: mi?.category || 'Mains'
+      };
+    });
+
+    const res = calculateOrderDiscount(campaign, cartWithCat, subTotal);
+    if (!res.eligible) {
+      const msg = res.reason || 'This order does not meet the criteria for this promotion.';
+      if (Platform.OS === 'web') window.alert(`⚠️ Promo Ineligible:\n${msg}`);
+      else Alert.alert('Ineligible for Promo', msg);
+      return;
+    }
+
+    setSelectedEventCampaign(campaign);
+    setDiscountAmount(res.discountAmount.toString());
+    setPromoModalVisible(false);
+    setPromoCodeInput('');
+    const successMsg = `🎉 Promo "${campaign.title}" applied! Discount: Rs. ${res.discountAmount.toLocaleString()}`;
+    if (Platform.OS === 'web') window.alert(successMsg);
+    else Alert.alert('Promo Applied', successMsg);
+  };
+
+  const handleVerifyPromoCode = () => {
+    const code = promoCodeInput.trim().toUpperCase();
+    if (!code) return;
+
+    const matched = campaigns.find(c => c.code.toUpperCase() === code);
+    if (!matched) {
+      const msg = `Promo code "${code}" not found or invalid.`;
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Invalid Code', msg);
+      return;
+    }
+
+    handleApplyPromoCampaign(matched);
+  };
+
+  const handleRemovePromoCampaign = () => {
+    setSelectedEventCampaign(null);
+    setDiscountAmount('0');
+  };
 
   // Handlers
   const handleOrderTypeChange = (type: 'dine-in' | 'takeaway' | 'delivery') => {
@@ -422,6 +512,8 @@ export default function AdminPOS() {
       items: cart,
       subTotal,
       discount: discountVal,
+      discountEventId: selectedEventCampaign?.id,
+      discountEventTitle: selectedEventCampaign?.title,
       tax,
       total,
       payments: payments.filter(p => p.amount > 0)
@@ -461,6 +553,32 @@ export default function AdminPOS() {
     saveInvoice(invoice);
     broadcastImmediately();
     
+    // Log real-time event discount redemption for analytics
+    if (selectedEventCampaign && discountVal > 0) {
+      const cartWithCat = cart.map(ci => {
+        const baseId = ci.id.split('-')[0];
+        const mi = menuItems.find(m => m.id === baseId || m.id === ci.id);
+        return {
+          id: ci.id,
+          name: ci.name,
+          price: ci.price,
+          qty: ci.qty,
+          category: mi?.category || 'Mains'
+        };
+      });
+      recordRedemption({
+        campaignId: selectedEventCampaign.id,
+        invoiceId: invoice.id,
+        orderType,
+        tableName: selectedTableObj?.name,
+        customerName: selectedCustomerObj?.name,
+        customerPhone: selectedCustomerObj?.phone,
+        grossSales: subTotal,
+        discountApplied: discountVal,
+        items: cartWithCat
+      });
+    }
+
     if (selectedCustomerObj) {
       updateCustomer(selectedCustomerObj.id, {
         totalOrders: selectedCustomerObj.totalOrders + 1,
@@ -469,6 +587,7 @@ export default function AdminPOS() {
     }
 
     setCart([]);
+    setSelectedEventCampaign(null);
     setDiscountAmount('0');
     setCheckoutModalVisible(false);
     setSelectedCustomerId('');
@@ -543,13 +662,34 @@ export default function AdminPOS() {
                 <Text style={[styles.title, isMobile && { fontSize: 20 }]}>POS Terminal</Text>
               </View>
 
-              <TouchableOpacity 
-                style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#e8f5e9', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, gap: 4}} 
-                onPress={() => setPendingOrdersModalVisible(true)}
-              >
-                <Ionicons name="list" size={18} color="#2e7d32" />
-                <Text style={{color: '#2e7d32', fontWeight: 'bold', fontSize: 13}}>Pending ({tickets.length})</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TouchableOpacity 
+                  style={{
+                    flexDirection: 'row', 
+                    alignItems: 'center', 
+                    backgroundColor: '#F6F3EC', 
+                    paddingHorizontal: 10, 
+                    paddingVertical: 6, 
+                    borderRadius: 8, 
+                    borderWidth: 1, 
+                    borderColor: '#E8DFC9', 
+                    gap: 5
+                  }} 
+                  onPress={() => router.push('/admin/shift')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="time-outline" size={16} color="#52171B" />
+                  <Text style={{color: '#52171B', fontWeight: '700', fontSize: 12}}>Shift / Cash</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={{flexDirection: 'row', alignItems: 'center', backgroundColor: '#e8f5e9', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, gap: 4}} 
+                  onPress={() => setPendingOrdersModalVisible(true)}
+                >
+                  <Ionicons name="list" size={18} color="#2e7d32" />
+                  <Text style={{color: '#2e7d32', fontWeight: 'bold', fontSize: 13}}>Pending ({tickets.length})</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={[styles.searchBox, isMobile && { width: '100%' }]}>
@@ -862,6 +1002,38 @@ export default function AdminPOS() {
                </TouchableOpacity>
             </View>
             
+            {/* Event Promo Deal Selector */}
+            <View style={{ marginVertical: 6 }}>
+              {selectedEventCampaign ? (
+                <View style={{ backgroundColor: '#FEF2F2', borderColor: '#FECACA', borderWidth: 1, borderRadius: 8, padding: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                      <Ionicons name="ticket" size={14} color="#52171B" />
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#52171B' }}>
+                        [{selectedEventCampaign.code}] {selectedEventCampaign.title}
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 10, color: '#666', marginTop: 2 }}>
+                      {selectedEventCampaign.type === 'percentage' ? `${selectedEventCampaign.value}% off` : `Rs. ${selectedEventCampaign.value} off`} • Savings: Rs. {discountVal.toLocaleString()}
+                    </Text>
+                  </View>
+                  <TouchableOpacity onPress={handleRemovePromoCampaign} style={{ padding: 4 }}>
+                    <Ionicons name="close-circle" size={18} color="#C62828" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity 
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FFF0F2', borderColor: '#FECACA', borderWidth: 1, paddingVertical: 8, borderRadius: 8 }}
+                  onPress={() => setPromoModalVisible(true)}
+                >
+                  <Ionicons name="pricetag" size={14} color="#52171B" />
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: '#52171B' }}>
+                    🎟️ Select Event Promo Deal / Code
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
             <View style={styles.discountRow}>
               <Text style={styles.label}>Discount (Rs): </Text>
               <TextInput 
@@ -895,6 +1067,171 @@ export default function AdminPOS() {
           </View>
         </View>
       )}
+
+      {/* Promo Code & Event Campaign Modal */}
+      <Modal visible={promoModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContentLarge, { maxWidth: 580, maxHeight: '88%' }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Active Event Promotions</Text>
+                <Text style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
+                  Apply coupon code or tap an active promotional campaign
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setPromoModalVisible(false)} style={{ padding: 4 }}>
+                <Ionicons name="close" size={24} color="#1A1A1A" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Quick Promo Code Input */}
+            <View style={{ flexDirection: 'row', gap: 8, padding: 14, backgroundColor: '#F8FAFC', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
+              <TextInput
+                style={[styles.input, { flex: 1, marginBottom: 0, textTransform: 'uppercase', fontWeight: '800', letterSpacing: 1 }]}
+                placeholder="ENTER COUPON CODE (e.g. BBQ15)..."
+                value={promoCodeInput}
+                onChangeText={setPromoCodeInput}
+              />
+              <TouchableOpacity
+                style={[styles.saveBtn, { paddingHorizontal: 16 }]}
+                onPress={handleVerifyPromoCode}
+              >
+                <Text style={{ color: '#fff', fontWeight: '800' }}>Apply</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ padding: 14 }} showsVerticalScrollIndicator={false}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#1A1A1A', marginBottom: 10 }}>
+                Live Campaigns for Today:
+              </Text>
+
+              {campaigns.filter(c => checkCampaignValidity(c).isValid).length === 0 ? (
+                <View style={{ padding: 24, alignItems: 'center' }}>
+                  <Ionicons name="pricetag-outline" size={40} color="#999" />
+                  <Text style={{ color: '#666', marginTop: 8, fontSize: 13, textAlign: 'center' }}>
+                    No promotional campaigns currently active for today. Create or schedule one in the Events & Discounts module.
+                  </Text>
+                </View>
+              ) : (
+                campaigns
+                  .filter(c => checkCampaignValidity(c).isValid)
+                  .map(camp => {
+                    const cartWithCat = cart.map(ci => {
+                      const baseId = ci.id.split('-')[0];
+                      const mi = menuItems.find(m => m.id === baseId || m.id === ci.id);
+                      return {
+                        id: ci.id,
+                        name: ci.name,
+                        price: ci.price,
+                        qty: ci.qty,
+                        category: mi?.category || 'Mains'
+                      };
+                    });
+                    const check = calculateOrderDiscount(camp, cartWithCat, subTotal);
+                    const isApplied = selectedEventCampaign?.id === camp.id;
+
+                    return (
+                      <View 
+                        key={camp.id} 
+                        style={{ 
+                          backgroundColor: '#FFFFFF', 
+                          borderWidth: isApplied ? 2 : 1, 
+                          borderColor: isApplied ? '#52171B' : '#E2E8F0', 
+                          borderRadius: 10, 
+                          padding: 12, 
+                          marginBottom: 10,
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 1 },
+                          shadowOpacity: 0.05,
+                          shadowRadius: 2,
+                          elevation: 1
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <View style={{ flex: 1, marginRight: 8 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                              <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                <Text style={{ fontSize: 10, fontWeight: '800', color: '#52171B' }}>{camp.code}</Text>
+                              </View>
+                              <Text style={{ fontSize: 14, fontWeight: '800', color: '#1A1A1A' }}>{camp.title}</Text>
+                            </View>
+                            {camp.urduTitle ? (
+                              <Text style={{ fontSize: 11, color: '#666', marginBottom: 4 }}>{camp.urduTitle}</Text>
+                            ) : null}
+                            <Text style={{ fontSize: 11, color: '#555', lineHeight: 15 }} numberOfLines={2}>{camp.description}</Text>
+                          </View>
+
+                          <View style={{ backgroundColor: '#52171B', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, alignItems: 'center' }}>
+                            <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '900' }}>
+                              {camp.type === 'percentage' ? `${camp.value}%` : `Rs.${camp.value}`}
+                            </Text>
+                            <Text style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '700' }}>OFF</Text>
+                          </View>
+                        </View>
+
+                        {/* Scope details */}
+                        <View style={{ marginTop: 8, flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+                          <View style={{ backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                            <Text style={{ fontSize: 10, color: '#475569', fontWeight: '700' }}>
+                              Scope: {camp.scope === 'item' ? 'Selected Dishes' : camp.scope === 'category' ? `Categories: ${camp.targetCategories.join(', ')}` : 'Entire Order'}
+                            </Text>
+                          </View>
+                          {camp.minSpend > 0 && (
+                            <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                              <Text style={{ fontSize: 10, color: '#92400E', fontWeight: '700' }}>
+                                Min Bill: Rs. {camp.minSpend.toLocaleString()}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+
+                        {/* Cart Eligibility Bar */}
+                        <View style={{ marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F1F5F9', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <View style={{ flex: 1, marginRight: 8 }}>
+                            {check.eligible ? (
+                              <Text style={{ fontSize: 11, color: '#15803D', fontWeight: '800' }}>
+                                ✓ Cart Qualifies! Will save Rs. {check.discountAmount.toLocaleString()}
+                              </Text>
+                            ) : (
+                              <Text style={{ fontSize: 10, color: '#B45309', fontWeight: '600' }}>
+                                ⚠️ {check.reason}
+                              </Text>
+                            )}
+                          </View>
+
+                          {isApplied ? (
+                            <TouchableOpacity
+                              style={{ backgroundColor: '#DC2626', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 }}
+                              onPress={handleRemovePromoCampaign}
+                            >
+                              <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800' }}>Remove</Text>
+                            </TouchableOpacity>
+                          ) : (
+                            <TouchableOpacity
+                              style={[
+                                { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
+                                check.eligible ? { backgroundColor: '#52171B' } : { backgroundColor: '#E2E8F0' }
+                              ]}
+                              onPress={() => handleApplyPromoCampaign(camp)}
+                              disabled={!check.eligible}
+                            >
+                              <Text style={[
+                                { fontSize: 11, fontWeight: '800' },
+                                check.eligible ? { color: '#FFFFFF' } : { color: '#94A3B8' }
+                              ]}>
+                                Apply Offer
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </View>
+                    );
+                  })
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Customer Modal (Search / Create) */}
       <Modal visible={customerModalVisible} transparent animationType="slide">
