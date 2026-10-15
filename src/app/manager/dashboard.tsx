@@ -11,6 +11,8 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useRestaurantStore, Invoice } from '../../store/restaurantStore';
+import { useAuthStore } from '../../store/authStore';
+import { useRoleStore, useRolePermissions } from '../../store/roleStore';
 
 const BRAND = {
   bg: '#F8FAFC',
@@ -40,6 +42,12 @@ export default function ManagerDashboard() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
+  const user = useAuthStore(state => state.user);
+  const togglePermission = useRoleStore(state => state.togglePermission);
+
+  // If logged in as Admin, evaluate against 'manager' role permissions so Admin can see the actual Manager experience
+  const targetRoleOverride = user?.role === 'admin' ? 'manager' : undefined;
+  const { canViewRevenue } = useRolePermissions(targetRoleOverride);
   
   const invoices = useRestaurantStore(state => state.invoices);
   const tickets = useRestaurantStore(state => state.tickets);
@@ -344,6 +352,49 @@ export default function ManagerDashboard() {
         </View>
       </View>
 
+      {/* Admin Quick Visibility Test Bar */}
+      {user?.role === 'admin' && (
+        <View style={styles.adminNoticePill}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+            <View style={styles.adminNoticeIconCircle}>
+              <Ionicons name="shield-checkmark" size={15} color="#B48214" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.adminNoticeTitle}>
+                Admin Mode Active: Manager Revenue is{' '}
+                <Text style={{ fontWeight: '900', color: canViewRevenue ? '#059669' : '#DC2626' }}>
+                  {canViewRevenue ? 'VISIBLE (Rs. Showing)' : 'MASKED (•••••• Hidden)'}
+                </Text>
+              </Text>
+              <Text style={styles.adminNoticeSub}>
+                {canViewRevenue
+                  ? 'Shift earnings and order totals are currently visible to managers.'
+                  : 'Shift earnings and order totals are hidden from managers by your role policy.'}
+              </Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.adminNoticeBtn,
+              canViewRevenue ? styles.adminNoticeBtnMask : styles.adminNoticeBtnShow,
+            ]}
+            onPress={() => togglePermission('role-manager', 'canViewRevenue')}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name={canViewRevenue ? 'eye-off' : 'eye'}
+              size={14}
+              color="#FFFFFF"
+              style={{ marginRight: 6 }}
+            />
+            <Text style={styles.adminNoticeBtnText}>
+              {canViewRevenue ? 'Test Masking (Hide)' : 'Test Revealing (Show)'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* 2. Core KPI Cards (4 Cards) */}
       <View style={styles.kpiGrid}>
         <View 
@@ -361,10 +412,19 @@ export default function ManagerDashboard() {
           </View>
           {isRefreshing ? (
             <View style={styles.skeletonValue} {...({ dataSet: { skeleton: 'box' } } as any)} />
-          ) : (
+          ) : canViewRevenue ? (
             <Text style={styles.kpiMainValue}>Rs. {shiftSales.toLocaleString()}</Text>
+          ) : (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginVertical: 3 }}>
+              <Text style={[styles.kpiMainValue, { letterSpacing: 2, color: BRAND.textMuted }]}>••••••</Text>
+              <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                <Text style={{ fontSize: 9, fontWeight: '800', color: '#991B1B' }}>RESTRICTED</Text>
+              </View>
+            </View>
           )}
-          <Text style={styles.kpiSubtext}>{todaysInvoices.length} settled tickets</Text>
+          <Text style={styles.kpiSubtext}>
+            {canViewRevenue ? `${todaysInvoices.length} settled tickets` : 'Revenue hidden by Admin'}
+          </Text>
         </View>
 
         <View 
@@ -552,7 +612,9 @@ export default function ManagerDashboard() {
                   <Text style={styles.qtyBadgeText}>{dish.qty}</Text>
                 </View>
                 <View style={{ flex: 1.5, alignItems: 'flex-end' }}>
-                  <Text style={styles.revenueText}>Rs. {dish.revenue.toLocaleString()}</Text>
+                  <Text style={styles.revenueText}>
+                    {canViewRevenue ? `Rs. ${dish.revenue.toLocaleString()}` : '••••'}
+                  </Text>
                 </View>
               </View>
             ))}
@@ -593,7 +655,9 @@ export default function ManagerDashboard() {
                   <Text style={styles.invoiceMetaText}>{inv.payments?.[0]?.type?.toUpperCase() || 'CASH'}</Text>
                 </View>
                 <View style={{ flex: 1.5, alignItems: 'flex-end' }}>
-                  <Text style={styles.invoiceTotalText}>Rs. {(inv.total || 0).toLocaleString()}</Text>
+                  <Text style={styles.invoiceTotalText}>
+                    {canViewRevenue ? `Rs. ${(inv.total || 0).toLocaleString()}` : 'Rs. ••••'}
+                  </Text>
                 </View>
               </View>
             ))}
@@ -1029,5 +1093,55 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     color: BRAND.textPrimary,
+  },
+  adminNoticePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 20,
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  adminNoticeIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adminNoticeTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+  adminNoticeSub: {
+    fontSize: 11,
+    color: '#B45309',
+    marginTop: 2,
+  },
+  adminNoticeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  adminNoticeBtnMask: {
+    backgroundColor: '#DC2626',
+  },
+  adminNoticeBtnShow: {
+    backgroundColor: '#059669',
+  },
+  adminNoticeBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
   },
 });

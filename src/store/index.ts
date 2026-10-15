@@ -7,3 +7,4 @@ export * from './kitchenSeed';
 export * from './storage';
 export * from './shiftStore';
 export * from './discountStore';
+export * from './roleStore';

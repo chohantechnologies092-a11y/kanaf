@@ -8,10 +8,11 @@ import {
   Platform,
   useWindowDimensions 
 } from 'react-native';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoleGuard } from '../../hooks/useRoleGuard';
+import { useRolePermissions } from '../../store/roleStore';
 import SyncStatusBadge from '../../components/SyncStatusBadge';
 import SultanLogo from '../../components/SultanLogo';
 import BottomNav from '../../components/BottomNav';
@@ -41,6 +42,7 @@ const MANAGER_MENU_ITEMS: NavItem[] = [
 export default function ManagerLayout() {
   // Admin can also open manager screens (e.g. Inventory from the admin dashboard)
   const { ready, user, logout } = useRoleGuard(['manager', 'admin']);
+  const { can } = useRolePermissions();
   const { width } = useWindowDimensions();
   const router = useRouter();
   const pathname = usePathname();
@@ -49,9 +51,27 @@ export default function ManagerLayout() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  const filteredMenuItems = useMemo(() => {
+    return MANAGER_MENU_ITEMS.filter((item) => {
+      if (item.route === '/manager/pos' && !can('canAccessPOS')) return false;
+      if (item.route === '/manager/invoices' && !can('canAccessInvoices')) return false;
+      if (item.route === '/manager/returns' && !can('canProcessReturns')) return false;
+      if (item.route === '/manager/discounts' && !can('canAccessDiscounts')) return false;
+      if (item.route === '/manager/inventory' && !can('canAccessInventory')) return false;
+      if (item.route === '/manager/suppliers' && !can('canAccessInventory')) return false;
+      if (item.route === '/manager/expenses' && !can('canAccessExpenses')) return false;
+      if (item.route === '/manager/reports' && (!can('canAccessReports') || !can('canViewRevenue'))) return false;
+      if (item.route === '/manager/kitchen-handover' && !can('canAccessKitchenHandover')) return false;
+      if (item.route === '/manager/kitchen-returns' && !can('canAccessKitchenHandover')) return false;
+      if (item.route === '/manager/recipes' && !can('canAccessRecipes')) return false;
+      if (item.route === '/manager/costing' && (!can('canAccessRecipes') || !can('canViewCostPrice'))) return false;
+      return true;
+    });
+  }, [can]);
+
   if (!ready) return null;
 
-  const currentItem = MANAGER_MENU_ITEMS.find(it => it.route === pathname);
+  const currentItem = filteredMenuItems.find(it => it.route === pathname);
   const screenTitle = currentItem ? currentItem.label : 'Floor Operations';
 
   // Desktop Sidebar Layout
@@ -63,7 +83,7 @@ export default function ManagerLayout() {
         {/* 1. Permanent Left Liquid Glass Sidebar */}
         <AppSidebar
           role="manager"
-          items={MANAGER_MENU_ITEMS}
+          items={filteredMenuItems}
           user={user}
           onLogout={logout}
           isCollapsed={isCollapsed}
@@ -86,14 +106,16 @@ export default function ManagerLayout() {
             <View style={styles.topBarRight}>
               <SyncStatusBadge compact={false} />
 
-              <TouchableOpacity
-                style={styles.headerPosBtn}
-                onPress={() => router.push('/manager/pos')}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="calculator" size={15} color="#160406" />
-                <Text style={styles.headerPosBtnText}>POS Billing</Text>
-              </TouchableOpacity>
+              {can('canAccessPOS') && (
+                <TouchableOpacity
+                  style={styles.headerPosBtn}
+                  onPress={() => router.push('/manager/pos')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="calculator" size={15} color="#160406" />
+                  <Text style={styles.headerPosBtnText}>POS Billing</Text>
+                </TouchableOpacity>
+              )}
 
               <View style={styles.topUserSnippet}>
                 <View style={styles.userDot} />
@@ -178,7 +200,7 @@ export default function ManagerLayout() {
       {/* Mobile Slide-out Drawer */}
       <AppSidebar
         role="manager"
-        items={MANAGER_MENU_ITEMS}
+        items={filteredMenuItems}
         user={user}
         onLogout={logout}
         isMobileOpen={isDrawerOpen}

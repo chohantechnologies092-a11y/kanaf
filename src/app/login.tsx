@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, type Href } from 'expo-router';
 import { useAuthStore, Role, ROLE_HOME, useRestaurantStore, StaffMember } from '../store';
+import { useRoleStore, CustomRole } from '../store/roleStore';
 import SultanLogo from '../components/SultanLogo';
 import IslamicBackground from '../components/IslamicBackground';
 
@@ -35,6 +36,8 @@ export default function LoginScreen() {
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
 
   const staff = useRestaurantStore((state) => state.staff) || [];
+  const allRoles = useRoleStore((state) => state.roles);
+  const customRoles = allRoles.filter((r) => !r.isSystem);
 
   const isWaiterApp = (Platform.OS !== 'web' || params.role === 'waiter') && params.all !== 'true';
 
@@ -43,6 +46,7 @@ export default function LoginScreen() {
     : undefined;
 
   const [selectedRole, setSelectedRole] = useState<Role>(isWaiterApp ? 'waiter' : null);
+  const [selectedCustomRole, setSelectedCustomRole] = useState<CustomRole | null>(null);
   const [name, setName] = useState(defaultWaiter?.name || '');
   const [pin, setPin] = useState(defaultWaiter?.pin || '');
   const [errorMessage, setErrorMessage] = useState('');
@@ -55,12 +59,25 @@ export default function LoginScreen() {
     }
   }, [hasHydrated, user, router]);
 
-  // Filter staff matching selected role
-  const roleStaff = staff.filter(
-    (s) => selectedRole && s.role.toLowerCase() === selectedRole.toLowerCase() && s.status !== 'Inactive'
-  );
+  // Filter staff matching selected role or custom role
+  const roleStaff = staff.filter((s) => {
+    if (!selectedRole || s.status === 'Inactive') return false;
+    if (selectedCustomRole) {
+      return (
+        s.customRoleId === selectedCustomRole.id ||
+        s.role.toLowerCase() === selectedCustomRole.name.toLowerCase()
+      );
+    }
+    // Match base role or custom role with this baseRole
+    if (s.role.toLowerCase() === selectedRole.toLowerCase()) return true;
+    const memberCustomRole = allRoles.find(
+      (r) => r.id === s.customRoleId || r.name.toLowerCase() === s.role.toLowerCase()
+    );
+    return memberCustomRole && memberCustomRole.baseRole === selectedRole;
+  });
 
   const handleRoleSelect = (roleValue: Role) => {
+    setSelectedCustomRole(null);
     setSelectedRole(roleValue);
     setErrorMessage('');
     const matching = staff.filter(
@@ -75,6 +92,25 @@ export default function LoginScreen() {
     }
   };
 
+  const handleCustomRoleSelect = (cr: CustomRole) => {
+    setSelectedCustomRole(cr);
+    const base = (cr.baseRole === 'custom' ? 'manager' : cr.baseRole) as Role;
+    setSelectedRole(base);
+    setErrorMessage('');
+    const matching = staff.filter(
+      (s) =>
+        (s.customRoleId === cr.id || s.role.toLowerCase() === cr.name.toLowerCase()) &&
+        s.status === 'Active'
+    );
+    if (matching.length > 0) {
+      setName(matching[0].name);
+      setPin(matching[0].pin);
+    } else {
+      setName(cr.name + ' Staff');
+      setPin('1234');
+    }
+  };
+
   const selectStaffMember = (member: StaffMember) => {
     setName(member.name);
     setPin(member.pin);
@@ -83,6 +119,7 @@ export default function LoginScreen() {
 
   const closeModal = () => {
     setSelectedRole(null);
+    setSelectedCustomRole(null);
     setErrorMessage('');
   };
 
@@ -98,11 +135,20 @@ export default function LoginScreen() {
     }
 
     // Check against store staff if present
-    const matchedMember = staff.find(
-      (s) =>
-        s.name.toLowerCase() === name.trim().toLowerCase() &&
-        s.role.toLowerCase() === selectedRole.toLowerCase()
-    );
+    const matchedMember = staff.find((s) => {
+      if (s.name.toLowerCase() !== name.trim().toLowerCase()) return false;
+      if (selectedCustomRole) {
+        return (
+          s.customRoleId === selectedCustomRole.id ||
+          s.role.toLowerCase() === selectedCustomRole.name.toLowerCase()
+        );
+      }
+      if (s.role.toLowerCase() === selectedRole.toLowerCase()) return true;
+      const memberCustomRole = allRoles.find(
+        (r) => r.id === s.customRoleId || r.name.toLowerCase() === s.role.toLowerCase()
+      );
+      return memberCustomRole && memberCustomRole.baseRole === selectedRole;
+    });
 
     // If matched staff member exists, verify their PIN (or master PIN 1234)
     if (matchedMember && matchedMember.pin !== pin && pin !== '1234') {
@@ -113,6 +159,7 @@ export default function LoginScreen() {
     setErrorMessage('');
     login(name.trim(), selectedRole, {
       staffId: matchedMember?.id,
+      customRoleId: selectedCustomRole?.id || matchedMember?.customRoleId,
       assignedZone: matchedMember?.assignedZone,
       assignedZones: matchedMember?.assignedZones,
     });
@@ -305,6 +352,74 @@ export default function LoginScreen() {
                   })}
                 </View>
 
+                {/* Custom Roles Section if created */}
+                {customRoles.length > 0 && (
+                  <View style={{ marginTop: 20, width: '100%' }}>
+                    <View style={styles.customRolesHeader}>
+                      <Ionicons name="shield-outline" size={15} color="#D5A943" />
+                      <Text style={styles.customRolesSectionTitle}>
+                        Custom Staff Roles ({customRoles.length})
+                      </Text>
+                    </View>
+                    <View style={styles.rolesGrid}>
+                      {customRoles.map((cr) => {
+                        const count = staff.filter(
+                          (s) =>
+                            s.customRoleId === cr.id ||
+                            s.role.toLowerCase() === cr.name.toLowerCase()
+                        ).length;
+                        return (
+                          <TouchableOpacity
+                            key={cr.id}
+                            style={[styles.roleCard, { borderColor: cr.badgeColor + '50' }]}
+                            onPress={() => handleCustomRoleSelect(cr)}
+                            activeOpacity={0.82}
+                          >
+                            <View
+                              style={[
+                                styles.roleIconCircle,
+                                { backgroundColor: cr.badgeColor + '20' },
+                              ]}
+                            >
+                              <Ionicons
+                                name={(cr.icon || 'person-outline') as any}
+                                size={26}
+                                color={cr.badgeColor}
+                              />
+                            </View>
+                            <Text style={styles.roleText}>{cr.name}</Text>
+                            {cr.urduName && (
+                              <Text
+                                style={{
+                                  fontSize: 11,
+                                  color: '#D5A943',
+                                  marginTop: 1,
+                                  fontWeight: '600',
+                                }}
+                              >
+                                {cr.urduName}
+                              </Text>
+                            )}
+                            <Text style={styles.roleDesc} numberOfLines={2}>
+                              {cr.description || `Staff role on ${cr.baseRole} portal.`}
+                            </Text>
+                            <View
+                              style={[
+                                styles.staffCountBadge,
+                                { borderColor: cr.badgeColor + '40' },
+                              ]}
+                            >
+                              <Text style={[styles.staffCountText, { color: cr.badgeColor }]}>
+                                {count} Staff Active
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+
                 {/* Back Button */}
                 <TouchableOpacity
                   style={styles.backButton}
@@ -334,19 +449,31 @@ export default function LoginScreen() {
                 {/* Modal Header */}
                 <View style={styles.modalHeader}>
                   <View style={styles.modalHeaderLeft}>
-                    <View style={styles.modalRoleIconCircle}>
+                    <View
+                      style={[
+                        styles.modalRoleIconCircle,
+                        selectedCustomRole && { backgroundColor: selectedCustomRole.badgeColor + '25' },
+                      ]}
+                    >
                       <Ionicons
-                        name={selectedRoleObj?.icon || 'shield-checkmark-outline'}
+                        name={
+                          selectedCustomRole
+                            ? ((selectedCustomRole.icon || 'person-outline') as any)
+                            : (selectedRoleObj?.icon || 'shield-checkmark-outline')
+                        }
                         size={22}
-                        color="#451014"
+                        color={selectedCustomRole ? selectedCustomRole.badgeColor : '#451014'}
                       />
                     </View>
-                    <View>
+                    <View style={{ flex: 1 }}>
                       <Text style={styles.modalTitle}>
-                        {selectedRoleObj?.label} Sign In
+                        {selectedCustomRole ? selectedCustomRole.name : selectedRoleObj?.label} Sign In
                       </Text>
-                      <Text style={styles.modalSubtitle}>
-                        {selectedRoleObj?.desc}
+                      <Text style={styles.modalSubtitle} numberOfLines={1}>
+                        {selectedCustomRole
+                          ? (selectedCustomRole.urduName ? `${selectedCustomRole.urduName} • ` : '') +
+                            (selectedCustomRole.description || 'Custom Staff Role')
+                          : selectedRoleObj?.desc}
                       </Text>
                     </View>
                   </View>
@@ -793,5 +920,18 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.65)',
     fontSize: 13,
     fontWeight: '600',
+  },
+  customRolesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  customRolesSectionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#D5A943',
+    letterSpacing: 0.5,
   },
 });

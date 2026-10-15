@@ -2,13 +2,14 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { appStorage } from './storage';
 
-export type Role = 'admin' | 'manager' | 'waiter' | 'kitchen' | 'juicebar' | 'playland' | null;
+export type Role = 'admin' | 'manager' | 'waiter' | 'kitchen' | 'juicebar' | 'playland' | string | null;
 
 export interface User {
   id: string;
   name: string;
   role: Role;
   staffId?: string;
+  customRoleId?: string;
   assignedZone?: string;
   assignedZones?: string[];
 }
@@ -21,7 +22,7 @@ interface AuthState {
   login: (
     name: string,
     role: Role,
-    meta?: { staffId?: string; assignedZone?: string; assignedZones?: string[] }
+    meta?: { staffId?: string; customRoleId?: string; assignedZone?: string; assignedZones?: string[] }
   ) => void;
   updateUserZones: (assignedZone?: string, assignedZones?: string[]) => void;
   logout: () => void;
@@ -41,6 +42,7 @@ export const useAuthStore = create<AuthState>()(
             name,
             role,
             staffId: meta?.staffId,
+            customRoleId: meta?.customRoleId,
             assignedZone: meta?.assignedZone,
             assignedZones: meta?.assignedZones,
           },

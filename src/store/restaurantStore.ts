@@ -163,7 +163,7 @@ export type Invoice = {
   feedbackSubmitted?: boolean;
 };
 
-export type StaffRole = 'Admin' | 'Manager' | 'Waiter' | 'Kitchen' | 'JuiceBar' | 'Playland';
+export type StaffRole = 'Admin' | 'Manager' | 'Waiter' | 'Kitchen' | 'JuiceBar' | 'Playland' | string;
 export type StaffShift = 'Morning' | 'Evening' | 'Night';
 export type StaffStatus = 'Active' | 'On Leave' | 'Inactive';
 
@@ -178,6 +178,7 @@ export type StaffMember = {
   joinedDate?: string;
   assignedZone?: string;
   assignedZones?: string[];
+  customRoleId?: string;
 };
 
 export type Reservation = {
