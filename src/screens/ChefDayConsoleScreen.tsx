@@ -24,6 +24,8 @@ import {
   roundQty,
 } from '../utils/kitchenMath';
 
+import { usePortalBase } from '../hooks/usePortalBase';
+
 const BRAND = {
   burgundy: '#52171B',
   burgundyDark: '#3A0F12',
@@ -40,8 +42,6 @@ const BRAND = {
   info: '#0277BD',
   cream: '#FDFBF7',
 };
-
-import { usePortalBase } from '../hooks/usePortalBase';
 
 export default function ChefDayConsoleScreen({ backRoute = '/admin/dashboard' }: { backRoute?: string }) {
   const router = useRouter();

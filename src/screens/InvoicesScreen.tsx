@@ -655,6 +655,15 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
                         </View>
                       )}
 
+                      {(inv.feedbackSubmitted || inv.feedback) && (
+                        <View style={[styles.statusPill, { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' }]}>
+                          <Ionicons name="star" size={11} color="#D97706" style={{ marginRight: 3 }} />
+                          <Text style={[styles.statusPillText, { color: '#B45309' }]}>
+                            ⭐ {inv.feedback?.overallRating || 5}/5 REVIEW
+                          </Text>
+                        </View>
+                      )}
+
                       <Text style={styles.invoiceIdText}>#{inv.id}</Text>
 
                       <View style={[styles.typeBadge, {
@@ -770,6 +779,17 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
                       >
                         <Ionicons name="print-outline" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
                         <Text style={styles.printActionBtnText}>Receipt</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.cardFeedbackBtn, isSmallMobile && styles.cardFeedbackBtnMobile]}
+                        onPress={() => router.push(`/feedback?invoiceId=${encodeURIComponent(inv.id)}` as any)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="star" size={14} color="#B45309" style={{ marginRight: 4 }} />
+                        <Text style={styles.cardFeedbackBtnText}>
+                          {inv.feedbackSubmitted ? 'Feedback' : 'QR Review'}
+                        </Text>
                       </TouchableOpacity>
 
                       {!isVoided && !isRefunded && (
@@ -1837,6 +1857,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#D84315',
+  },
+  cardFeedbackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFBEB',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  cardFeedbackBtnMobile: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  cardFeedbackBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#B45309',
   },
 
   /* MODAL STYLES */

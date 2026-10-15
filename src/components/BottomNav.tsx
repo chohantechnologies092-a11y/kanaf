@@ -28,11 +28,12 @@ const NAV_CONFIG = {
 };
 
 const BRAND = {
-  burgundy: '#52171B', // Using the harmonized #52171B background
+  burgundy: '#D5A943', // Sultan gold for active state
   gold: '#D5A943',
-  inactive: '#8E8E93',
-  bg: '#FFFFFF',
-  border: '#E5E5EA',
+  inactive: 'rgba(255, 255, 255, 0.45)',
+  bg: '#140306',
+  border: 'rgba(213, 169, 67, 0.18)',
+  activePill: 'rgba(213, 169, 67, 0.12)',
 };
 
 interface BottomNavProps {
@@ -48,9 +49,10 @@ export default function BottomNav({ role, onOpenDrawer, onLogout }: BottomNavPro
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
-  // On large screens, we might just hide the bottom nav since the top bar or side drawer is spacious enough,
-  // but showing it universally is fine for quick access. 
-  // Waiter uses mobile phones mostly, so they need it.
+  // On desktop/tablets, admin and manager use the modern left sidebar layout
+  if (!isMobile && (role === 'admin' || role === 'manager')) {
+    return null;
+  }
 
   const tabs = NAV_CONFIG[role] || [];
 
@@ -72,19 +74,20 @@ export default function BottomNav({ role, onOpenDrawer, onLogout }: BottomNavPro
           return (
             <TouchableOpacity
               key={idx}
-              style={styles.tab}
+              style={[styles.tab, isActive && styles.tabActive]}
               onPress={() => handlePress(tab)}
               activeOpacity={0.7}
             >
               <Ionicons 
                 name={isActive ? (tab.activeIcon as any) : (tab.icon as any)} 
                 size={22} 
-                color={isActive ? BRAND.burgundy : BRAND.inactive} 
+                color={isActive ? BRAND.gold : BRAND.inactive} 
                 style={styles.icon}
               />
               <Text style={[styles.label, isActive && styles.labelActive]}>
                 {tab.label}
               </Text>
+              {isActive && <View style={styles.activeDot} />}
             </TouchableOpacity>
           );
         })}
@@ -98,14 +101,20 @@ const styles = StyleSheet.create({
     backgroundColor: BRAND.bg,
     borderTopWidth: 1,
     borderTopColor: BRAND.border,
-    paddingTop: 10,
+    paddingTop: 8,
     flexShrink: 0,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 10,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 12,
     zIndex: 10,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(16px)',
+        backgroundColor: 'rgba(20, 3, 6, 0.94)',
+      } as any,
+    }),
   },
   tabContainer: {
     flexDirection: 'row',
@@ -119,9 +128,14 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  tabActive: {
+    backgroundColor: BRAND.activePill,
   },
   icon: {
-    marginBottom: 4,
+    marginBottom: 3,
   },
   label: {
     fontSize: 11,
@@ -129,7 +143,14 @@ const styles = StyleSheet.create({
     color: BRAND.inactive,
   },
   labelActive: {
-    color: BRAND.burgundy,
+    color: BRAND.gold,
     fontWeight: '800',
-  }
+  },
+  activeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: BRAND.gold,
+    marginTop: 2,
+  },
 });

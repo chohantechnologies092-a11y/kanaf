@@ -82,13 +82,46 @@ export type MenuItem = {
   dealOriginalPrice?: number;
 };
 
+export type CustomerTier = 'Regular' | 'Silver' | 'Gold' | 'VIP';
+
 export type Customer = {
   id: string;
   name: string;
   phone: string;
+  email?: string;
   address?: string;
+  tier?: CustomerTier;
+  notes?: string;
+  tags?: string[];
   totalOrders: number;
   totalSpent: number;
+  loyaltyPoints?: number;
+  firstVisit?: number;
+  lastVisit?: number;
+  favoriteDishes?: string[];
+};
+
+export type ItemFeedback = {
+  itemId: string;
+  itemName: string;
+  rating: number; // 1 to 5 stars
+  tags?: string[]; // e.g. ['Delicious', 'Served Hot', 'Too Spicy', etc.]
+  comment?: string;
+};
+
+export type InvoiceFeedback = {
+  id: string;
+  invoiceId: string;
+  customerId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  overallRating: number; // 1 to 5 stars
+  serviceRating?: number; // 1 to 5 stars
+  ambianceRating?: number; // 1 to 5 stars
+  items: ItemFeedback[];
+  generalComments?: string;
+  createdAt: number;
+  status?: 'published' | 'reviewed';
 };
 
 export type Payment = {
@@ -124,6 +157,8 @@ export type Invoice = {
   refundAmount?: number;
   returnStatus?: 'none' | 'partial' | 'full';
   returnIds?: string[];
+  feedback?: InvoiceFeedback;
+  feedbackSubmitted?: boolean;
 };
 
 export type StaffRole = 'Admin' | 'Manager' | 'Waiter' | 'Kitchen' | 'JuiceBar' | 'Playland';
@@ -222,9 +257,14 @@ type RestaurantState = {
   addCustomer: (customer: Omit<Customer, 'id' | 'totalOrders' | 'totalSpent'>) => void;
   updateCustomer: (id: string, customer: Partial<Customer>) => void;
   deleteCustomer: (id: string) => void;
+  feedbacks: InvoiceFeedback[];
+  addFeedback: (feedback: Omit<InvoiceFeedback, 'id' | 'createdAt'>) => void;
+  deleteFeedback: (id: string) => void;
   addStaff: (staff: Omit<StaffMember, 'id'>) => void;
   updateStaff: (id: string, staff: Partial<Omit<StaffMember, 'id'>>) => void;
   deleteStaff: (id: string) => void;
+  onlineFeedbackUrl?: string;
+  setOnlineFeedbackUrl: (url: string) => void;
   syncFromServer: (remoteState: Partial<RestaurantState>) => void;
 };
 
@@ -322,9 +362,122 @@ const INITIAL_RESERVATIONS: Reservation[] = [
 ];
 
 const INITIAL_CUSTOMERS: Customer[] = [
-  { id: 'c1', name: 'Zubair Tariq', phone: '03009876543', address: 'DHA Phase 5, Lahore', totalOrders: 14, totalSpent: 38400 },
-  { id: 'c2', name: 'Fatima Noor', phone: '03214567890', address: 'Gulberg III, Lahore', totalOrders: 6, totalSpent: 16200 },
-  { id: 'c3', name: 'Bilal Siddiqui', phone: '03331122334', address: 'Model Town, Block C', totalOrders: 3, totalSpent: 7500 },
+  { 
+    id: 'c1', 
+    name: 'Zubair Tariq', 
+    phone: '03009876543', 
+    email: 'zubair.tariq@gmail.com',
+    address: 'DHA Phase 5, Lahore', 
+    tier: 'VIP',
+    notes: 'Prefers Family Majlis Cabin. Likes low spice in Karahi.',
+    tags: ['VIP', 'Family Majlis', 'High Spender'],
+    totalOrders: 14, 
+    totalSpent: 38400,
+    loyaltyPoints: 380,
+    firstVisit: Date.now() - 45 * 86400000,
+    lastVisit: Date.now() - 2 * 86400000,
+    favoriteDishes: ['Chicken Karahi', 'Sultan Kebab']
+  },
+  { 
+    id: 'c2', 
+    name: 'Fatima Noor', 
+    phone: '03214567890', 
+    email: 'fatima.noor@outlook.com',
+    address: 'Gulberg III, Lahore', 
+    tier: 'Gold',
+    notes: 'Regular weekend diner. Enjoys fresh mint margaritas.',
+    tags: ['Gold', 'Weekend Regular'],
+    totalOrders: 6, 
+    totalSpent: 16200,
+    loyaltyPoints: 160,
+    firstVisit: Date.now() - 30 * 86400000,
+    lastVisit: Date.now() - 5 * 86400000,
+    favoriteDishes: ['Mint Margarita', 'Kunafa']
+  },
+  { 
+    id: 'c3', 
+    name: 'Bilal Siddiqui', 
+    phone: '03331122334', 
+    email: 'bilal.s@yahoo.com',
+    address: 'Model Town, Block C', 
+    tier: 'Silver',
+    notes: 'Corporate lunches on weekdays.',
+    tags: ['Silver', 'Corporate'],
+    totalOrders: 3, 
+    totalSpent: 7500,
+    loyaltyPoints: 75,
+    firstVisit: Date.now() - 20 * 86400000,
+    lastVisit: Date.now() - 10 * 86400000,
+    favoriteDishes: ['Fajita Pizza (Medium)']
+  },
+  { 
+    id: 'c4', 
+    name: 'Dr. Ayesha Imran', 
+    phone: '03028889900', 
+    email: 'ayesha.imran@health.pk',
+    address: 'Bahria Town, Sector C', 
+    tier: 'VIP',
+    notes: 'Requests extra garlic naan with Mutton Karahi.',
+    tags: ['VIP', 'Doctor'],
+    totalOrders: 19, 
+    totalSpent: 52600,
+    loyaltyPoints: 520,
+    firstVisit: Date.now() - 60 * 86400000,
+    lastVisit: Date.now() - 1 * 86400000,
+    favoriteDishes: ['Mutton Shinwari Karahi', 'Sultan Special Roghni Naan']
+  },
+  { 
+    id: 'c5', 
+    name: 'Usman Ghani', 
+    phone: '03456781234', 
+    address: 'Johar Town, Phase 1', 
+    tier: 'Regular',
+    notes: 'Takeaway orders mostly.',
+    tags: ['Takeaway Frequent'],
+    totalOrders: 4, 
+    totalSpent: 5400,
+    loyaltyPoints: 50,
+    firstVisit: Date.now() - 15 * 86400000,
+    lastVisit: Date.now() - 3 * 86400000,
+    favoriteDishes: ['Chicken Dum Biryani Special']
+  },
+];
+
+const INITIAL_FEEDBACKS: InvoiceFeedback[] = [
+  {
+    id: 'fb-1',
+    invoiceId: 'INV-1090',
+    customerId: 'c1',
+    customerName: 'Zubair Tariq',
+    customerPhone: '03009876543',
+    overallRating: 5,
+    serviceRating: 5,
+    ambianceRating: 5,
+    items: [
+      { itemId: 'm2', itemName: 'Chicken Karahi', rating: 5, tags: ['Delicious', 'Served Hot'], comment: 'Desi ghee flavor was exceptional.' },
+      { itemId: 'm1', itemName: 'Sultan Kebab', rating: 5, tags: ['Authentic Taste'] },
+    ],
+    generalComments: 'Sultan restaurant provides an unmatched royal family dining experience. Server Hamza was very attentive.',
+    createdAt: Date.now() - 86400000,
+    status: 'published'
+  },
+  {
+    id: 'fb-2',
+    invoiceId: 'INV-1092',
+    customerId: 'c2',
+    customerName: 'Fatima Noor',
+    customerPhone: '03214567890',
+    overallRating: 4,
+    serviceRating: 5,
+    ambianceRating: 4,
+    items: [
+      { itemId: 'm5', itemName: 'Mint Margarita', rating: 5, tags: ['Refreshing'] },
+      { itemId: 'm4', itemName: 'Kunafa', rating: 4, tags: ['Delicious'] },
+    ],
+    generalComments: 'Beverages and desserts were mouth watering! Will return with family this weekend.',
+    createdAt: Date.now() - 43200000,
+    status: 'published'
+  }
 ];
 
 const INITIAL_MENU: MenuItem[] = [
@@ -553,6 +706,7 @@ export const useRestaurantStore = create<RestaurantState>()(
       invoices: [],
       salesReturns: [],
       customers: INITIAL_CUSTOMERS,
+      feedbacks: INITIAL_FEEDBACKS,
       staff: INITIAL_STAFF,
       reservations: INITIAL_RESERVATIONS,
       tickets: [
@@ -960,9 +1114,40 @@ export const useRestaurantStore = create<RestaurantState>()(
         };
       }),
       
-      saveInvoice: (invoice) => set((state) => ({
-        invoices: [invoice, ...state.invoices]
-      })),
+      saveInvoice: (invoice) => set((state) => {
+        let updatedCustomers = state.customers;
+        if (invoice.customer && (invoice.customer.id || invoice.customer.phone)) {
+          const custPhone = (invoice.customer.phone || '').replace(/\D/g, '');
+          updatedCustomers = state.customers.map(c => {
+            const isMatch = (invoice.customer?.id && c.id === invoice.customer.id) ||
+              (custPhone && c.phone && c.phone.replace(/\D/g, '').endsWith(custPhone));
+            if (isMatch) {
+              const newOrders = (c.totalOrders || 0) + 1;
+              const newSpent = (c.totalSpent || 0) + (invoice.total || 0);
+              const pointsEarned = Math.round((invoice.total || 0) * 0.01);
+              let tier: CustomerTier = c.tier || 'Regular';
+              if (newSpent >= 50000 || newOrders >= 15) tier = 'VIP';
+              else if (newSpent >= 25000 || newOrders >= 8) tier = 'Gold';
+              else if (newSpent >= 10000 || newOrders >= 3) tier = 'Silver';
+
+              return {
+                ...c,
+                totalOrders: newOrders,
+                totalSpent: newSpent,
+                loyaltyPoints: (c.loyaltyPoints || 0) + pointsEarned,
+                lastVisit: Date.now(),
+                tier,
+              };
+            }
+            return c;
+          });
+        }
+
+        return {
+          invoices: [invoice, ...state.invoices],
+          customers: updatedCustomers,
+        };
+      }),
 
       voidInvoice: (invoiceId, reason, voidedBy) => set((state) => ({
         invoices: state.invoices.map(inv =>
@@ -1069,7 +1254,19 @@ export const useRestaurantStore = create<RestaurantState>()(
       })),
 
       addCustomer: (customer) => set((state) => ({
-        customers: [...state.customers, { ...customer, id: `c${Date.now()}`, totalOrders: 0, totalSpent: 0 }]
+        customers: [
+          ...state.customers,
+          {
+            ...customer,
+            id: `c${Date.now()}`,
+            totalOrders: 0,
+            totalSpent: 0,
+            loyaltyPoints: 50,
+            firstVisit: Date.now(),
+            lastVisit: Date.now(),
+            tier: customer.tier || 'Regular',
+          }
+        ]
       })),
 
       updateCustomer: (id, customer) => set((state) => ({
@@ -1079,6 +1276,61 @@ export const useRestaurantStore = create<RestaurantState>()(
       deleteCustomer: (id) => set((state) => ({
         customers: state.customers.filter(c => c.id !== id)
       })),
+
+      addFeedback: (feedbackData) => set((state) => {
+        const newFeedback: InvoiceFeedback = {
+          ...feedbackData,
+          id: `fb-${Date.now()}`,
+          createdAt: Date.now(),
+          status: 'published'
+        };
+
+        const updatedInvoices = state.invoices.map(inv => {
+          if (inv.id === feedbackData.invoiceId) {
+            return {
+              ...inv,
+              feedback: newFeedback,
+              feedbackSubmitted: true
+            };
+          }
+          return inv;
+        });
+
+        let updatedCustomers = state.customers;
+        const targetPhone = (feedbackData.customerPhone || '').replace(/\D/g, '');
+        if (targetPhone || feedbackData.customerId) {
+          updatedCustomers = state.customers.map(cust => {
+            const custPhone = (cust.phone || '').replace(/\D/g, '');
+            const isMatch = (feedbackData.customerId && cust.id === feedbackData.customerId) ||
+              (targetPhone && custPhone && (custPhone.endsWith(targetPhone) || targetPhone.endsWith(custPhone)));
+            
+            if (isMatch) {
+              const currentPoints = cust.loyaltyPoints || 0;
+              return {
+                ...cust,
+                loyaltyPoints: currentPoints + 50,
+              };
+            }
+            return cust;
+          });
+        }
+
+        return {
+          feedbacks: [newFeedback, ...(state.feedbacks || [])],
+          invoices: updatedInvoices,
+          customers: updatedCustomers,
+        };
+      }),
+
+      deleteFeedback: (id) => set((state) => ({
+        feedbacks: (state.feedbacks || []).filter(f => f.id !== id)
+      })),
+
+      onlineFeedbackUrl: 'http://192.168.1.17:8081',
+
+      setOnlineFeedbackUrl: (url) => set({
+        onlineFeedbackUrl: url.trim().replace(/\/+$/, '')
+      }),
 
       addMenuItem: (item) => set((state) => ({
         menuItems: [...state.menuItems, { ...item, id: `m${Date.now()}` }]
@@ -1264,6 +1516,7 @@ export const useRestaurantStore = create<RestaurantState>()(
           ...(remoteState.customers ? { customers: remoteState.customers } : {}),
           ...(remoteState.reservations ? { reservations: remoteState.reservations } : {}),
           ...(remoteState.salesReturns ? { salesReturns: remoteState.salesReturns } : {}),
+          ...(remoteState.feedbacks ? { feedbacks: remoteState.feedbacks } : {}),
           ...(remoteState.lastBillPaidAlert !== undefined ? { lastBillPaidAlert: remoteState.lastBillPaidAlert } : {}),
         };
       }),

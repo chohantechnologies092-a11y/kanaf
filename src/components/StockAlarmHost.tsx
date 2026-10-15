@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   Vibration,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -95,6 +96,9 @@ function routeFor(alert: StockAlert, role: string | null | undefined): string {
 export default function StockAlarmHost() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
+  const bottomOffset = (isMobile ? 76 : 24) + insets.bottom;
 
   const user = useAuthStore((s) => s.user);
   const role = user?.role;
@@ -227,7 +231,7 @@ export default function StockAlarmHost() {
       )}
 
       {/* Floating bell */}
-      <Animated.View style={[styles.fabWrap, { bottom: 24 + insets.bottom, transform: [{ scale: pulse }] }]}>
+      <Animated.View style={[styles.fabWrap, { bottom: bottomOffset, transform: [{ scale: pulse }] }]}>
         <TouchableOpacity
           style={[styles.fab, { backgroundColor: sev.color }]}
           onPress={() => setPanelOpen(true)}

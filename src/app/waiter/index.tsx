@@ -450,6 +450,15 @@ export default function OrderTakerScreen() {
               </Text>
             </View>
           </View>
+
+          <TouchableOpacity 
+            style={styles.takeawayQuickBtn}
+            onPress={() => router.push('/waiter/order/takeaway')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="bag-handle" size={15} color="#D5A943" style={{ marginRight: 5 }} />
+            <Text style={styles.takeawayQuickBtnText}>Takeaway Order</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Search Input */}
@@ -844,6 +853,27 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#8E8E93',
     marginTop: 2,
+  },
+  takeawayQuickBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4a121a',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D5A943',
+    alignSelf: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  takeawayQuickBtnText: {
+    color: '#D5A943',
+    fontSize: 12,
+    fontWeight: '800',
   },
 
   searchBar: {

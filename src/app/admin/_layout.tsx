@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import { 
   View, 
   Text, 
@@ -14,12 +14,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRoleGuard } from '../../hooks/useRoleGuard';
 import SyncStatusBadge from '../../components/SyncStatusBadge';
 import SultanLogo from '../../components/SultanLogo';
-import RoleDrawer, { DrawerItem } from '../../components/RoleDrawer';
 import BottomNav from '../../components/BottomNav';
+import AppSidebar, { NavItem } from '../../components/layout/AppSidebar';
 
-const ADMIN_MENU_ITEMS: DrawerItem[] = [
+const ADMIN_MENU_ITEMS: NavItem[] = [
   { label: 'Dashboard', route: '/admin/dashboard', icon: 'grid-outline' },
-  { label: 'POS Terminal', route: '/admin/pos', icon: 'calculator-outline' },
+  { label: 'POS Terminal', route: '/admin/pos', icon: 'calculator-outline', badge: 'POS' },
   { label: 'Invoices & Orders', route: '/admin/invoices', icon: 'receipt-outline' },
   { label: 'Sales Returns & Refunds', route: '/admin/returns', icon: 'return-down-back-outline' },
   { label: 'Menu Catalog', route: '/admin/menu', icon: 'restaurant-outline' },
@@ -33,27 +33,113 @@ const ADMIN_MENU_ITEMS: DrawerItem[] = [
   { label: 'Business Insights', route: '/admin/insights', icon: 'trending-up-outline' },
   { label: 'Live Expenses', route: '/admin/expenses', icon: 'wallet-outline' },
   { label: 'Kitchen Handover', route: '/admin/kitchen-handover', icon: 'clipboard-outline' },
-  { label: 'Recipe BOM', route: '/admin/recipes', icon: 'restaurant-outline' },
+  { label: 'Recipe BOM', route: '/admin/recipes', icon: 'fast-food-outline' },
   { label: 'Kitchen Returns', route: '/admin/kitchen-returns', icon: 'checkmark-done-circle-outline' },
-  { label: 'Dish Costing', route: '/admin/costing', icon: 'calculator-outline' },
-  { label: 'Playland Hub', route: '/admin/playland', icon: 'color-palette-outline' },
+  { label: 'Dish Costing', route: '/admin/costing', icon: 'pricetag-outline' },
+  { label: 'Playland Hub', route: '/admin/playland', icon: 'balloon-outline' },
 ];
 
 export default function AdminLayout() {
   const { ready, user, logout } = useRoleGuard(['admin']);
   const { width } = useWindowDimensions();
+  const router = useRouter();
+  const pathname = usePathname();
+  
   const isMobile = width < 768;
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   if (!ready) return null;
 
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#4a121a" />
+  // Find active screen title for desktop breadcrumbs
+  const currentItem = ADMIN_MENU_ITEMS.find(it => it.route === pathname);
+  const screenTitle = currentItem ? currentItem.label : 'Admin Operations';
 
-      {/* Top Navigation Bar */}
-      <View style={[styles.header, isMobile && styles.headerMobile]}>
-        <View style={styles.headerLeft}>
+  // Desktop Sidebar Layout
+  if (!isMobile) {
+    return (
+      <View style={styles.desktopShell}>
+        <StatusBar barStyle="light-content" backgroundColor="#140306" />
+
+        {/* 1. Permanent Left Liquid Glass Sidebar */}
+        <AppSidebar
+          role="admin"
+          items={ADMIN_MENU_ITEMS}
+          user={user}
+          onLogout={logout}
+          isCollapsed={isCollapsed}
+          onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
+        />
+
+        {/* 2. Main Workspace (Top Bar + Screen Stack) */}
+        <View style={styles.workspaceArea}>
+          {/* Top Glass Header Bar */}
+          <View style={styles.desktopTopBar}>
+            <View style={styles.topBarLeft}>
+              <View style={styles.breadcrumbBadge}>
+                <Ionicons name="shield-checkmark" size={14} color="#D5A943" />
+                <Text style={styles.breadcrumbAdmin}>Executive Admin</Text>
+              </View>
+              <Text style={styles.breadcrumbDivider}>/</Text>
+              <Text style={styles.topBarScreenTitle}>{screenTitle}</Text>
+            </View>
+
+            <View style={styles.topBarRight}>
+              <SyncStatusBadge compact={false} />
+
+              {/* Fast POS Shortcut */}
+              <TouchableOpacity
+                style={styles.headerPosBtn}
+                onPress={() => router.push('/admin/pos')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="calculator" size={15} color="#160406" />
+                <Text style={styles.headerPosBtnText}>POS Billing</Text>
+              </TouchableOpacity>
+
+              {/* User greeting */}
+              <View style={styles.topUserSnippet}>
+                <View style={styles.userDot} />
+                <Text style={styles.topUserName} numberOfLines={1}>
+                  {user?.name || 'Admin'}
+                </Text>
+              </View>
+
+              {/* Logout button */}
+              <TouchableOpacity 
+                style={styles.logoutBtn}
+                onPress={logout}
+                activeOpacity={0.7}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="log-out-outline" size={18} color="#D5A943" style={{ marginRight: 6 }} />
+                <Text style={styles.logoutText}>Logout</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Screen Content */}
+          <View style={styles.desktopContent}>
+            <Stack 
+              screenOptions={{ 
+                headerShown: false,
+                contentStyle: { backgroundColor: '#F8FAFC' }
+              }} 
+            />
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // Mobile Layout
+  return (
+    <SafeAreaView style={styles.mobileShell} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#140306" />
+
+      {/* Mobile Top Header */}
+      <View style={styles.mobileHeader}>
+        <View style={styles.mobileHeaderLeft}>
           <TouchableOpacity 
             style={styles.hamburgerBtn} 
             onPress={() => setIsDrawerOpen(true)}
@@ -61,65 +147,54 @@ export default function AdminLayout() {
           >
             <Ionicons name="menu" size={24} color="#D5A943" />
           </TouchableOpacity>
-          <SultanLogo size="sm" width={28} height={28} style={{ marginRight: 8, marginLeft: 8 }} />
-          <Text style={[styles.headerTitle, isMobile && styles.headerTitleMobile]}>
-            {isMobile ? 'Sultan' : 'Sultan Admin'}
-          </Text>
-          <View style={styles.roleTag}>
-            <Text style={styles.roleTagText}>ADMIN</Text>
-          </View>
+          <SultanLogo size="xs" width={24} height={24} style={{ marginRight: 6, marginLeft: 6 }} />
+          <Text style={styles.mobileHeaderTitle}>Sultan Admin</Text>
         </View>
 
-        <View style={[styles.headerRight, isMobile && styles.headerRightMobile]}>
-          <SyncStatusBadge compact={isMobile} />
-          
-          {!isMobile && (
-            <Text style={styles.userName} numberOfLines={1}>Hello, {user?.name}</Text>
-          )}
-
+        <View style={styles.mobileHeaderRight}>
+          <SyncStatusBadge compact />
           <TouchableOpacity 
-            style={[styles.logoutButton, isMobile && styles.logoutButtonMobile]}
+            style={styles.mobileLogoutBtn}
             onPress={logout}
             activeOpacity={0.7}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Ionicons 
-              name="log-out-outline" 
-              size={18} 
-              color="#D5A943" 
-              style={!isMobile ? { marginRight: 6 } : undefined} 
-            />
-            {!isMobile && <Text style={styles.logoutText}>Logout</Text>}
+            <Ionicons name="log-out-outline" size={18} color="#D5A943" />
           </TouchableOpacity>
         </View>
       </View>
       
-      {/* Main Content Area */}
-      <View style={styles.content}>
+      {/* Mobile Screen Stack */}
+      <View style={styles.mobileContent}>
         <Stack 
           screenOptions={{ 
             headerShown: false,
-            contentStyle: { backgroundColor: '#F8F9FA' }
+            contentStyle: { backgroundColor: '#F8FAFC' }
           }} 
         />
       </View>
 
+      {/* Mobile Bottom Nav */}
       <BottomNav role="admin" onOpenDrawer={() => setIsDrawerOpen(true)} />
 
-      <RoleDrawer 
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
+      {/* Mobile Slide-out Drawer */}
+      <AppSidebar
+        role="admin"
         items={ADMIN_MENU_ITEMS}
-        roleName="Admin"
+        user={user}
+        onLogout={logout}
+        isMobileOpen={isDrawerOpen}
+        onCloseMobile={() => setIsDrawerOpen(false)}
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  // Desktop
+  desktopShell: {
     flex: 1,
-    backgroundColor: '#4a121a', // Sultan Burgundy covers safe area
+    flexDirection: 'row',
+    backgroundColor: '#F8FAFC',
     ...Platform.select({
       web: {
         height: '100vh' as any,
@@ -128,96 +203,173 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  header: {
-    backgroundColor: '#4a121a',
+  workspaceArea: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    backgroundColor: '#F8FAFC',
+    overflow: 'hidden',
+  },
+  desktopTopBar: {
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 24,
     paddingVertical: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(213, 169, 67, 0.2)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
+    borderBottomColor: '#E2E8F0',
     zIndex: 10,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+      } as any,
+    }),
   },
-  headerMobile: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  headerLeft: {
+  topBarLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  headerTitle: {
-    color: '#D5A943', // Sultan Gold
-    fontSize: 22,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  headerTitleMobile: {
-    fontSize: 18,
-  },
-  hamburgerBtn: {
-    padding: 4,
-  },
-  roleTag: {
-    backgroundColor: 'rgba(213, 169, 67, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
+  breadcrumbBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 7,
     borderWidth: 1,
-    borderColor: 'rgba(213, 169, 67, 0.4)',
+    borderColor: '#FDE68A',
   },
-  roleTagText: {
-    color: '#D5A943',
-    fontSize: 10,
+  breadcrumbAdmin: {
+    color: '#B45309',
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  headerRightMobile: {
-    gap: 8,
-  },
-  userName: {
-    color: '#FFFFFF',
+  breadcrumbDivider: {
+    color: '#CBD5E1',
     fontSize: 14,
-    fontWeight: '500',
-    maxWidth: 160,
+    fontWeight: '700',
+    marginHorizontal: 4,
   },
-  logoutButton: {
+  topBarScreenTitle: {
+    color: '#0F172A',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  topBarRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    gap: 14,
+  },
+  headerPosBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#701A26',
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: 8,
+    shadowColor: '#701A26',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  headerPosBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  topUserSnippet: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#D5A943',
+    borderColor: '#E2E8F0',
   },
-  logoutButtonMobile: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    minHeight: 36,
-    minWidth: 36,
-    justifyContent: 'center',
+  userDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#10B981',
+  },
+  topUserName: {
+    color: '#0F172A',
+    fontSize: 13,
+    fontWeight: '700',
+    maxWidth: 140,
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF1F2',
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FECDD3',
   },
   logoutText: {
-    color: '#D5A943',
+    color: '#E11D48',
     fontWeight: '700',
-    fontSize: 13,
+    fontSize: 12,
   },
-  content: {
+  desktopContent: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#F8FAFC',
     overflow: 'hidden',
-  }
+  },
+
+  // Mobile
+  mobileShell: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  mobileHeader: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  mobileHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  hamburgerBtn: {
+    padding: 6,
+  },
+  mobileHeaderTitle: {
+    color: '#701A26',
+    fontSize: 17,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  mobileHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  mobileLogoutBtn: {
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#FFF1F2',
+    borderWidth: 1,
+    borderColor: '#FECDD3',
+  },
+  mobileContent: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
 });

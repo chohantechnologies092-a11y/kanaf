@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useRouter } from 'expo-router';
-import { useAuthStore } from '../store';
+import { useAuthStore, ROLE_HOME } from '../store';
 import IslamicBackground from '../components/IslamicBackground';
 import SultanLogo from '../components/SultanLogo';
 import { Ionicons } from '@expo/vector-icons';
@@ -78,11 +78,11 @@ export default function HomeScreen() {
     };
   }, [width, isCompactMobile, isMobile, isTablet, isShortScreen]);
 
-  // On Native Mobile APK, launch straight into Waiter Terminal
+  // Auto-redirect authenticated users to their role portal
   useEffect(() => {
     if (hasHydrated) {
-      if (user?.role === 'waiter') {
-        router.replace('/waiter');
+      if (user?.role && ROLE_HOME[user.role]) {
+        router.replace(ROLE_HOME[user.role] as any);
       } else if (Platform.OS !== 'web') {
         router.replace('/login?role=waiter' as any);
       }
