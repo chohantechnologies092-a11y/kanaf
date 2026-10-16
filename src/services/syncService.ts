@@ -4,6 +4,7 @@ import Constants from 'expo-constants';
 import { useRestaurantStore } from '../store/restaurantStore';
 import { useOpsStore, getOpsSyncState } from '../store/opsStore';
 import { useKitchenStore, getKitchenSyncState } from '../store/kitchenStore';
+import { useRoleStore } from '../store/roleStore';
 import { isFirebaseConfigured, getFirebaseDb, FIREBASE_REST_BASE_URL } from './firebase';
 import { ref, onValue, set } from 'firebase/database';
 
@@ -48,6 +49,7 @@ function applyRemoteState(state: any) {
   useRestaurantStore.getState().syncFromServer(state);
   useOpsStore.getState().syncFromServer(state);
   useKitchenStore.getState().syncFromServer(state);
+  useRoleStore.getState().syncFromServer?.(state);
 }
 
 // Listeners for UI state updates
@@ -481,6 +483,7 @@ function broadcastLocalState() {
   const state = useRestaurantStore.getState();
   const opsState = getOpsSyncState();
   const kitchenState = getKitchenSyncState();
+  const roleState = useRoleStore.getState();
   const now = Date.now();
   const packetId = `${DEVICE_ID}_${now}_${Math.random().toString(36).substring(2, 7)}`;
   lastProcessedPacketId = packetId;
@@ -502,6 +505,7 @@ function broadcastLocalState() {
       staff: state.staff,
       reservations: state.reservations,
       lastBillPaidAlert: state.lastBillPaidAlert,
+      roles: roleState.roles,
       ...opsState,
       ...kitchenState,
     },
@@ -602,6 +606,9 @@ export async function initSyncService() {
 
   // Listen to kitchen operations store mutations
   useKitchenStore.subscribe(triggerDebouncedBroadcast);
+
+  // Listen to role and permissions store mutations
+  useRoleStore.subscribe(triggerDebouncedBroadcast);
 }
 
 export async function forceSyncNow(): Promise<boolean> {

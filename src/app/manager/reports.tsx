@@ -4,14 +4,17 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import ReportsScreen from '../admin/reports';
 import { useRolePermissions } from '../../store/roleStore';
+import { useAuthStore } from '../../store/authStore';
 
 export default function ManagerReports() {
   const router = useRouter();
+  const user = useAuthStore((state) => state.user);
+  const isActualManager = user?.role !== 'admin';
   const { can } = useRolePermissions();
   const canAccessReports = can('canAccessReports');
   const canViewRevenue = can('canViewRevenue');
 
-  if (!canAccessReports || !canViewRevenue) {
+  if (isActualManager && (!canAccessReports || !canViewRevenue)) {
     return (
       <View style={styles.restrictedContainer}>
         <View style={styles.card}>

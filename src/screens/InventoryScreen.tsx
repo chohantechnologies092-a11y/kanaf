@@ -30,6 +30,9 @@ import {
 import { useRestaurantStore, MenuItem } from '../store/restaurantStore';
 import { BRAND } from '../constants/brand';
 import { money, formatTime, formatDay, toWhatsAppNumber } from '../utils/format';
+import { useAuthStore } from '../store/authStore';
+import { useRolePermissions } from '../store/roleStore';
+import PermissionDeniedScreen from '../components/PermissionDeniedScreen';
 
 const UNITS = ['kg', 'Liters', 'bottles', 'packs', 'grams', 'cylinders', 'pcs', 'cartons', 'crates', 'bags', 'Tins'];
 
@@ -44,6 +47,20 @@ export default function InventoryScreen({ backRoute = '/manager/dashboard' }: Pr
   const portalBase = usePortalBase();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
+
+  const user = useAuthStore((s) => s.user);
+  const { can } = useRolePermissions();
+
+  if (user?.role !== 'admin' && !can('canAccessInventory')) {
+    return (
+      <PermissionDeniedScreen
+        moduleName="Inventory & Stock Management"
+        urduModuleName="اسٹاک اور انوینٹری"
+        requiredPermission="canAccessInventory"
+        backRoute={backRoute}
+      />
+    );
+  }
 
   const inventory = useOpsStore((s) => s.inventory);
   const stockMovements = useOpsStore((s) => s.stockMovements);

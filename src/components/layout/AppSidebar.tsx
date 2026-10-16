@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import SultanLogo from '../SultanLogo';
+import { useRolePermissions } from '../../store/roleStore';
 
 export type NavItem = {
   label: string;
@@ -107,6 +108,14 @@ export default function AppSidebar({
   const router = useRouter();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(isCollapsed);
+  const { roleName, roleBadgeColor } = useRolePermissions();
+
+  const rawRole = roleName || user?.role || role || 'Staff';
+  const displayRole = rawRole.toUpperCase();
+  const badgeColor =
+    roleBadgeColor && roleBadgeColor !== '#52171B' && roleBadgeColor !== '#1A1A1A'
+      ? roleBadgeColor
+      : BRAND.gold;
 
   const toggle = () => {
     if (onToggleCollapse) {
@@ -191,8 +200,23 @@ export default function AppSidebar({
               <View style={styles.brandTextCol}>
                 <View style={styles.brandTitleRow}>
                   <Text style={styles.brandTitle}>SULTAN</Text>
-                  <View style={styles.roleTag}>
-                    <Text style={styles.roleTagText}>{role.toUpperCase()}</Text>
+                  <View
+                    style={[
+                      styles.roleTag,
+                      badgeColor !== BRAND.gold && {
+                        backgroundColor: badgeColor + '26',
+                        borderColor: badgeColor + '66',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.roleTagText,
+                        badgeColor !== BRAND.gold && { color: badgeColor },
+                      ]}
+                    >
+                      {displayRole}
+                    </Text>
                   </View>
                 </View>
                 <Text style={styles.brandSubtitle}>Restaurant Operations</Text>
@@ -224,11 +248,11 @@ export default function AppSidebar({
         {showExpanded ? (
           <View style={styles.userCard}>
             <View style={styles.avatarBox}>
-              <Text style={styles.avatarText}>{(user?.name || role)[0].toUpperCase()}</Text>
+              <Text style={styles.avatarText}>{(user?.name || displayRole)[0].toUpperCase()}</Text>
               <View style={styles.onlineBeacon} />
             </View>
             <View style={styles.userInfo}>
-              <Text style={styles.userName} numberOfLines={1}>{user?.name || 'Administrator'}</Text>
+              <Text style={styles.userName} numberOfLines={1}>{user?.name || displayRole}</Text>
               <View style={styles.userStatusRow}>
                 <View style={styles.statusDot} />
                 <Text style={styles.userStatusText}>Cloud Synced • Live</Text>
@@ -238,7 +262,7 @@ export default function AppSidebar({
         ) : (
           <View style={styles.userCardCollapsed}>
             <View style={styles.avatarBoxSmall}>
-              <Text style={styles.avatarTextSmall}>{(user?.name || role)[0].toUpperCase()}</Text>
+              <Text style={styles.avatarTextSmall}>{(user?.name || displayRole)[0].toUpperCase()}</Text>
               <View style={styles.onlineBeaconSmall} />
             </View>
           </View>

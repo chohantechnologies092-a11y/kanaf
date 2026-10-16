@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   TextInput,
   useWindowDimensions,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useRestaurantStore, useAuthStore } from '../../store';
@@ -86,6 +87,108 @@ export default function OrderTakerScreen() {
   const [seatingTypeFilter, setSeatingTypeFilter] = useState<'all' | SeatingZoneType>('all');
   // Search query
   const [search, setSearch] = useState<string>('');
+
+  // Persisted set of dismissed bill paid alert keys so tapping X permanently hides the alert
+  const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
+
+  useEffect(() => {
+    AsyncStorage.getItem('@sultan_dismissed_bill_alerts')
+      .then((val) => {
+        if (val) {
+          try {
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed)) setDismissedAlerts(parsed);
+          } catch (e) {}
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleDismissBillPaidAlert = async () => {
+    if (!lastBillPaidAlert) {
+      clearBillPaidAlert();
+      broadcastImmediately();
+      return;
+    }
+
+    const tName = (lastBillPaidAlert.tableName || '').trim().toLowerCase();
+    const tId = (lastBillPaidAlert.tableId || '').trim().toLowerCase();
+    const tTime = lastBillPaidAlert.time ? `${tName}_${lastBillPaidAlert.time}`.toLowerCase() : '';
+
+    const newDismissed = Array.from(new Set([...dismissedAlerts, tName, tId, tTime].filter(Boolean)));
+    setDismissedAlerts(newDismissed);
+
+    try {
+      await AsyncStorage.setItem('@sultan_dismissed_bill_alerts', JSON.stringify(newDismissed.slice(-60)));
+    } catch (e) {}
+
+    clearBillPaidAlert(lastBillPaidAlert.tableId);
+    clearBillPaidAlert(lastBillPaidAlert.tableName);
+    clearBillPaidAlert();
+    broadcastImmediately();
+  };
+
+  const handleReleaseTable = async (tableId: string, tableName: string) => {
+    settleBill(tableId);
+    clearBillPaidAlert(tableId);
+    clearBillPaidAlert(tableName);
+    clearBillPaidAlert();
+
+    const tName = tableName.trim().toLowerCase();
+    const tId = tableId.trim().toLowerCase();
+    const newDismissed = Array.from(new Set([...dismissedAlerts, tName, tId].filter(Boolean)));
+    setDismissedAlerts(newDismissed);
+
+    try {
+      await AsyncStorage.setItem('@sultan_dismissed_bill_alerts', JSON.stringify(newDismissed.slice(-60)));
+    } catch (e) {}
+
+    broadcastImmediately();
+  };
+
+  // Determine if the bill-paid alert banner should actually be shown
+  const shouldShowBillPaidAlert = useMemo(() => {
+    if (!lastBillPaidAlert) return false;
+
+    const tName = (lastBillPaidAlert.tableName || '').trim().toLowerCase();
+    const tId = (lastBillPaidAlert.tableId || '').trim().toLowerCase();
+    const tTime = lastBillPaidAlert.time ? `${tName}_${lastBillPaidAlert.time}`.toLowerCase() : '';
+
+    // If dismissed by user, do not show
+    if (
+      (tName && dismissedAlerts.includes(tName)) ||
+      (tId && dismissedAlerts.includes(tId)) ||
+      (tTime && dismissedAlerts.includes(tTime))
+    ) {
+      return false;
+    }
+
+    // If alert is older than 30 minutes, do not show
+    if (lastBillPaidAlert.time && Date.now() - lastBillPaidAlert.time > 30 * 60 * 1000) {
+      return false;
+    }
+
+    // Critical check: table MUST still exist and its current status MUST be 'billed'!
+    const matchingTable = tables.find(
+      (t) =>
+        t.id === lastBillPaidAlert.tableId ||
+        t.name.trim().toLowerCase() === tName
+    );
+
+    if (!matchingTable || matchingTable.status !== 'billed') {
+      return false;
+    }
+
+    // If order taker has assigned floors, only show if table is on an authorized floor
+    if (!isAllFloors) {
+      const tableFloor = getTableFloor(matchingTable);
+      if (!authorizedFloors.some((af) => af.toLowerCase() === tableFloor.toLowerCase())) {
+        return false;
+      }
+    }
+
+    return true;
+  }, [lastBillPaidAlert, dismissedAlerts, tables, isAllFloors, authorizedFloors]);
 
   // Effective active floor
   const activeFloor =
@@ -381,11 +484,11 @@ export default function OrderTakerScreen() {
                 e.stopPropagation?.();
                 const msg = `Release ${item.name}? Table will become AVAILABLE for new guests.`;
                 if (Platform.OS === 'web') {
-                  if (window.confirm(msg)) settleBill(item.id);
+                  if (window.confirm(msg)) handleReleaseTable(item.id, item.name);
                 } else {
                   Alert.alert('Release Table', msg, [
                     { text: 'Cancel', style: 'cancel' },
-                    { text: 'Release', style: 'destructive', onPress: () => settleBill(item.id) },
+                    { text: 'Release', style: 'destructive', onPress: () => handleReleaseTable(item.id, item.name) },
                   ]);
                 }
               }}
@@ -693,7 +796,7 @@ export default function OrderTakerScreen() {
         </View>
 
         {/* Real-time Bill Paid Alert Banner */}
-        {lastBillPaidAlert && (
+        {shouldShowBillPaidAlert && lastBillPaidAlert && (
           <View style={styles.billPaidAlertBanner}>
             <View style={styles.billPaidIconBox}>
               <Ionicons name="card" size={20} color="#E67E22" />
@@ -706,7 +809,7 @@ export default function OrderTakerScreen() {
                 Rs. {lastBillPaidAlert.billTotal?.toLocaleString()} collected. Guests are still seated — tap Release below when vacated.
               </Text>
             </View>
-            <TouchableOpacity style={styles.billPaidDismissBtn} onPress={clearBillPaidAlert}>
+            <TouchableOpacity style={styles.billPaidDismissBtn} onPress={handleDismissBillPaidAlert}>
               <Ionicons name="close" size={18} color="#666" />
             </TouchableOpacity>
           </View>

@@ -25,9 +25,11 @@ import {
   CustomRole, 
   RolePermissions, 
   BaseRoleType,
-  ADMIN_PERMISSIONS 
+  ADMIN_PERMISSIONS,
+  DEFAULT_ROLES,
 } from '../../store/roleStore';
 import { sortFloors } from '../../constants/floors';
+import { broadcastImmediately } from '../../services/syncService';
 
 const SHIFTS: StaffShift[] = ['Morning', 'Evening', 'Night'];
 const STATUSES: StaffStatus[] = ['Active', 'On Leave', 'Inactive'];
@@ -144,6 +146,9 @@ export default function StaffManagementScreen() {
     canAccessDiscounts: false,
     canAccessStaff: false,
     canAccessExpenses: false,
+    canAccessFloorPlan: false,
+    canAccessDamages: false,
+    canAccessAssets: false,
     canApplyCustomDiscount: false,
     canVoidInvoice: false,
     canProcessReturns: false,
@@ -161,7 +166,7 @@ export default function StaffManagementScreen() {
   const juiceBarCount = staff.filter((s) => s.role === 'JuiceBar').length;
 
   // Role list for filters & selection
-  const allRoleNames = Array.from(new Set(['All', ...roles.map((r) => r.name)]));
+  const allRoleNames = Array.from(new Set(['All', ...roles.map((r) => r.name).filter(Boolean)]));
 
   // Filtered Staff List
   const filteredStaff = staff.filter((s) => {
@@ -340,6 +345,9 @@ export default function StaffManagementScreen() {
       canAccessDiscounts: false,
       canAccessStaff: false,
       canAccessExpenses: false,
+      canAccessFloorPlan: false,
+      canAccessDamages: false,
+      canAccessAssets: false,
       canApplyCustomDiscount: false,
       canVoidInvoice: false,
       canProcessReturns: false,
@@ -357,7 +365,11 @@ export default function StaffManagementScreen() {
     setRoleFormDesc(roleItem.description || '');
     setRoleFormColor(roleItem.badgeColor || '#B48214');
     setRoleFormBase(roleItem.baseRole || 'manager');
-    setRoleFormPermissions({ ...roleItem.permissions });
+    const baseDefaults = roleItem.id === 'role-admin' ? ADMIN_PERMISSIONS : DEFAULT_ROLES[1].permissions;
+    setRoleFormPermissions({
+      ...baseDefaults,
+      ...roleItem.permissions,
+    });
     setRoleFormError('');
     setRoleModalVisible(true);
   };
@@ -377,6 +389,7 @@ export default function StaffManagementScreen() {
         baseRole: roleFormBase,
         permissions: roleFormPermissions,
       });
+      broadcastImmediately();
       const msg = `Role "${roleFormName}" permissions updated!`;
       if (Platform.OS === 'web') window.alert(msg);
       else Alert.alert('Role Updated', msg);
@@ -390,6 +403,7 @@ export default function StaffManagementScreen() {
         baseRole: roleFormBase,
         permissions: roleFormPermissions,
       });
+      broadcastImmediately();
       const msg = `New role "${roleFormName}" created successfully!`;
       if (Platform.OS === 'web') window.alert(msg);
       else Alert.alert('Role Created', msg);
@@ -450,7 +464,7 @@ export default function StaffManagementScreen() {
           </TouchableOpacity>
           <View>
             <Text style={[styles.headerTitle, isMobile && { fontSize: 20 }]}>Staff & Roles</Text>
-            {!isMobile && (
+            {Boolean(!isMobile) && (
               <Text style={styles.headerSubtitle}>
                 Manage staff credentials, custom roles, revenue visibility & permissions
               </Text>
@@ -569,7 +583,7 @@ export default function StaffManagementScreen() {
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                 />
-                {searchQuery.length > 0 && (
+                {Boolean(searchQuery.length > 0) && (
                   <TouchableOpacity onPress={() => setSearchQuery('')}>
                     <Ionicons name="close-circle" size={18} color="#8E8E93" />
                   </TouchableOpacity>
@@ -577,7 +591,7 @@ export default function StaffManagementScreen() {
               </View>
 
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.roleTabs}>
-                {allRoleNames.map((rName) => (
+                {allRoleNames.filter(Boolean).map((rName) => (
                   <TouchableOpacity
                     key={rName}
                     style={[styles.roleTab, activeRoleFilter === rName && styles.roleTabActive]}
@@ -592,7 +606,7 @@ export default function StaffManagementScreen() {
                       {formatRoleName(rName)}{' '}
                       {rName === 'All'
                         ? `(${totalStaff})`
-                        : `(${staff.filter((s) => s.role.toLowerCase() === rName.toLowerCase()).length})`}
+                        : `(${staff.filter((s) => s.role && s.role.toLowerCase() === rName.toLowerCase()).length})`}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -611,11 +625,11 @@ export default function StaffManagementScreen() {
                         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                           <View style={[styles.avatarBox, { backgroundColor: color + '18' }]}>
                             <Text style={[styles.avatarText, { color: color }]}>
-                              {member.name.charAt(0).toUpperCase()}
+                              {member.name ? member.name.charAt(0).toUpperCase() : '?'}
                             </Text>
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={styles.staffName}>{member.name}</Text>
+                            <Text style={styles.staffName}>{member.name || 'Staff'}</Text>
                             <Text style={styles.staffPhone}>{member.phone || 'No phone'}</Text>
                           </View>
                         </View>
@@ -711,11 +725,11 @@ export default function StaffManagementScreen() {
                       <View style={[styles.tableCell, { flex: 2.2, flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
                         <View style={[styles.avatarBox, { backgroundColor: color + '18' }]}>
                           <Text style={[styles.avatarText, { color: color }]}>
-                            {member.name.charAt(0).toUpperCase()}
+                            {member.name ? member.name.charAt(0).toUpperCase() : '?'}
                           </Text>
                         </View>
                         <View>
-                          <Text style={styles.staffName}>{member.name}</Text>
+                          <Text style={styles.staffName}>{member.name || 'Staff'}</Text>
                           <Text style={styles.staffPhone}>{member.phone || 'No phone'}</Text>
                         </View>
                       </View>
@@ -774,7 +788,7 @@ export default function StaffManagementScreen() {
                   );
                 })}
 
-                {filteredStaff.length === 0 && (
+                {Boolean(filteredStaff.length === 0) && (
                   <View style={styles.emptyContainer}>
                     <Ionicons name="search-outline" size={42} color="#C7C7CC" />
                     <Text style={styles.emptyTitle}>No staff members found</Text>
@@ -834,14 +848,14 @@ export default function StaffManagementScreen() {
                         </View>
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={styles.roleMatrixTitle}>{roleItem.name}</Text>
-                            {roleItem.isSystem && (
+                            <Text style={styles.roleMatrixTitle}>{roleItem.name || 'Role'}</Text>
+                            {Boolean(roleItem.isSystem) && (
                               <View style={styles.systemTag}>
                                 <Text style={styles.systemTagText}>SYSTEM</Text>
                               </View>
                             )}
                           </View>
-                          {roleItem.urduName && (
+                          {Boolean(typeof roleItem.urduName === 'string' && roleItem.urduName.trim().length > 0) && (
                             <Text style={styles.roleMatrixUrdu}>{roleItem.urduName}</Text>
                           )}
                         </View>
@@ -857,114 +871,249 @@ export default function StaffManagementScreen() {
                       {roleItem.description || 'Custom staff role at Sultan Restaurant.'}
                     </Text>
 
-                    {/* Quick Revenue Visibility Control (User's Main Request!) */}
-                    <View style={styles.quickRevenueRow}>
-                      <View style={{ flex: 1, marginRight: 8 }}>
-                        <Text style={styles.quickRevenueTitle}>Show Sales Revenue Figures:</Text>
-                        <Text style={styles.quickRevenueSub}>
-                          {roleItem.permissions.canViewRevenue
-                            ? '✓ Shift earnings & revenue visible'
-                            : '✕ Revenue numbers masked as ••••••'}
-                        </Text>
-                      </View>
-
-                      {isSystemAdmin ? (
-                        <View style={styles.lockedPill}>
-                          <Ionicons name="lock-closed" size={11} color="#15803D" />
-                          <Text style={styles.lockedPillText}>Always Visible</Text>
+                    {/* Quick Access & Visibility Controls */}
+                    <View style={{ gap: 8, marginVertical: 4 }}>
+                      {/* 1. Invoices & Orders Quick Toggle */}
+                      <View style={styles.quickRevenueRow}>
+                        <View style={{ flex: 1, marginRight: 8 }}>
+                          <Text style={styles.quickRevenueTitle}>Invoices & Orders Screen:</Text>
+                          <Text style={styles.quickRevenueSub}>
+                            {roleItem.permissions?.canAccessInvoices
+                              ? '✓ Order history, settlements & receipts enabled'
+                              : '✕ Invoices and orders strictly blocked'}
+                          </Text>
                         </View>
-                      ) : (
+
                         <TouchableOpacity
                           style={[
                             styles.revToggleBtn,
-                            roleItem.permissions.canViewRevenue
+                            roleItem.permissions?.canAccessInvoices
                               ? styles.revToggleBtnOn
                               : styles.revToggleBtnOff,
                           ]}
-                          onPress={() => togglePermission(roleItem.id, 'canViewRevenue')}
+                          onPress={() => {
+                            togglePermission(roleItem.id, 'canAccessInvoices');
+                            broadcastImmediately();
+                          }}
                           activeOpacity={0.8}
                         >
                           <Text
                             style={[
                               styles.revToggleBtnText,
-                              roleItem.permissions.canViewRevenue
+                              roleItem.permissions?.canAccessInvoices
                                 ? { color: '#15803D' }
                                 : { color: '#B91C1C' },
                             ]}
                           >
-                            {roleItem.permissions.canViewRevenue ? 'Visible' : 'Masked'}
+                            {roleItem.permissions?.canAccessInvoices ? 'Allowed' : 'Blocked'}
                           </Text>
                         </TouchableOpacity>
-                      )}
+                      </View>
+
+                      {/* 2. Financial Reports Quick Toggle */}
+                      <View style={styles.quickRevenueRow}>
+                        <View style={{ flex: 1, marginRight: 8 }}>
+                          <Text style={styles.quickRevenueTitle}>Financial & Shift Reports:</Text>
+                          <Text style={styles.quickRevenueSub}>
+                            {roleItem.permissions?.canAccessReports
+                              ? '✓ P&L, sales charts & shift audit enabled'
+                              : '✕ Financial reports & analytics blocked'}
+                          </Text>
+                        </View>
+
+                        <TouchableOpacity
+                          style={[
+                            styles.revToggleBtn,
+                            roleItem.permissions?.canAccessReports
+                              ? styles.revToggleBtnOn
+                              : styles.revToggleBtnOff,
+                          ]}
+                          onPress={() => {
+                            togglePermission(roleItem.id, 'canAccessReports');
+                            broadcastImmediately();
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <Text
+                            style={[
+                              styles.revToggleBtnText,
+                              roleItem.permissions?.canAccessReports
+                                ? { color: '#15803D' }
+                                : { color: '#B91C1C' },
+                            ]}
+                          >
+                            {roleItem.permissions?.canAccessReports ? 'Allowed' : 'Blocked'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* 3. Sales Revenue Figures Visibility */}
+                      <View style={styles.quickRevenueRow}>
+                        <View style={{ flex: 1, marginRight: 8 }}>
+                          <Text style={styles.quickRevenueTitle}>Show Sales Revenue Figures:</Text>
+                          <Text style={styles.quickRevenueSub}>
+                            {roleItem.permissions?.canViewRevenue
+                              ? '✓ Shift earnings & PKR totals visible'
+                              : '✕ PKR sales amounts masked as ••••••'}
+                          </Text>
+                        </View>
+
+                        <TouchableOpacity
+                          style={[
+                            styles.revToggleBtn,
+                            roleItem.permissions?.canViewRevenue
+                              ? styles.revToggleBtnOn
+                              : styles.revToggleBtnOff,
+                          ]}
+                          onPress={() => {
+                            togglePermission(roleItem.id, 'canViewRevenue');
+                            broadcastImmediately();
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <Text
+                            style={[
+                              styles.revToggleBtnText,
+                              roleItem.permissions?.canViewRevenue
+                                ? { color: '#15803D' }
+                                : { color: '#B91C1C' },
+                            ]}
+                          >
+                            {roleItem.permissions?.canViewRevenue ? 'Visible' : 'Masked'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
 
-                    {/* Permission Chips Summary */}
+                    {/* Permission Chips Summary (Clickable Quick Toggles) */}
                     <View style={styles.permChipsWrap}>
-                      <View
+                      <TouchableOpacity
                         style={[
                           styles.permChip,
-                          roleItem.permissions.canAccessPOS ? styles.permChipAllowed : styles.permChipDenied,
+                          roleItem.permissions?.canAccessInvoices ? styles.permChipAllowed : styles.permChipDenied,
                         ]}
+                        onPress={() => {
+                          togglePermission(roleItem.id, 'canAccessInvoices');
+                          broadcastImmediately();
+                        }}
+                        activeOpacity={0.7}
                       >
                         <Text style={styles.permChipText}>
-                          POS: {roleItem.permissions.canAccessPOS ? 'Allowed' : 'Off'}
+                          Invoices: {roleItem.permissions?.canAccessInvoices ? 'Allowed' : 'Off'}
                         </Text>
-                      </View>
+                      </TouchableOpacity>
 
-                      <View
+                      <TouchableOpacity
                         style={[
                           styles.permChip,
-                          roleItem.permissions.canAccessReports ? styles.permChipAllowed : styles.permChipDenied,
+                          roleItem.permissions?.canAccessReports ? styles.permChipAllowed : styles.permChipDenied,
                         ]}
+                        onPress={() => {
+                          togglePermission(roleItem.id, 'canAccessReports');
+                          broadcastImmediately();
+                        }}
+                        activeOpacity={0.7}
                       >
                         <Text style={styles.permChipText}>
-                          Reports: {roleItem.permissions.canAccessReports ? 'Allowed' : 'Off'}
+                          Reports: {roleItem.permissions?.canAccessReports ? 'Allowed' : 'Off'}
                         </Text>
-                      </View>
+                      </TouchableOpacity>
 
-                      <View
+                      <TouchableOpacity
                         style={[
                           styles.permChip,
-                          roleItem.permissions.canApplyCustomDiscount ? styles.permChipAllowed : styles.permChipDenied,
+                          roleItem.permissions?.canViewRevenue ? styles.permChipAllowed : styles.permChipDenied,
                         ]}
+                        onPress={() => {
+                          togglePermission(roleItem.id, 'canViewRevenue');
+                          broadcastImmediately();
+                        }}
+                        activeOpacity={0.7}
                       >
                         <Text style={styles.permChipText}>
-                          Discounts: {roleItem.permissions.canApplyCustomDiscount ? 'Allowed' : 'Off'}
+                          Revenue: {roleItem.permissions?.canViewRevenue ? 'Visible' : 'Masked'}
                         </Text>
-                      </View>
+                      </TouchableOpacity>
 
-                      <View
+                      <TouchableOpacity
                         style={[
                           styles.permChip,
-                          roleItem.permissions.canVoidInvoice ? styles.permChipAllowed : styles.permChipDenied,
+                          roleItem.permissions?.canAccessPOS ? styles.permChipAllowed : styles.permChipDenied,
                         ]}
+                        onPress={() => {
+                          togglePermission(roleItem.id, 'canAccessPOS');
+                          broadcastImmediately();
+                        }}
+                        activeOpacity={0.7}
                       >
                         <Text style={styles.permChipText}>
-                          Void Orders: {roleItem.permissions.canVoidInvoice ? 'Allowed' : 'Off'}
+                          POS: {roleItem.permissions?.canAccessPOS ? 'Allowed' : 'Off'}
                         </Text>
-                      </View>
+                      </TouchableOpacity>
 
-                      <View
+                      <TouchableOpacity
                         style={[
                           styles.permChip,
-                          roleItem.permissions.canStartCloseShift ? styles.permChipAllowed : styles.permChipDenied,
+                          roleItem.permissions?.canApplyCustomDiscount ? styles.permChipAllowed : styles.permChipDenied,
                         ]}
+                        onPress={() => {
+                          togglePermission(roleItem.id, 'canApplyCustomDiscount');
+                          broadcastImmediately();
+                        }}
+                        activeOpacity={0.7}
                       >
                         <Text style={styles.permChipText}>
-                          Shift Close: {roleItem.permissions.canStartCloseShift ? 'Allowed' : 'Off'}
+                          Discounts: {roleItem.permissions?.canApplyCustomDiscount ? 'Allowed' : 'Off'}
                         </Text>
-                      </View>
+                      </TouchableOpacity>
 
-                      <View
+                      <TouchableOpacity
                         style={[
                           styles.permChip,
-                          roleItem.permissions.canViewCostPrice ? styles.permChipAllowed : styles.permChipDenied,
+                          roleItem.permissions?.canVoidInvoice ? styles.permChipAllowed : styles.permChipDenied,
                         ]}
+                        onPress={() => {
+                          togglePermission(roleItem.id, 'canVoidInvoice');
+                          broadcastImmediately();
+                        }}
+                        activeOpacity={0.7}
                       >
                         <Text style={styles.permChipText}>
-                          Food Costs: {roleItem.permissions.canViewCostPrice ? 'Visible' : 'Hidden'}
+                          Void Orders: {roleItem.permissions?.canVoidInvoice ? 'Allowed' : 'Off'}
                         </Text>
-                      </View>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.permChip,
+                          roleItem.permissions?.canStartCloseShift ? styles.permChipAllowed : styles.permChipDenied,
+                        ]}
+                        onPress={() => {
+                          togglePermission(roleItem.id, 'canStartCloseShift');
+                          broadcastImmediately();
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.permChipText}>
+                          Shift Close: {roleItem.permissions?.canStartCloseShift ? 'Allowed' : 'Off'}
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.permChip,
+                          roleItem.permissions?.canViewCostPrice ? styles.permChipAllowed : styles.permChipDenied,
+                        ]}
+                        onPress={() => {
+                          togglePermission(roleItem.id, 'canViewCostPrice');
+                          broadcastImmediately();
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.permChipText}>
+                          Food Costs: {roleItem.permissions?.canViewCostPrice ? 'Visible' : 'Hidden'}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
 
                     {/* Card Actions Footer */}
@@ -978,7 +1127,7 @@ export default function StaffManagementScreen() {
                         <Text style={styles.configPermsBtnText}>Configure All Permissions</Text>
                       </TouchableOpacity>
 
-                      {!roleItem.isSystem && roleItem.id !== 'role-admin' && (
+                      {Boolean(!roleItem.isSystem && roleItem.id !== 'role-admin') && (
                         <TouchableOpacity
                           style={styles.roleDeleteBtn}
                           onPress={() => handleDeleteRole(roleItem)}
@@ -1016,7 +1165,7 @@ export default function StaffManagementScreen() {
               </TouchableOpacity>
             </View>
 
-            {formError.length > 0 && (
+            {Boolean(formError.trim().length > 0) && (
               <View style={styles.errorAlert}>
                 <Ionicons name="alert-circle" size={18} color="#FF3B30" />
                 <Text style={styles.errorAlertText}>{formError}</Text>
@@ -1089,7 +1238,7 @@ export default function StaffManagementScreen() {
                       >
                         <Text style={[styles.formPillText, isSelected && styles.formPillTextActive]}>
                           {formatRoleName(r.name)}
-                          {!r.permissions.canViewRevenue ? ' 🔒' : ''}
+                          {!r.permissions?.canViewRevenue ? ' 🔒' : ''}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -1098,7 +1247,7 @@ export default function StaffManagementScreen() {
               </View>
 
               {/* Floor / Zone Assignment for Order Takers */}
-              {(formRole === 'Waiter' || formRole === 'Order Taker') && (
+              {Boolean(formRole === 'Waiter' || formRole === 'Order Taker') && (
                 <View style={[styles.formGroup, styles.floorAssignmentBox]}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -1270,7 +1419,7 @@ export default function StaffManagementScreen() {
               </TouchableOpacity>
             </View>
 
-            {roleFormError.length > 0 && (
+            {Boolean(roleFormError.trim().length > 0) && (
               <View style={styles.errorAlert}>
                 <Ionicons name="alert-circle" size={18} color="#FF3B30" />
                 <Text style={styles.errorAlertText}>{roleFormError}</Text>
@@ -1353,7 +1502,6 @@ export default function StaffManagementScreen() {
                     style={styles.permRow}
                     onPress={() => toggleRolePermissionInForm('canViewRevenue')}
                     activeOpacity={0.7}
-                    disabled={editingRole?.id === 'role-admin'}
                   >
                     <View style={{ flex: 1, marginRight: 12 }}>
                       <Text style={styles.permName}>Show Daily & Shift Revenue Numbers</Text>
@@ -1374,7 +1522,6 @@ export default function StaffManagementScreen() {
                     style={styles.permRow}
                     onPress={() => toggleRolePermissionInForm('canViewCostPrice')}
                     activeOpacity={0.7}
-                    disabled={editingRole?.id === 'role-admin'}
                   >
                     <View style={{ flex: 1, marginRight: 12 }}>
                       <Text style={styles.permName}>Show Recipe Food Costs & Margins</Text>
@@ -1394,7 +1541,6 @@ export default function StaffManagementScreen() {
                     style={styles.permRow}
                     onPress={() => toggleRolePermissionInForm('canViewCustomerContacts')}
                     activeOpacity={0.7}
-                    disabled={editingRole?.id === 'role-admin'}
                   >
                     <View style={{ flex: 1, marginRight: 12 }}>
                       <Text style={styles.permName}>Show Customer Phone Numbers & Addresses</Text>
@@ -1414,7 +1560,6 @@ export default function StaffManagementScreen() {
                     style={styles.permRow}
                     onPress={() => toggleRolePermissionInForm('canExportReports')}
                     activeOpacity={0.7}
-                    disabled={editingRole?.id === 'role-admin'}
                   >
                     <View style={{ flex: 1, marginRight: 12 }}>
                       <Text style={styles.permName}>Can Export CSV & Print Audit Reports</Text>
@@ -1448,7 +1593,10 @@ export default function StaffManagementScreen() {
                     { key: 'canAccessKitchenHandover', label: 'Kitchen Handover', icon: 'clipboard' },
                     { key: 'canAccessRecipes', label: 'Recipes & BOM', icon: 'restaurant' },
                     { key: 'canAccessDiscounts', label: 'Events & Discounts', icon: 'pricetag' },
-                    { key: 'canAccessExpenses', label: 'Expenses & Capex', icon: 'wallet' },
+                    { key: 'canAccessExpenses', label: 'Live Expenses', icon: 'wallet' },
+                    { key: 'canAccessFloorPlan', label: 'Floor Plan & Command', icon: 'business' },
+                    { key: 'canAccessDamages', label: 'Damage Control', icon: 'shield' },
+                    { key: 'canAccessAssets', label: 'Assets & Capex', icon: 'diamond' },
                     { key: 'canAccessStaff', label: 'Staff & Roles', icon: 'people' },
                   ].map((mod) => {
                     const isAllowed = roleFormPermissions[mod.key as keyof RolePermissions];
@@ -1457,7 +1605,7 @@ export default function StaffManagementScreen() {
                         key={mod.key}
                         style={[styles.permGridCard, isAllowed && styles.permGridCardActive]}
                         onPress={() => toggleRolePermissionInForm(mod.key as keyof RolePermissions)}
-                        disabled={editingRole?.id === 'role-admin'}
+                        disabled={editingRole?.id === 'role-admin' && mod.key === 'canAccessStaff'}
                       >
                         <Ionicons
                           name={mod.icon as any}
@@ -1490,7 +1638,6 @@ export default function StaffManagementScreen() {
                   <TouchableOpacity
                     style={styles.permRow}
                     onPress={() => toggleRolePermissionInForm('canApplyCustomDiscount')}
-                    disabled={editingRole?.id === 'role-admin'}
                   >
                     <View style={{ flex: 1, marginRight: 12 }}>
                       <Text style={styles.permName}>Apply Manual / Custom Discounts in POS</Text>
@@ -1506,7 +1653,6 @@ export default function StaffManagementScreen() {
                   <TouchableOpacity
                     style={styles.permRow}
                     onPress={() => toggleRolePermissionInForm('canVoidInvoice')}
-                    disabled={editingRole?.id === 'role-admin'}
                   >
                     <View style={{ flex: 1, marginRight: 12 }}>
                       <Text style={styles.permName}>Void / Cancel Settled Invoices</Text>
@@ -1522,7 +1668,6 @@ export default function StaffManagementScreen() {
                   <TouchableOpacity
                     style={styles.permRow}
                     onPress={() => toggleRolePermissionInForm('canProcessReturns')}
-                    disabled={editingRole?.id === 'role-admin'}
                   >
                     <View style={{ flex: 1, marginRight: 12 }}>
                       <Text style={styles.permName}>Process Sales Returns & Cash Refunds</Text>
@@ -1538,7 +1683,6 @@ export default function StaffManagementScreen() {
                   <TouchableOpacity
                     style={styles.permRow}
                     onPress={() => toggleRolePermissionInForm('canStartCloseShift')}
-                    disabled={editingRole?.id === 'role-admin'}
                   >
                     <View style={{ flex: 1, marginRight: 12 }}>
                       <Text style={styles.permName}>Perform Shift Start & Blind Shift Close</Text>
@@ -1556,7 +1700,6 @@ export default function StaffManagementScreen() {
                   <TouchableOpacity
                     style={styles.permRow}
                     onPress={() => toggleRolePermissionInForm('canModifyMenuPrices')}
-                    disabled={editingRole?.id === 'role-admin'}
                   >
                     <View style={{ flex: 1, marginRight: 12 }}>
                       <Text style={styles.permName}>Modify Menu Dishes & Selling Prices</Text>

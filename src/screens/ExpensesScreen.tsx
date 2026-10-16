@@ -20,11 +20,25 @@ import {
 } from '../store';
 import { BRAND } from '../constants/brand';
 import { money, formatTime, startOfDay } from '../utils/format';
+import { useRolePermissions } from '../store/roleStore';
+import PermissionDeniedScreen from '../components/PermissionDeniedScreen';
 
 export default function ExpensesScreen({ backRoute = '/manager/dashboard' }: { backRoute?: string }) {
   const router = useRouter();
 
   const user = useAuthStore((s) => s.user);
+  const { can, canViewRevenue } = useRolePermissions();
+
+  if (user?.role !== 'admin' && !can('canAccessExpenses')) {
+    return (
+      <PermissionDeniedScreen
+        moduleName="Expenses & Cash Outflow"
+        urduModuleName="اخراجات اور کیش آؤٹ فلو"
+        requiredPermission="canAccessExpenses"
+        backRoute={backRoute}
+      />
+    );
+  }
   const invoices = useRestaurantStore((s) => s.invoices);
   const expenses = useOpsStore((s) => s.expenses);
   const addExpense = useOpsStore((s) => s.addExpense);
@@ -121,7 +135,9 @@ export default function ExpensesScreen({ backRoute = '/manager/dashboard' }: { b
         <View style={styles.pnlRow}>
           <View style={styles.pnlCol}>
             <Text style={styles.pnlLabel}>{"Today's Inflow (Sales)"}</Text>
-            <Text style={[styles.pnlVal, { color: BRAND.success }]}>{money(todayRevenue)}</Text>
+            <Text style={[styles.pnlVal, { color: BRAND.success }]}>
+              {canViewRevenue ? money(todayRevenue) : '••••••••'}
+            </Text>
             <Text style={styles.pnlMeta}>{todayInvoices.length} Bills Settled</Text>
           </View>
           <View style={styles.pnlDivider} />
@@ -134,7 +150,7 @@ export default function ExpensesScreen({ backRoute = '/manager/dashboard' }: { b
           <View style={styles.pnlCol}>
             <Text style={styles.pnlLabel}>Net Cash Profit</Text>
             <Text style={[styles.pnlVal, { color: netProfitToday >= 0 ? BRAND.success : '#D32F2F' }]}>
-              {money(netProfitToday)}
+              {canViewRevenue ? money(netProfitToday) : '••••••••'}
             </Text>
             <Text style={styles.pnlMeta}>In Drawer Cash</Text>
           </View>

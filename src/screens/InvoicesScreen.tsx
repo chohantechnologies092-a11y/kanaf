@@ -19,17 +19,37 @@ import { useRestaurantStore, Invoice } from '../store/restaurantStore';
 import { broadcastImmediately } from '../services/syncService';
 import SultanLogo from '../components/SultanLogo';
 import { printInvoiceReceipt } from '../components/Invoice';
+import { useAuthStore } from '../store/authStore';
+import { useRolePermissions } from '../store/roleStore';
+import PermissionDeniedScreen from '../components/PermissionDeniedScreen';
 
 interface InvoicesScreenProps {
   userRole: 'admin' | 'manager';
+  targetRoleOverride?: string;
   backRoute?: string;
 }
 
-export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard' }: InvoicesScreenProps) {
+export default function InvoicesScreen({ userRole, targetRoleOverride, backRoute = '/admin/dashboard' }: InvoicesScreenProps) {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
   const isSmallMobile = width < 480;
+
+  const user = useAuthStore((s) => s.user);
+  const isActualAdmin = user?.role === 'admin' || userRole === 'admin';
+  const effectiveRoleTarget = isActualAdmin ? undefined : (targetRoleOverride || (userRole === 'manager' ? 'manager' : undefined));
+  const { can, canViewRevenue, canVoidInvoice, canProcessReturns, canExportReports } = useRolePermissions(effectiveRoleTarget);
+
+  if (!isActualAdmin && !can('canAccessInvoices')) {
+    return (
+      <PermissionDeniedScreen
+        moduleName="Invoices & Order History"
+        urduModuleName="انوائسز اور آرڈر ہسٹری"
+        requiredPermission="canAccessInvoices"
+        backRoute={backRoute}
+      />
+    );
+  }
 
   const kpiCardResponsiveStyle = useMemo<ViewStyle>(() => {
     if (width < 380) {
@@ -392,14 +412,16 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
         </View>
 
         <View style={styles.headerRight}>
-          <TouchableOpacity
-            style={[styles.exportBtn, isSmallMobile && { paddingHorizontal: 10, paddingVertical: 6 }]}
-            onPress={handleExportCSV}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="download-outline" size={17} color="#4a121a" style={{ marginRight: isSmallMobile ? 3 : 6 }} />
-            <Text style={styles.exportBtnText}>{isMobile ? 'Export' : 'Export CSV'}</Text>
-          </TouchableOpacity>
+          {canExportReports && (
+            <TouchableOpacity
+              style={[styles.exportBtn, isSmallMobile && { paddingHorizontal: 10, paddingVertical: 6 }]}
+              onPress={handleExportCSV}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="download-outline" size={17} color="#4a121a" style={{ marginRight: isSmallMobile ? 3 : 6 }} />
+              <Text style={styles.exportBtnText}>{isMobile ? 'Export' : 'Export CSV'}</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -412,7 +434,9 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
             </View>
             <View>
               <Text style={[styles.kpiLabel, isSmallMobile && { fontSize: 10 }]}>Total Revenue</Text>
-              <Text style={[styles.kpiValue, isSmallMobile && { fontSize: 16 }]}>Rs. {metrics.totalSales.toLocaleString()}</Text>
+              <Text style={[styles.kpiValue, isSmallMobile && { fontSize: 16 }]}>
+                {canViewRevenue ? `Rs. ${metrics.totalSales.toLocaleString()}` : '••••••••'}
+              </Text>
               <Text style={[styles.kpiSub, isSmallMobile && { fontSize: 10 }]}>From {metrics.count} settled bills</Text>
             </View>
           </View>
@@ -424,7 +448,9 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
             <View>
               <Text style={[styles.kpiLabel, isSmallMobile && { fontSize: 10 }]}>Settled Invoices</Text>
               <Text style={[styles.kpiValue, isSmallMobile && { fontSize: 16 }]}>{metrics.count}</Text>
-              <Text style={[styles.kpiSub, isSmallMobile && { fontSize: 10 }]}>Avg: Rs. {metrics.aov.toLocaleString()} / bill</Text>
+              <Text style={[styles.kpiSub, isSmallMobile && { fontSize: 10 }]}>
+                Avg: {canViewRevenue ? `Rs. ${metrics.aov.toLocaleString()}` : '••••'} / bill
+              </Text>
             </View>
           </View>
 
@@ -434,8 +460,12 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
             </View>
             <View>
               <Text style={[styles.kpiLabel, isSmallMobile && { fontSize: 10 }]}>Cash vs Digital</Text>
-              <Text style={[styles.kpiValue, isSmallMobile && { fontSize: 16 }]}>Rs. {metrics.cashTotal.toLocaleString()}</Text>
-              <Text style={[styles.kpiSub, isSmallMobile && { fontSize: 10 }]}>Card/Online: Rs. {metrics.digitalTotal.toLocaleString()}</Text>
+              <Text style={[styles.kpiValue, isSmallMobile && { fontSize: 16 }]}>
+                {canViewRevenue ? `Rs. ${metrics.cashTotal.toLocaleString()}` : '••••••••'}
+              </Text>
+              <Text style={[styles.kpiSub, isSmallMobile && { fontSize: 10 }]}>
+                Card/Online: {canViewRevenue ? `Rs. ${metrics.digitalTotal.toLocaleString()}` : '••••••••'}
+              </Text>
             </View>
           </View>
 
@@ -720,7 +750,7 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
                         {inv.payments?.map((p, idx) => (
                           <View key={idx} style={styles.paymentMethodPill}>
                             <Text style={styles.paymentMethodText}>
-                              {p.type?.toUpperCase()} Rs. {p.amount?.toLocaleString()}
+                              {p.type?.toUpperCase()} {canViewRevenue ? `Rs. ${p.amount?.toLocaleString()}` : '••••'}
                             </Text>
                           </View>
                         ))}
@@ -751,11 +781,11 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
                   <View style={[styles.cardFooter, isSmallMobile && styles.cardFooterMobile]}>
                     <View style={[styles.amountBreakdown, isSmallMobile && styles.amountBreakdownMobile]}>
                       <Text style={styles.subtotalHint}>
-                        Sub: Rs. {(inv.subTotal || 0).toLocaleString()} • Tax: Rs. {(inv.tax || 0).toLocaleString()}
-                        {(inv.discount || 0) > 0 ? ` • Disc: -Rs. ${(inv.discount || 0).toLocaleString()}` : ''}
+                        Sub: {canViewRevenue ? `Rs. ${(inv.subTotal || 0).toLocaleString()}` : '••••'} • Tax: {canViewRevenue ? `Rs. ${(inv.tax || 0).toLocaleString()}` : '••••'}
+                        {(inv.discount || 0) > 0 ? ` • Disc: -${canViewRevenue ? `Rs. ${(inv.discount || 0).toLocaleString()}` : '••••'}` : ''}
                       </Text>
                       <Text style={[styles.grandTotalText, isVoided && styles.grandTotalVoided]}>
-                        Rs. {(inv.total || 0).toLocaleString()}
+                        {canViewRevenue ? `Rs. ${(inv.total || 0).toLocaleString()}` : 'Rs. ••••••'}
                       </Text>
                     </View>
 
@@ -792,7 +822,7 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
                         </Text>
                       </TouchableOpacity>
 
-                      {!isVoided && !isRefunded && (
+                      {!isVoided && !isRefunded && canProcessReturns && (
                         <TouchableOpacity
                           style={[styles.cardReturnBtn, isSmallMobile && styles.cardReturnBtnMobile]}
                           onPress={() => {
@@ -806,7 +836,7 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
                         </TouchableOpacity>
                       )}
 
-                      {!isVoided && (
+                      {!isVoided && canVoidInvoice && (
                         <TouchableOpacity
                           style={styles.voidBtn}
                           onPress={() => handleOpenVoidModal(inv)}
@@ -1201,7 +1231,7 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
                     <Text style={[styles.modalPrintBtnText, isSmallMobile && { fontSize: 13 }]}>Print / Share Receipt</Text>
                   </TouchableOpacity>
 
-                  {selectedInvoice.status !== 'voided' && selectedInvoice.status !== 'refunded' && (
+                  {selectedInvoice.status !== 'voided' && selectedInvoice.status !== 'refunded' && canProcessReturns && (
                     <TouchableOpacity
                       style={[styles.modalReturnBtn, isSmallMobile && { paddingVertical: 10, paddingHorizontal: 12 }]}
                       onPress={() => {
@@ -1216,7 +1246,7 @@ export default function InvoicesScreen({ userRole, backRoute = '/admin/dashboard
                     </TouchableOpacity>
                   )}
 
-                  {selectedInvoice.status !== 'voided' && (
+                  {selectedInvoice.status !== 'voided' && canVoidInvoice && (
                     <TouchableOpacity
                       style={[styles.modalVoidBtn, isSmallMobile && { paddingVertical: 10, paddingHorizontal: 12 }]}
                       onPress={() => handleOpenVoidModal(selectedInvoice)}

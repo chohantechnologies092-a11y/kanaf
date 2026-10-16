@@ -26,6 +26,8 @@ import {
   HorizontalRankedBars,
   PnLFlowWaterfallChart,
 } from '../../components/reports/FinancialCharts';
+import { useRolePermissions } from '../../store/roleStore';
+import PermissionDeniedScreen from '../../components/PermissionDeniedScreen';
 
 const LIGHT = {
   bg: '#F8F9FA',
@@ -67,6 +69,19 @@ export default function ReportsScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
+
+  const { can } = useRolePermissions();
+
+  if (!can('canAccessReports')) {
+    return (
+      <PermissionDeniedScreen
+        moduleName="Financial Reports & Analytics"
+        urduModuleName="مالیاتی رپورٹس اور تجزیات"
+        requiredPermission="canAccessReports"
+        backRoute="/admin/dashboard"
+      />
+    );
+  }
 
   // Stores
   const invoices = useRestaurantStore((s) => s.invoices || []);

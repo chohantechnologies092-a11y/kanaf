@@ -1,7 +1,31 @@
+import { Platform } from 'react-native';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { appStorage } from './storage';
 import { useAuthStore } from './authStore';
+import { useRestaurantStore } from './restaurantStore';
+import { usePathname } from 'expo-router';
+
+function notifySync() {
+  try {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof (window as any).BroadcastChannel !== 'undefined') {
+      const channel = new BroadcastChannel('sultan_role_sync_channel');
+      channel.postMessage({
+        type: 'ROLES_UPDATED',
+        roles: useRoleStore.getState().roles,
+      });
+      channel.close();
+    }
+  } catch {}
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { broadcastImmediately } = require('../services/syncService');
+    if (typeof broadcastImmediately === 'function') {
+      broadcastImmediately();
+    }
+  } catch {}
+}
 
 export interface RolePermissions {
   // 1. Financial & Sensitive Data Visibility (Key User Request!)
@@ -19,7 +43,10 @@ export interface RolePermissions {
   canAccessRecipes: boolean; // Recipe BOM & Dish Costing
   canAccessDiscounts: boolean; // Events & Promotional Discounts
   canAccessStaff: boolean; // Staff & Roles Management
-  canAccessExpenses: boolean; // Live Expenses & Asset Capex
+  canAccessExpenses: boolean; // Live Expenses
+  canAccessFloorPlan: boolean; // Floor Plan & Floor Command (table layout)
+  canAccessDamages: boolean; // Damage Control log
+  canAccessAssets: boolean; // Assets & Capex register
 
   // 3. Operational & Transactional Authority
   canApplyCustomDiscount: boolean; // Punch manual discounts in POS
@@ -59,6 +86,9 @@ export const ADMIN_PERMISSIONS: RolePermissions = {
   canAccessDiscounts: true,
   canAccessStaff: true,
   canAccessExpenses: true,
+  canAccessFloorPlan: true,
+  canAccessDamages: true,
+  canAccessAssets: true,
   canApplyCustomDiscount: true,
   canVoidInvoice: true,
   canProcessReturns: true,
@@ -103,6 +133,9 @@ export const DEFAULT_ROLES: CustomRole[] = [
       canAccessDiscounts: true,
       canAccessStaff: false,
       canAccessExpenses: true,
+      canAccessFloorPlan: true,
+      canAccessDamages: true,
+      canAccessAssets: true,
       canApplyCustomDiscount: true,
       canVoidInvoice: true,
       canProcessReturns: true,
@@ -135,6 +168,9 @@ export const DEFAULT_ROLES: CustomRole[] = [
       canAccessDiscounts: true,
       canAccessStaff: false,
       canAccessExpenses: false,
+      canAccessFloorPlan: true,
+      canAccessDamages: false,
+      canAccessAssets: false,
       canApplyCustomDiscount: true,
       canVoidInvoice: false,
       canProcessReturns: false,
@@ -167,6 +203,9 @@ export const DEFAULT_ROLES: CustomRole[] = [
       canAccessDiscounts: false,
       canAccessStaff: false,
       canAccessExpenses: false,
+      canAccessFloorPlan: false,
+      canAccessDamages: false,
+      canAccessAssets: false,
       canApplyCustomDiscount: false,
       canVoidInvoice: false,
       canProcessReturns: false,
@@ -199,6 +238,9 @@ export const DEFAULT_ROLES: CustomRole[] = [
       canAccessDiscounts: false,
       canAccessStaff: false,
       canAccessExpenses: false,
+      canAccessFloorPlan: false,
+      canAccessDamages: false,
+      canAccessAssets: false,
       canApplyCustomDiscount: false,
       canVoidInvoice: false,
       canProcessReturns: false,
@@ -231,6 +273,9 @@ export const DEFAULT_ROLES: CustomRole[] = [
       canAccessDiscounts: false,
       canAccessStaff: false,
       canAccessExpenses: false,
+      canAccessFloorPlan: false,
+      canAccessDamages: false,
+      canAccessAssets: false,
       canApplyCustomDiscount: false,
       canVoidInvoice: false,
       canProcessReturns: false,
@@ -263,6 +308,9 @@ export const DEFAULT_ROLES: CustomRole[] = [
       canAccessDiscounts: false,
       canAccessStaff: false,
       canAccessExpenses: false,
+      canAccessFloorPlan: false,
+      canAccessDamages: false,
+      canAccessAssets: false,
       canApplyCustomDiscount: false,
       canVoidInvoice: false,
       canProcessReturns: false,
@@ -284,6 +332,7 @@ interface RoleState {
   getRoleById: (id: string) => CustomRole | undefined;
   getEffectivePermissions: (roleIdentifier?: string) => RolePermissions;
   resetToDefaultRoles: () => void;
+  syncFromServer: (remoteState: any) => void;
 }
 
 export const useRoleStore = create<RoleState>()(
@@ -304,24 +353,37 @@ export const useRoleStore = create<RoleState>()(
         set((state) => ({
           roles: [...state.roles, newRole],
         }));
+        notifySync();
 
         return id;
       },
 
       updateRole: (id, updates) => {
+        const normId = id.toLowerCase().trim();
         set((state) => ({
-          roles: state.roles.map((r) =>
-            r.id === id
-              ? {
-                  ...r,
-                  ...updates,
-                  // System admin role always preserves root permissions
-                  permissions: r.id === 'role-admin' ? { ...ADMIN_PERMISSIONS } : (updates.permissions || r.permissions),
-                  updatedAt: Date.now(),
-                }
-              : r
-          ),
+          roles: state.roles.map((r) => {
+            const isTarget =
+              r.id === id ||
+              r.id === `role-${normId}` ||
+              r.name.toLowerCase() === normId;
+            if (!isTarget) return r;
+
+            return {
+              ...r,
+              ...updates,
+              permissions: updates.permissions
+                ? {
+                    ...r.permissions,
+                    ...updates.permissions,
+                    // Safeguard: role-admin preserves canAccessStaff to avoid permanent lockout
+                    ...(r.id === 'role-admin' ? { canAccessStaff: true } : {}),
+                  }
+                : r.permissions,
+              updatedAt: Date.now(),
+            };
+          }),
         }));
+        notifySync();
       },
 
       deleteRole: (id) => {
@@ -333,16 +395,24 @@ export const useRoleStore = create<RoleState>()(
         set((state) => ({
           roles: state.roles.filter((r) => r.id !== id),
         }));
+        notifySync();
         return true;
       },
 
       togglePermission: (roleId, permissionKey) => {
-        if (roleId === 'role-admin') return; // Admin permissions cannot be turned off
+        const normId = roleId.toLowerCase().trim();
+        // Protect canAccessStaff for role-admin so admin never gets permanently locked out
+        if ((normId === 'admin' || normId === 'role-admin') && permissionKey === 'canAccessStaff') return;
 
         set((state) => ({
           roles: state.roles.map((r) => {
-            if (r.id !== roleId) return r;
-            const currentVal = r.permissions[permissionKey];
+            const isTarget =
+              r.id === roleId ||
+              r.id === `role-${normId}` ||
+              r.name.toLowerCase() === normId;
+            if (!isTarget) return r;
+
+            const currentVal = !!r.permissions[permissionKey];
             return {
               ...r,
               permissions: {
@@ -353,14 +423,21 @@ export const useRoleStore = create<RoleState>()(
             };
           }),
         }));
+        notifySync();
       },
 
       setPermission: (roleId, permissionKey, value) => {
-        if (roleId === 'role-admin') return;
+        const normId = roleId.toLowerCase().trim();
+        if ((normId === 'admin' || normId === 'role-admin') && permissionKey === 'canAccessStaff') return;
 
         set((state) => ({
           roles: state.roles.map((r) => {
-            if (r.id !== roleId) return r;
+            const isTarget =
+              r.id === roleId ||
+              r.id === `role-${normId}` ||
+              r.name.toLowerCase() === normId;
+            if (!isTarget) return r;
+
             return {
               ...r,
               permissions: {
@@ -371,6 +448,7 @@ export const useRoleStore = create<RoleState>()(
             };
           }),
         }));
+        notifySync();
       },
 
       getRoleById: (id) => {
@@ -378,33 +456,108 @@ export const useRoleStore = create<RoleState>()(
       },
 
       getEffectivePermissions: (roleIdentifier) => {
-        if (!roleIdentifier) return DEFAULT_ROLES[3].permissions; // Default to waiter / restricted
+        if (!roleIdentifier) return DEFAULT_ROLES[3].permissions;
 
         const normalized = roleIdentifier.toLowerCase().trim();
-        if (normalized === 'admin' || roleIdentifier === 'role-admin') {
-          return ADMIN_PERMISSIONS;
-        }
-
         const found = get().roles.find(
           (r) =>
             r.id === roleIdentifier ||
+            r.id === `role-${normalized}` ||
             r.name.toLowerCase() === normalized ||
             r.baseRole === normalized
         );
 
-        return found ? found.permissions : DEFAULT_ROLES[3].permissions;
+        if (found) return found.permissions;
+        if (normalized === 'admin' || roleIdentifier === 'role-admin') {
+          const adminRole = get().roles.find((r) => r.id === 'role-admin');
+          return adminRole ? adminRole.permissions : ADMIN_PERMISSIONS;
+        }
+
+        return DEFAULT_ROLES[3].permissions;
       },
 
       resetToDefaultRoles: () => {
         set({ roles: DEFAULT_ROLES });
+        notifySync();
+      },
+
+      syncFromServer: (remoteState: any) => {
+        if (!remoteState || typeof remoteState !== 'object') return;
+        const incoming = remoteState.roles;
+        if (!Array.isArray(incoming) || incoming.length === 0) return;
+
+        set((current) => {
+          try {
+            if (JSON.stringify(current.roles) === JSON.stringify(incoming)) {
+              return current;
+            }
+          } catch {}
+          return { roles: incoming };
+        });
       },
     }),
     {
       name: 'sultan-roles-permissions-store',
       storage: appStorage,
+      version: 2,
+      // v2: added canAccessFloorPlan / canAccessDamages / canAccessAssets.
+      // Fill any missing keys on saved roles from the matching system default.
+      migrate: (persistedState: any) => {
+        const state = persistedState || {};
+        const savedRoles: CustomRole[] = Array.isArray(state.roles) ? state.roles : DEFAULT_ROLES;
+        const roles = savedRoles.map((r) => {
+          const sysDefault =
+            r.id === 'role-admin'
+              ? { permissions: ADMIN_PERMISSIONS }
+              : DEFAULT_ROLES.find((d) => d.id === r.id) ||
+                DEFAULT_ROLES.find((d) => d.baseRole === r.baseRole && d.isSystem);
+          const fallback: Partial<RolePermissions> = sysDefault
+            ? sysDefault.permissions
+            : { canAccessFloorPlan: false, canAccessDamages: false, canAccessAssets: false };
+          return { ...r, permissions: { ...fallback, ...r.permissions } as RolePermissions };
+        });
+        return { ...state, roles };
+      },
     }
   )
 );
+
+// Cross-tab synchronization on web browsers (so manager tab updates immediately when admin tab toggles permissions)
+if (Platform.OS === 'web' && typeof window !== 'undefined') {
+  try {
+    if (typeof (window as any).BroadcastChannel !== 'undefined') {
+      const roleChannel = new BroadcastChannel('sultan_role_sync_channel');
+      roleChannel.onmessage = (event) => {
+        if (event.data?.type === 'ROLES_UPDATED' && Array.isArray(event.data?.roles)) {
+          const incoming = event.data.roles;
+          const current = useRoleStore.getState().roles;
+          try {
+            if (JSON.stringify(current) !== JSON.stringify(incoming)) {
+              useRoleStore.setState({ roles: incoming });
+            }
+          } catch {
+            useRoleStore.setState({ roles: incoming });
+          }
+        }
+      };
+    }
+
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'sultan-roles-permissions-store' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          const incoming = parsed?.state?.roles;
+          if (Array.isArray(incoming) && incoming.length > 0) {
+            const current = useRoleStore.getState().roles;
+            if (JSON.stringify(current) !== JSON.stringify(incoming)) {
+              useRoleStore.setState({ roles: incoming });
+            }
+          }
+        } catch {}
+      }
+    });
+  } catch {}
+}
 
 /**
  * Hook to retrieve effective permissions of currently logged-in user,
@@ -413,51 +566,122 @@ export const useRoleStore = create<RoleState>()(
 export function useRolePermissions(targetRoleOverride?: string) {
   const user = useAuthStore((s) => s.user);
   const roles = useRoleStore((s) => s.roles);
+  const staff = useRestaurantStore((s) => s.staff);
 
-  const permissions: RolePermissions = (() => {
-    // 1. If targetRoleOverride is provided (e.g. on /manager screens), inspect that target role directly
+  // Safely detect active route path across Web & Native
+  let currentPath = '';
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    currentPath = usePathname() || '';
+  } catch {
+    currentPath = '';
+  }
+  if (!currentPath && typeof window !== 'undefined') {
+    currentPath = (window.location?.pathname || '') + (window.location?.hash || '');
+  }
+
+  // 1. Dynamically resolve active employee's assigned role if staffId exists
+  const activeStaff = user?.staffId ? staff.find((s) => s.id === user.staffId) : null;
+  const effectiveCustomRoleId = activeStaff?.customRoleId || user?.customRoleId;
+  const effectiveRole = (activeStaff?.role || user?.role || '').toLowerCase();
+
+  // Target override: only when explicitly requested (e.g. admin previewing manager policy)
+  const resolvedTargetOverride = (() => {
     if (targetRoleOverride) {
+      if (effectiveRole && effectiveRole !== 'admin' && targetRoleOverride.toLowerCase() === 'manager') {
+        return undefined;
+      }
+      return targetRoleOverride;
+    }
+    return undefined;
+  })();
+
+  const resolvedRole = (() => {
+    // A. Explicit targetRoleOverride (e.g. on /manager preview)
+    if (resolvedTargetOverride) {
+      const overrideNorm = resolvedTargetOverride.toLowerCase().trim();
       const targetMatch = roles.find(
         (r) =>
-          r.id === targetRoleOverride ||
-          r.name.toLowerCase() === targetRoleOverride.toLowerCase() ||
-          r.baseRole === targetRoleOverride.toLowerCase()
+          r.id === resolvedTargetOverride ||
+          r.id === `role-${overrideNorm}` ||
+          r.name.toLowerCase() === overrideNorm ||
+          r.baseRole === overrideNorm
       );
-      if (targetMatch) return targetMatch.permissions;
+      if (targetMatch) return targetMatch;
+      if (overrideNorm === 'manager') {
+        const liveManager = roles.find((r) => r.id === 'role-manager' || r.baseRole === 'manager');
+        return liveManager || DEFAULT_ROLES[1];
+      }
     }
 
-    if (!user) return DEFAULT_ROLES[3].permissions;
+    if (!user) return DEFAULT_ROLES[3];
 
-    // 2. If user is admin and not assigned a specific custom role, grant full permissions
-    if (user.role === 'admin' && !user.customRoleId) return ADMIN_PERMISSIONS;
-
-    // 3. Check customRoleId first
-    if (user.customRoleId) {
-      const customMatch = roles.find((r) => r.id === user.customRoleId);
-      if (customMatch) return customMatch.permissions;
+    // B. Check customRoleId first (assigned custom role)
+    if (effectiveCustomRoleId) {
+      const customMatch = roles.find((r) => r.id === effectiveCustomRoleId);
+      if (customMatch) return customMatch;
     }
 
-    // 4. Match by role name or baseRole
-    const normalizedRole = (user.role || '').toLowerCase();
+    // C. Match by role name or baseRole
     const matched = roles.find(
       (r) =>
         r.id === user.role ||
-        r.name.toLowerCase() === normalizedRole ||
-        r.baseRole === normalizedRole
+        r.id === `role-${effectiveRole}` ||
+        r.name.toLowerCase() === effectiveRole ||
+        r.baseRole === effectiveRole
     );
+    if (matched) return matched;
 
-    return matched ? matched.permissions : DEFAULT_ROLES[3].permissions;
+    // D. If role is admin, use role-admin from store
+    if (effectiveRole === 'admin') {
+      const adminRole = roles.find((r) => r.id === 'role-admin');
+      if (adminRole) return adminRole;
+    }
+
+    return DEFAULT_ROLES[3];
   })();
 
+  // Fill in any permission keys missing from older persisted roles using the
+  // matching system default (so newly added permissions don't silently become `false`).
+  const baseDefaults: RolePermissions = (() => {
+    if (!resolvedRole) return DEFAULT_ROLES[3].permissions;
+    if (resolvedRole.id === 'role-admin') return ADMIN_PERMISSIONS;
+    const sysDefault =
+      DEFAULT_ROLES.find((r) => r.id === resolvedRole.id) ||
+      DEFAULT_ROLES.find((r) => r.baseRole === resolvedRole.baseRole && r.isSystem);
+    return sysDefault ? sysDefault.permissions : DEFAULT_ROLES[3].permissions;
+  })();
+  const permissions: RolePermissions = {
+    ...baseDefaults,
+    ...(resolvedRole?.permissions || {}),
+  };
+
+  // Hierarchy: every non-admin role (incl. Manager) works UNDER the Admin role.
+  // A role can never hold a permission that the Admin role itself does not have.
+  const adminRolePerms: RolePermissions = {
+    ...ADMIN_PERMISSIONS,
+    ...(roles.find((r) => r.id === 'role-admin')?.permissions || {}),
+  };
+  const isEvaluatingAdminRole = resolvedRole?.id === 'role-admin';
+
   const can = (perm: keyof RolePermissions): boolean => {
-    if (targetRoleOverride) return !!permissions[perm];
-    if (user?.role === 'admin' && !user.customRoleId) return true;
-    return !!permissions[perm];
+    // If Admin is logged in and no specific target role is being inspected, Admin has full rights
+    if (!resolvedTargetOverride && (effectiveRole === 'admin' || user?.role === 'admin')) {
+      return true;
+    }
+    // Root safety: Admin can ALWAYS access Staff & Roles so they can never lock themselves out
+    if (perm === 'canAccessStaff' && (effectiveRole === 'admin' || user?.role === 'admin')) {
+      return true;
+    }
+    if (isEvaluatingAdminRole) return !!permissions[perm];
+    return !!permissions[perm] && !!adminRolePerms[perm];
   };
 
   return {
     permissions,
     can,
+    roleName: resolvedRole?.name || user?.role || 'Staff',
+    roleBadgeColor: resolvedRole?.badgeColor || '#701A26',
     canViewRevenue: can('canViewRevenue'),
     canViewCostPrice: can('canViewCostPrice'),
     canViewCustomerContacts: can('canViewCustomerContacts'),
@@ -471,9 +695,13 @@ export function useRolePermissions(targetRoleOverride?: string) {
     canAccessDiscounts: can('canAccessDiscounts'),
     canAccessStaff: can('canAccessStaff'),
     canAccessExpenses: can('canAccessExpenses'),
+    canAccessFloorPlan: can('canAccessFloorPlan'),
+    canAccessDamages: can('canAccessDamages'),
+    canAccessAssets: can('canAccessAssets'),
     canApplyCustomDiscount: can('canApplyCustomDiscount'),
     canVoidInvoice: can('canVoidInvoice'),
     canProcessReturns: can('canProcessReturns'),
     canStartCloseShift: can('canStartCloseShift'),
+    canModifyMenuPrices: can('canModifyMenuPrices'),
   };
 }

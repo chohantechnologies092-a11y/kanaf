@@ -388,7 +388,7 @@ export default function LoginScreen() {
                               />
                             </View>
                             <Text style={styles.roleText}>{cr.name}</Text>
-                            {cr.urduName && (
+                            {Boolean(cr.urduName && cr.urduName.trim()) && (
                               <Text
                                 style={{
                                   fontSize: 11,

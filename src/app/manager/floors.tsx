@@ -1,6 +1,12 @@
 import React from 'react';
-import FloorOverviewScreen from '../../screens/FloorOverviewScreen';
+import FloorsManagementScreen from '../../screens/FloorsManagementScreen';
 
 export default function ManagerFloorsRoute() {
-  return <FloorOverviewScreen backRoute="/manager/dashboard" />;
+  return (
+    <FloorsManagementScreen
+      role="manager"
+      backRoute="/manager/dashboard"
+      tablesRoute="/manager/floor-plan"
+    />
+  );
 }

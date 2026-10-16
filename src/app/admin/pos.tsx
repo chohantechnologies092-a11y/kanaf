@@ -6,6 +6,8 @@ import { calculateOrderDiscount, checkCampaignValidity } from '../../utils/disco
 import { broadcastImmediately } from '../../services/syncService';
 import InvoiceComponent from '../../components/Invoice';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRolePermissions } from '../../store/roleStore';
+import PermissionDeniedScreen from '../../components/PermissionDeniedScreen';
 
 function createInvoicePayload(data: Omit<Invoice, 'id' | 'timePlaced' | 'timeSettled'>): Invoice {
   const now = Date.now();
@@ -23,6 +25,19 @@ export default function AdminPOS() {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
   const [mobileTab, setMobileTab] = useState<'menu' | 'cart'>('menu');
+
+  const { can, canApplyCustomDiscount } = useRolePermissions();
+
+  if (!can('canAccessPOS')) {
+    return (
+      <PermissionDeniedScreen
+        moduleName="POS Billing Terminal"
+        urduModuleName="پی او ایس بلنگ ٹرمینل"
+        requiredPermission="canAccessPOS"
+        backRoute="/admin/dashboard"
+      />
+    );
+  }
 
   const user = useAuthStore(state => state.user);
   

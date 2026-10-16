@@ -6,6 +6,8 @@ import { calculateOrderDiscount, checkCampaignValidity } from '../../utils/disco
 import { broadcastImmediately } from '../../services/syncService';
 import InvoiceComponent from '../../components/Invoice';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRolePermissions } from '../../store/roleStore';
+import PermissionDeniedScreen from '../../components/PermissionDeniedScreen';
 
 function createInvoicePayload(data: Omit<Invoice, 'id' | 'timePlaced' | 'timeSettled'>): Invoice {
   const now = Date.now();
@@ -24,7 +26,19 @@ export default function ManagerPOS() {
   const isMobile = width < 768;
   const [mobileTab, setMobileTab] = useState<'menu' | 'cart'>('menu');
 
-  const user = useAuthStore(state => state.user);
+  const user = useAuthStore((state) => state.user);
+  const { can, canApplyCustomDiscount } = useRolePermissions();
+
+  if (user?.role !== 'admin' && !can('canAccessPOS')) {
+    return (
+      <PermissionDeniedScreen
+        moduleName="POS Billing Terminal"
+        urduModuleName="پی او ایس بلنگ ٹرمینل"
+        requiredPermission="canAccessPOS"
+        backRoute="/manager/dashboard"
+      />
+    );
+  }
   
   const menuItems = useRestaurantStore(state => state.menuItems);
   const categories = useRestaurantStore(state => state.categories);

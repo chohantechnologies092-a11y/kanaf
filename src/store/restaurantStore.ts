@@ -228,7 +228,7 @@ type RestaurantState = {
   updateTicketStatus: (ticketId: string, status: Ticket['status']) => void;
   serveTableTickets: (tableId: string) => void;
   markTableBilled: (tableId: string, invoiceId?: string) => void;
-  clearBillPaidAlert: () => void;
+  clearBillPaidAlert: (tableIdOrName?: string) => void;
   settleBill: (tableId: string) => void;
   transferTable: (fromTableId: string, toTableId: string) => void;
   mergeTables: (primaryTableId: string, secondaryTableId: string) => void;
@@ -870,26 +870,47 @@ export const useRestaurantStore = create<RestaurantState>()(
         };
       }),
 
-      clearBillPaidAlert: () => set({ lastBillPaidAlert: null }),
+      clearBillPaidAlert: (tableIdOrName?: string) => set((state) => {
+        if (!tableIdOrName) {
+          return { lastBillPaidAlert: null };
+        }
+        const alert = state.lastBillPaidAlert;
+        if (!alert) return { lastBillPaidAlert: null };
+        const query = tableIdOrName.trim().toLowerCase();
+        const matches =
+          alert.tableId.toLowerCase() === query ||
+          alert.tableName.trim().toLowerCase() === query;
+        return { lastBillPaidAlert: matches ? null : alert };
+      }),
 
-      settleBill: (tableId) => set((state) => ({
-        tables: state.tables.map(t => 
-          (t.id === tableId || t.mergedInto === tableId) ? { 
-            ...t, 
-            status: 'available', 
-            billTotal: 0, 
-            server: undefined, 
-            orders: [], 
-            isPaid: false, 
-            lastInvoiceId: undefined,
-            occupiedSince: undefined,
-            mergedInto: undefined,
-            reservationId: undefined,
-          } : t
-        ),
-        tickets: state.tickets.filter(t => t.tableId !== tableId),
-        lastBillPaidAlert: state.lastBillPaidAlert?.tableId === tableId ? null : state.lastBillPaidAlert
-      })),
+      settleBill: (tableId) => set((state) => {
+        const targetTable = state.tables.find(t => t.id === tableId);
+        const targetTableName = targetTable?.name;
+        const alert = state.lastBillPaidAlert;
+        const matchesAlert = alert && (
+          alert.tableId === tableId ||
+          (targetTableName && alert.tableName.trim().toLowerCase() === targetTableName.trim().toLowerCase())
+        );
+
+        return {
+          tables: state.tables.map(t => 
+            (t.id === tableId || t.mergedInto === tableId) ? { 
+              ...t, 
+              status: 'available', 
+              billTotal: 0, 
+              server: undefined, 
+              orders: [], 
+              isPaid: false, 
+              lastInvoiceId: undefined,
+              occupiedSince: undefined,
+              mergedInto: undefined,
+              reservationId: undefined,
+            } : t
+          ),
+          tickets: state.tickets.filter(t => t.tableId !== tableId),
+          lastBillPaidAlert: matchesAlert ? null : state.lastBillPaidAlert
+        };
+      }),
 
       transferTable: (fromTableId, toTableId) => set((state) => {
         const fromTable = state.tables.find(t => t.id === fromTableId);
@@ -1368,9 +1389,22 @@ export const useRestaurantStore = create<RestaurantState>()(
         tables: [...state.tables, { ...table, status: table.status || 'available', id: `t${Date.now()}` }]
       })),
       
-      updateTable: (id, updatedTable) => set((state) => ({
-        tables: state.tables.map(t => t.id === id ? { ...t, ...updatedTable } : t)
-      })),
+      updateTable: (id, updatedTable) => set((state) => {
+        let alert = state.lastBillPaidAlert;
+        if (updatedTable.status === 'available' && alert) {
+          const targetTable = state.tables.find(t => t.id === id);
+          if (
+            alert.tableId === id ||
+            (targetTable && alert.tableName.trim().toLowerCase() === targetTable.name.trim().toLowerCase())
+          ) {
+            alert = null;
+          }
+        }
+        return {
+          tables: state.tables.map(t => t.id === id ? { ...t, ...updatedTable } : t),
+          lastBillPaidAlert: alert
+        };
+      }),
 
       deleteTable: (id) => set((state) => ({
         tables: state.tables.filter(t => t.id !== id)
@@ -1520,7 +1554,37 @@ export const useRestaurantStore = create<RestaurantState>()(
           ...(remoteState.reservations ? { reservations: remoteState.reservations } : {}),
           ...(remoteState.salesReturns ? { salesReturns: remoteState.salesReturns } : {}),
           ...(remoteState.feedbacks ? { feedbacks: remoteState.feedbacks } : {}),
-          ...(remoteState.lastBillPaidAlert !== undefined ? { lastBillPaidAlert: remoteState.lastBillPaidAlert } : {}),
+          ...(remoteState.lastBillPaidAlert !== undefined ? {
+            lastBillPaidAlert: (() => {
+              const incoming = remoteState.lastBillPaidAlert;
+              if (!incoming) return null;
+              // Validate that table still exists and is currently billed
+              const matchingTable = reconciledTables.find(
+                t => t.id === incoming.tableId || t.name.trim().toLowerCase() === incoming.tableName.trim().toLowerCase()
+              );
+              if (!matchingTable || matchingTable.status !== 'billed') {
+                return null;
+              }
+              // If alert is older than 30 minutes, discard
+              if (incoming.time && Date.now() - incoming.time > 30 * 60 * 1000) {
+                return null;
+              }
+              return incoming;
+            })()
+          } : (
+            state.lastBillPaidAlert ? {
+              lastBillPaidAlert: (() => {
+                const local = state.lastBillPaidAlert;
+                const matchingTable = reconciledTables.find(
+                  t => t.id === local.tableId || t.name.trim().toLowerCase() === local.tableName.trim().toLowerCase()
+                );
+                if (!matchingTable || matchingTable.status !== 'billed' || (local.time && Date.now() - local.time > 30 * 60 * 1000)) {
+                  return null;
+                }
+                return local;
+              })()
+            } : {}
+          )),
         };
       }),
     }),
@@ -1544,6 +1608,22 @@ export const useRestaurantStore = create<RestaurantState>()(
               state.zones.push(f.name);
             }
           });
+
+          // Purge stale or already-available bill paid alerts on rehydration
+          if (state.lastBillPaidAlert) {
+            const matchingTable = state.tables.find(
+              (t) =>
+                t.id === state.lastBillPaidAlert?.tableId ||
+                t.name.trim().toLowerCase() === state.lastBillPaidAlert?.tableName.trim().toLowerCase()
+            );
+            if (
+              !matchingTable ||
+              matchingTable.status !== 'billed' ||
+              (state.lastBillPaidAlert.time && Date.now() - state.lastBillPaidAlert.time > 30 * 60 * 1000)
+            ) {
+              state.lastBillPaidAlert = null;
+            }
+          }
         }
       },
     }

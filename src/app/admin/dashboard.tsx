@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useRestaurantStore, Invoice } from '../../store/restaurantStore';
+import { useRolePermissions } from '../../store/roleStore';
 
 const BRAND = {
   bg: '#F8FAFC',
@@ -44,6 +45,7 @@ export default function AdminDashboard() {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
   const isTablet = width >= 768 && width < 1100;
+  const { can, canViewRevenue } = useRolePermissions();
   
   const invoices = useRestaurantStore(state => state.invoices);
   const tickets = useRestaurantStore(state => state.tickets);
@@ -507,15 +509,17 @@ export default function AdminDashboard() {
           </View>
 
           {/* Quick Action POS Button */}
-          <TouchableOpacity
-            style={styles.actionPosBtn}
-            onPress={() => router.push('/admin/pos')}
-            activeOpacity={0.8}
-            {...({ dataSet: { btn: 'hover' } } as any)}
-          >
-            <Ionicons name="calculator" size={16} color="#FFFFFF" />
-            <Text style={styles.actionPosBtnText}>Open POS</Text>
-          </TouchableOpacity>
+          {can('canAccessPOS') && (
+            <TouchableOpacity
+              style={styles.actionPosBtn}
+              onPress={() => router.push('/admin/pos')}
+              activeOpacity={0.8}
+              {...({ dataSet: { btn: 'hover' } } as any)}
+            >
+              <Ionicons name="calculator" size={16} color="#FFFFFF" />
+              <Text style={styles.actionPosBtnText}>Open POS</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -537,15 +541,24 @@ export default function AdminDashboard() {
           </View>
           {isRefreshing ? (
             <View style={styles.skeletonValue} {...({ dataSet: { skeleton: 'box' } } as any)} />
-          ) : (
+          ) : canViewRevenue ? (
             <Text style={styles.kpiMainValue}>Rs. {todaysSales.toLocaleString()}</Text>
+          ) : (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginVertical: 3 }}>
+              <Text style={[styles.kpiMainValue, { letterSpacing: 2, color: BRAND.textMuted }]}>••••••</Text>
+              <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                <Text style={{ fontSize: 9, fontWeight: '800', color: '#991B1B' }}>RESTRICTED</Text>
+              </View>
+            </View>
           )}
           <View style={styles.kpiFooter}>
             <View style={[styles.trendBadge, { backgroundColor: BRAND.emeraldLight }]}>
               <Ionicons name="trending-up" size={13} color={BRAND.emeraldDark} />
               <Text style={[styles.trendBadgeText, { color: BRAND.emeraldDark }]}>+14.2%</Text>
             </View>
-            <Text style={styles.kpiSubtext}>{todaysInvoices.length} settled orders</Text>
+            <Text style={styles.kpiSubtext}>
+              {canViewRevenue ? `${todaysInvoices.length} settled orders` : 'Revenue masked by role policy'}
+            </Text>
           </View>
         </View>
 
@@ -565,8 +578,10 @@ export default function AdminDashboard() {
           </View>
           {isRefreshing ? (
             <View style={styles.skeletonValue} {...({ dataSet: { skeleton: 'box' } } as any)} />
-          ) : (
+          ) : canViewRevenue ? (
             <Text style={styles.kpiMainValue}>Rs. {aov.toLocaleString()}</Text>
+          ) : (
+            <Text style={[styles.kpiMainValue, { letterSpacing: 2, color: BRAND.textMuted }]}>••••••</Text>
           )}
           <View style={styles.kpiFooter}>
             <View style={[styles.trendBadge, { backgroundColor: BRAND.indigoLight }]}>

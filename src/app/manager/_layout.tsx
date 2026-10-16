@@ -17,6 +17,8 @@ import SyncStatusBadge from '../../components/SyncStatusBadge';
 import SultanLogo from '../../components/SultanLogo';
 import BottomNav from '../../components/BottomNav';
 import AppSidebar, { NavItem } from '../../components/layout/AppSidebar';
+import PermissionDeniedScreen from '../../components/PermissionDeniedScreen';
+import { getManagerRouteRule, isManagerRouteAllowed } from '../../constants/managerAccess';
 
 const MANAGER_MENU_ITEMS: NavItem[] = [
   { label: 'Dashboard', route: '/manager/dashboard', icon: 'grid-outline' },
@@ -42,7 +44,8 @@ const MANAGER_MENU_ITEMS: NavItem[] = [
 export default function ManagerLayout() {
   // Admin can also open manager screens (e.g. Inventory from the admin dashboard)
   const { ready, user, logout } = useRoleGuard(['manager', 'admin']);
-  const { can } = useRolePermissions();
+  const isActualManager = user?.role !== 'admin';
+  const { can, roleName } = useRolePermissions(isActualManager ? undefined : 'manager');
   const { width } = useWindowDimensions();
   const router = useRouter();
   const pathname = usePathname();
@@ -51,23 +54,16 @@ export default function ManagerLayout() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  // If user is Admin, they see all menu items. If actual manager, filter based on their allowed permissions.
   const filteredMenuItems = useMemo(() => {
-    return MANAGER_MENU_ITEMS.filter((item) => {
-      if (item.route === '/manager/pos' && !can('canAccessPOS')) return false;
-      if (item.route === '/manager/invoices' && !can('canAccessInvoices')) return false;
-      if (item.route === '/manager/returns' && !can('canProcessReturns')) return false;
-      if (item.route === '/manager/discounts' && !can('canAccessDiscounts')) return false;
-      if (item.route === '/manager/inventory' && !can('canAccessInventory')) return false;
-      if (item.route === '/manager/suppliers' && !can('canAccessInventory')) return false;
-      if (item.route === '/manager/expenses' && !can('canAccessExpenses')) return false;
-      if (item.route === '/manager/reports' && (!can('canAccessReports') || !can('canViewRevenue'))) return false;
-      if (item.route === '/manager/kitchen-handover' && !can('canAccessKitchenHandover')) return false;
-      if (item.route === '/manager/kitchen-returns' && !can('canAccessKitchenHandover')) return false;
-      if (item.route === '/manager/recipes' && !can('canAccessRecipes')) return false;
-      if (item.route === '/manager/costing' && (!can('canAccessRecipes') || !can('canViewCostPrice'))) return false;
-      return true;
-    });
-  }, [can]);
+    if (!isActualManager) return MANAGER_MENU_ITEMS;
+    return MANAGER_MENU_ITEMS.filter((item) => isManagerRouteAllowed(item.route, can));
+  }, [isActualManager, can]);
+
+  // Route guard: Only actual Manager is blocked from screens the Admin has not allowed. Admin has full access.
+  const blockedRule = isActualManager && !isManagerRouteAllowed(pathname, can)
+    ? getManagerRouteRule(pathname)
+    : undefined;
 
   if (!ready) return null;
 
@@ -138,12 +134,22 @@ export default function ManagerLayout() {
 
           {/* Screen Content */}
           <View style={styles.desktopContent}>
-            <Stack 
-              screenOptions={{ 
+            <Stack
+              screenOptions={{
                 headerShown: false,
-                contentStyle: { backgroundColor: '#F8FAFC' }
-              }} 
+                contentStyle: { backgroundColor: '#F8FAFC' },
+              }}
             />
+            {blockedRule && (
+              <View style={StyleSheet.absoluteFill}>
+                <PermissionDeniedScreen
+                  moduleName={blockedRule.moduleName}
+                  urduModuleName={blockedRule.urduModuleName}
+                  requiredPermission={blockedRule.requires.join(' + ')}
+                  backRoute="/manager/dashboard"
+                />
+              </View>
+            )}
           </View>
         </View>
       </View>
@@ -166,7 +172,7 @@ export default function ManagerLayout() {
             <Ionicons name="menu" size={24} color="#D5A943" />
           </TouchableOpacity>
           <SultanLogo size="xs" width={24} height={24} style={{ marginRight: 6, marginLeft: 6 }} />
-          <Text style={styles.mobileHeaderTitle}>Sultan Manager</Text>
+          <Text style={styles.mobileHeaderTitle}>Sultan {roleName || 'Manager'}</Text>
           <View style={styles.mobileShiftBadge}>
             <Text style={styles.mobileShiftText}>SHIFT</Text>
           </View>
@@ -186,12 +192,22 @@ export default function ManagerLayout() {
       
       {/* Mobile Screen Stack */}
       <View style={styles.mobileContent}>
-        <Stack 
-          screenOptions={{ 
+        <Stack
+          screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: '#F8FAFC' }
-          }} 
+            contentStyle: { backgroundColor: '#F8FAFC' },
+          }}
         />
+        {blockedRule && (
+          <View style={StyleSheet.absoluteFill}>
+            <PermissionDeniedScreen
+              moduleName={blockedRule.moduleName}
+              urduModuleName={blockedRule.urduModuleName}
+              requiredPermission={blockedRule.requires.join(' + ')}
+              backRoute="/manager/dashboard"
+            />
+          </View>
+        )}
       </View>
 
       {/* Mobile Bottom Nav */}

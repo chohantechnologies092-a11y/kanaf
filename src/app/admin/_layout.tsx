@@ -8,10 +8,11 @@ import {
   useWindowDimensions, 
   Platform 
 } from 'react-native';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoleGuard } from '../../hooks/useRoleGuard';
+import { useRolePermissions } from '../../store/roleStore';
 import SyncStatusBadge from '../../components/SyncStatusBadge';
 import SultanLogo from '../../components/SultanLogo';
 import BottomNav from '../../components/BottomNav';
@@ -45,6 +46,7 @@ const ADMIN_MENU_ITEMS: NavItem[] = [
 
 export default function AdminLayout() {
   const { ready, user, logout } = useRoleGuard(['admin']);
+  const { can } = useRolePermissions();
   const { width } = useWindowDimensions();
   const router = useRouter();
   const pathname = usePathname();
@@ -53,10 +55,34 @@ export default function AdminLayout() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  const filteredMenuItems = useMemo(() => {
+    return ADMIN_MENU_ITEMS.filter((item) => {
+      if (item.route === '/admin/pos' && !can('canAccessPOS')) return false;
+      if (item.route === '/admin/invoices' && !can('canAccessInvoices')) return false;
+      if (item.route === '/admin/returns' && !can('canProcessReturns')) return false;
+      if (item.route === '/admin/discounts' && !can('canAccessDiscounts')) return false;
+      if (item.route === '/admin/staff' && !can('canAccessStaff')) return false;
+      if (item.route === '/admin/reports' && !can('canAccessReports')) return false;
+      if (item.route === '/admin/inventory' && !can('canAccessInventory')) return false;
+      if (item.route === '/admin/suppliers' && !can('canAccessInventory')) return false;
+      if (item.route === '/admin/damages' && !can('canAccessInventory')) return false;
+      if (item.route === '/admin/expenses' && !can('canAccessExpenses')) return false;
+      if (item.route === '/admin/assets' && !can('canAccessExpenses')) return false;
+      if (item.route === '/admin/kitchen-handover' && !can('canAccessKitchenHandover')) return false;
+      if (item.route === '/admin/kitchen-returns' && !can('canAccessKitchenHandover')) return false;
+      if (item.route === '/admin/recipes' && !can('canAccessRecipes')) return false;
+      if (item.route === '/admin/costing' && (!can('canAccessRecipes') || !can('canViewCostPrice'))) return false;
+      if (item.route === '/admin/menu' && !can('canModifyMenuPrices')) return false;
+      if (item.route === '/admin/customers' && !can('canViewCustomerContacts')) return false;
+      if (item.route === '/admin/shift' && !can('canStartCloseShift')) return false;
+      return true;
+    });
+  }, [can]);
+
   if (!ready) return null;
 
   // Find active screen title for desktop breadcrumbs
-  const currentItem = ADMIN_MENU_ITEMS.find(it => it.route === pathname);
+  const currentItem = filteredMenuItems.find(it => it.route === pathname);
   const screenTitle = currentItem ? currentItem.label : 'Admin Operations';
 
   // Desktop Sidebar Layout
@@ -68,7 +94,7 @@ export default function AdminLayout() {
         {/* 1. Permanent Left Liquid Glass Sidebar */}
         <AppSidebar
           role="admin"
-          items={ADMIN_MENU_ITEMS}
+          items={filteredMenuItems}
           user={user}
           onLogout={logout}
           isCollapsed={isCollapsed}
@@ -92,14 +118,16 @@ export default function AdminLayout() {
               <SyncStatusBadge compact={false} />
 
               {/* Fast POS Shortcut */}
-              <TouchableOpacity
-                style={styles.headerPosBtn}
-                onPress={() => router.push('/admin/pos')}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="calculator" size={15} color="#160406" />
-                <Text style={styles.headerPosBtnText}>POS Billing</Text>
-              </TouchableOpacity>
+              {can('canAccessPOS') && (
+                <TouchableOpacity
+                  style={styles.headerPosBtn}
+                  onPress={() => router.push('/admin/pos')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="calculator" size={15} color="#160406" />
+                  <Text style={styles.headerPosBtnText}>POS Billing</Text>
+                </TouchableOpacity>
+              )}
 
               {/* User greeting */}
               <View style={styles.topUserSnippet}>
@@ -183,7 +211,7 @@ export default function AdminLayout() {
       {/* Mobile Slide-out Drawer */}
       <AppSidebar
         role="admin"
-        items={ADMIN_MENU_ITEMS}
+        items={filteredMenuItems}
         user={user}
         onLogout={logout}
         isMobileOpen={isDrawerOpen}

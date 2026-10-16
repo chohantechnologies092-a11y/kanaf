@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform, useWindowDimensions
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRolePermissions } from '../store/roleStore';
+import { isManagerRouteAllowed } from '../constants/managerAccess';
 
 export type BottomNavRole = 'admin' | 'manager' | 'waiter';
 
@@ -48,13 +50,20 @@ export default function BottomNav({ role, onOpenDrawer, onLogout }: BottomNavPro
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
+  const { can } = useRolePermissions(role === 'manager' ? 'manager' : undefined);
 
   // On desktop/tablets, admin and manager use the modern left sidebar layout
   if (!isMobile && (role === 'admin' || role === 'manager')) {
     return null;
   }
 
-  const tabs = NAV_CONFIG[role] || [];
+  const rawTabs = NAV_CONFIG[role] || [];
+  const tabs = rawTabs.filter((tab) => {
+    if (role === 'manager' && tab.route) return isManagerRouteAllowed(tab.route, can);
+    if (tab.route === '/admin/pos' && !can('canAccessPOS')) return false;
+    if (tab.route === '/admin/menu' && !can('canModifyMenuPrices')) return false;
+    return true;
+  });
 
   const handlePress = (tab: any) => {
     if (tab.action === 'open_drawer' && onOpenDrawer) {

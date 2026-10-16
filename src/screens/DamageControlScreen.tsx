@@ -28,6 +28,8 @@ import {
   DAMAGE_ACTIONS,
 } from '../store';
 import { money, formatDay, formatTime, startOfDay } from '../utils/format';
+import { useRolePermissions } from '../store/roleStore';
+import PermissionDeniedScreen from '../components/PermissionDeniedScreen';
 
 const LIGHT = {
   bg: '#F8F9FA',
@@ -100,6 +102,18 @@ export default function DamageControlScreen({
   const isMobile = width < 768;
 
   const user = useAuthStore((s) => s.user);
+  const { can } = useRolePermissions();
+
+  if (user?.role !== 'admin' && !can('canAccessInventory')) {
+    return (
+      <PermissionDeniedScreen
+        moduleName="Damage & Breakage Control"
+        urduModuleName="نقصان اور ٹوٹ پھوٹ کا کنٹرول"
+        requiredPermission="canAccessInventory"
+        backRoute={backRoute}
+      />
+    );
+  }
   const damageRecords = useOpsStore((s) => s.damageRecords || []);
   const logDamageIncident = useOpsStore((s) => s.logDamageIncident);
   const updateDamageRecord = useOpsStore((s) => s.updateDamageRecord);
