@@ -22,6 +22,7 @@ import { BRAND } from '../constants/brand';
 import { money, formatTime, startOfDay } from '../utils/format';
 import { useRolePermissions } from '../store/roleStore';
 import PermissionDeniedScreen from '../components/PermissionDeniedScreen';
+import RoyalDropdown from '../components/RoyalDropdown';
 
 export default function ExpensesScreen({ backRoute = '/manager/dashboard' }: { backRoute?: string }) {
   const router = useRouter();
@@ -112,6 +113,7 @@ export default function ExpensesScreen({ backRoute = '/manager/dashboard' }: { b
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backBtn}
+          {...(Platform.OS === 'web' ? ({ className: 'interactive-btn' } as any) : {})}
           onPress={() => (router.canGoBack() ? router.back() : router.replace(backRoute as any))}
         >
           <Ionicons name="arrow-back" size={20} color={BRAND.ink} />
@@ -125,57 +127,108 @@ export default function ExpensesScreen({ backRoute = '/manager/dashboard' }: { b
       </View>
 
       {/* P&L Financial Summary Bar */}
-      <View style={styles.pnlCard}>
-        <View style={styles.pnlHeader}>
+      <View style={styles.pnlContainer}>
+        <View style={styles.pnlHeaderRow}>
           <Text style={styles.pnlTitle}>{"Today's Financial Balance (P&L)"}</Text>
           <Text style={styles.pnlDate}>
             {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
           </Text>
         </View>
-        <View style={styles.pnlRow}>
-          <View style={styles.pnlCol}>
-            <Text style={styles.pnlLabel}>{"Today's Inflow (Sales)"}</Text>
-            <Text style={[styles.pnlVal, { color: BRAND.success }]}>
+        <View style={styles.pnlBoxesGrid}>
+          {/* Inflow Box */}
+          <View
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
+            style={[styles.pnlBox, styles.pnlBoxEmerald]}
+          >
+            <View style={styles.pnlBoxHeader}>
+              <Text style={[styles.pnlLabel, { color: '#059669' }]}>{"Today's Inflow (Sales)"}</Text>
+              <View style={[styles.pnlIconOrb, { backgroundColor: '#D1FAE5' }]}>
+                <Ionicons name="trending-up" size={16} color="#059669" />
+              </View>
+            </View>
+            <Text style={[styles.pnlVal, { color: '#047857' }]}>
               {canViewRevenue ? money(todayRevenue) : '••••••••'}
             </Text>
-            <Text style={styles.pnlMeta}>{todayInvoices.length} Bills Settled</Text>
+            <Text style={[styles.pnlMeta, { color: '#065F46' }]}>{todayInvoices.length} Bills Settled</Text>
           </View>
-          <View style={styles.pnlDivider} />
-          <View style={styles.pnlCol}>
-            <Text style={styles.pnlLabel}>Outflow (Expenses)</Text>
-            <Text style={[styles.pnlVal, { color: '#D32F2F' }]}>{money(totalExpenseAmount)}</Text>
-            <Text style={styles.pnlMeta}>{filteredExpenses.length} Expense Slips</Text>
+
+          {/* Outflow Box */}
+          <View
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
+            style={[styles.pnlBox, styles.pnlBoxRose]}
+          >
+            <View style={styles.pnlBoxHeader}>
+              <Text style={[styles.pnlLabel, { color: '#DC2626' }]}>Outflow (Expenses)</Text>
+              <View style={[styles.pnlIconOrb, { backgroundColor: '#FEE2E2' }]}>
+                <Ionicons name="trending-down" size={16} color="#DC2626" />
+              </View>
+            </View>
+            <Text style={[styles.pnlVal, { color: '#B91C1C' }]}>{money(totalExpenseAmount)}</Text>
+            <Text style={[styles.pnlMeta, { color: '#991B1B' }]}>{filteredExpenses.length} Expense Slips</Text>
           </View>
-          <View style={styles.pnlDivider} />
-          <View style={styles.pnlCol}>
-            <Text style={styles.pnlLabel}>Net Cash Profit</Text>
-            <Text style={[styles.pnlVal, { color: netProfitToday >= 0 ? BRAND.success : '#D32F2F' }]}>
+
+          {/* Net Profit Box */}
+          <View
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
+            style={[
+              styles.pnlBox,
+              netProfitToday >= 0 ? styles.pnlBoxGold : styles.pnlBoxRose,
+            ]}
+          >
+            <View style={styles.pnlBoxHeader}>
+              <Text style={[styles.pnlLabel, { color: netProfitToday >= 0 ? '#B45309' : '#DC2626' }]}>
+                Net Cash Profit
+              </Text>
+              <View
+                style={[
+                  styles.pnlIconOrb,
+                  { backgroundColor: netProfitToday >= 0 ? '#FDE68A' : '#FEE2E2' },
+                ]}
+              >
+                <Ionicons
+                  name={netProfitToday >= 0 ? 'wallet-outline' : 'alert-circle-outline'}
+                  size={16}
+                  color={netProfitToday >= 0 ? '#B45309' : '#DC2626'}
+                />
+              </View>
+            </View>
+            <Text
+              style={[
+                styles.pnlVal,
+                { color: netProfitToday >= 0 ? '#92400E' : '#B91C1C' },
+              ]}
+            >
               {canViewRevenue ? money(netProfitToday) : '••••••••'}
             </Text>
-            <Text style={styles.pnlMeta}>In Drawer Cash</Text>
+            <Text
+              style={[
+                styles.pnlMeta,
+                { color: netProfitToday >= 0 ? '#78350F' : '#991B1B' },
+              ]}
+            >
+              In Drawer Cash
+            </Text>
           </View>
         </View>
       </View>
 
       {/* Record New Expense Card */}
-      <View style={styles.entryCard}>
+      <View
+        {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
+        style={styles.entryCard}
+      >
         <Text style={styles.cardTitle}>Record Cash / Online Expense</Text>
 
-        <Text style={styles.inputLabel}>Expense Category</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll}>
-          {EXPENSE_CATEGORIES.map((cat) => {
-            const isSel = category === cat;
-            return (
-              <TouchableOpacity
-                key={cat}
-                style={[styles.catPill, isSel && styles.catPillActive]}
-                onPress={() => setCategory(cat)}
-              >
-                <Text style={[styles.catPillText, isSel && styles.catPillTextActive]}>{cat}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        <RoyalDropdown
+          label="Expense Category"
+          placeholder="Select expense category..."
+          options={EXPENSE_CATEGORIES}
+          value={category}
+          onSelect={(cat) => setCategory(cat)}
+          icon="wallet-outline"
+          searchable
+          style={{ marginBottom: 14 }}
+        />
 
         <View style={styles.amountRow}>
           <View style={{ flex: 1 }}>
@@ -194,6 +247,7 @@ export default function ExpensesScreen({ backRoute = '/manager/dashboard' }: { b
             <Text style={styles.inputLabel}>Payment Method</Text>
             <View style={styles.methodToggle}>
               <TouchableOpacity
+                {...(Platform.OS === 'web' ? ({ className: 'interactive-btn' } as any) : {})}
                 style={[styles.methodBtn, method === 'cash' && styles.methodBtnActive]}
                 onPress={() => setMethod('cash')}
               >
@@ -202,6 +256,7 @@ export default function ExpensesScreen({ backRoute = '/manager/dashboard' }: { b
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
+                {...(Platform.OS === 'web' ? ({ className: 'interactive-btn' } as any) : {})}
                 style={[styles.methodBtn, method === 'online' && styles.methodBtnActive]}
                 onPress={() => setMethod('online')}
               >
@@ -222,7 +277,11 @@ export default function ExpensesScreen({ backRoute = '/manager/dashboard' }: { b
           onChangeText={setNote}
         />
 
-        <TouchableOpacity style={styles.submitBtn} onPress={handleAdd}>
+        <TouchableOpacity
+          style={styles.submitBtn}
+          {...(Platform.OS === 'web' ? ({ className: 'interactive-btn' } as any) : {})}
+          onPress={handleAdd}
+        >
           <Ionicons name="add-circle-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
           <Text style={styles.submitBtnText}>Add Expense to Shift Ledger</Text>
         </TouchableOpacity>
@@ -233,6 +292,7 @@ export default function ExpensesScreen({ backRoute = '/manager/dashboard' }: { b
         <Text style={styles.cardTitle}>Expense History ({filteredExpenses.length})</Text>
         <View style={styles.filterPills}>
           <TouchableOpacity
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-btn' } as any) : {})}
             style={[styles.filterPill, filterPeriod === 'today' && styles.filterPillActive]}
             onPress={() => setFilterPeriod('today')}
           >
@@ -241,6 +301,7 @@ export default function ExpensesScreen({ backRoute = '/manager/dashboard' }: { b
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-btn' } as any) : {})}
             style={[styles.filterPill, filterPeriod === 'all' && styles.filterPillActive]}
             onPress={() => setFilterPeriod('all')}
           >
@@ -260,7 +321,11 @@ export default function ExpensesScreen({ backRoute = '/manager/dashboard' }: { b
         </View>
       ) : (
         filteredExpenses.map((exp) => (
-          <View key={exp.id} style={styles.expenseItem}>
+          <View
+            key={exp.id}
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
+            style={styles.expenseItem}
+          >
             <View style={styles.expenseIcon}>
               <Ionicons
                 name={exp.method === 'cash' ? 'cash-outline' : 'card-outline'}
@@ -330,48 +395,82 @@ const styles = StyleSheet.create({
     borderColor: BRAND.border,
     marginBottom: 24,
   },
-  pnlHeader: {
+  pnlContainer: {
+    marginBottom: 24,
+  },
+  pnlHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 12,
   },
   pnlTitle: {
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '900',
     color: BRAND.ink,
+    letterSpacing: -0.2,
   },
   pnlDate: {
     fontSize: 12,
     color: BRAND.muted,
+    fontWeight: '700',
   },
-  pnlRow: {
+  pnlBoxesGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 12,
   },
-  pnlCol: {
+  pnlBox: {
     flex: 1,
-    alignItems: 'center',
+    minWidth: 220,
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  pnlDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: BRAND.border,
+  pnlBoxEmerald: {
+    backgroundColor: 'rgba(236, 253, 245, 0.95)',
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+  },
+  pnlBoxRose: {
+    backgroundColor: 'rgba(254, 242, 242, 0.95)',
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+  },
+  pnlBoxGold: {
+    backgroundColor: 'rgba(254, 243, 199, 0.95)',
+    borderColor: 'rgba(212, 175, 55, 0.5)',
+  },
+  pnlBoxHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  pnlIconOrb: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pnlLabel: {
-    fontSize: 11,
-    color: BRAND.muted,
-    fontWeight: '600',
-    marginBottom: 2,
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   pnlVal: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 4,
   },
   pnlMeta: {
-    fontSize: 10,
-    color: BRAND.muted,
-    marginTop: 2,
+    fontSize: 11,
+    fontWeight: '700',
   },
   entryCard: {
     backgroundColor: '#fff',

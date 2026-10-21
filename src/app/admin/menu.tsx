@@ -21,6 +21,7 @@ import { useRestaurantStore, MenuItem, ComboItem } from '../../store/restaurantS
 import { BRAND } from '../../constants/brand';
 import { FOOD_PRESETS, POPULAR_BADGES } from '../../constants/foodPresets';
 import { money } from '../../utils/format';
+import { broadcastImmediately } from '../../services/syncService';
 
 export default function MenuManagement() {
   const router = useRouter();
@@ -207,25 +208,92 @@ export default function MenuManagement() {
   };
 
   // -------------------------------------------------------------
-  // Image Upload / Camera Handlers
+  // Image Upload / Camera Handlers (with Web Canvas Downscaling)
   // -------------------------------------------------------------
+  const compressImageFileOnWeb = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new (window as any).Image();
+        img.onload = () => {
+          const MAX_DIM = 600;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_DIM) {
+              height = Math.round((height * MAX_DIM) / width);
+              width = MAX_DIM;
+            }
+          } else {
+            if (height > MAX_DIM) {
+              width = Math.round((width * MAX_DIM) / height);
+              height = MAX_DIM;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            // Ultra-compact JPEG ~25KB-45KB: easily stored, synced and loaded
+            const compressed = canvas.toDataURL('image/jpeg', 0.78);
+            resolve(compressed);
+          } else {
+            resolve(e.target?.result as string);
+          }
+        };
+        img.onerror = () => reject(new Error('Failed to decode image'));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('Failed to read image file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
   const pickImageFromDevice = async () => {
     try {
       setIsUploadingImage(true);
+
+      // On Web: Native HTML file input with automatic canvas downscaler
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/jpeg,image/png,image/webp,image/jpg';
+        input.onchange = async () => {
+          const file = input.files?.[0];
+          if (!file) {
+            setIsUploadingImage(false);
+            return;
+          }
+          try {
+            const compressedUri = await compressImageFileOnWeb(file);
+            setItemImageUri(compressedUri);
+          } catch (err: any) {
+            window.alert('Failed to process image: ' + (err.message || ''));
+          } finally {
+            setIsUploadingImage(false);
+          }
+        };
+        input.click();
+        return;
+      }
+
+      // On Native Mobile (iOS / Android)
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        const msg = 'Permission to access gallery/photos is required to upload dish images!';
-        if (Platform.OS === 'web') window.alert(msg);
-        else Alert.alert('Permission Required', msg);
+        Alert.alert('Permission Required', 'Permission to access photos is required to upload dish images!');
         setIsUploadingImage(false);
         return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 0.7,
+        quality: 0.6,
         base64: true,
       });
 
@@ -251,20 +319,45 @@ export default function MenuManagement() {
   const takePhotoWithCamera = async () => {
     try {
       setIsUploadingImage(true);
+
+      // On Web: file input with camera capture
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.setAttribute('capture', 'environment');
+        input.onchange = async () => {
+          const file = input.files?.[0];
+          if (!file) {
+            setIsUploadingImage(false);
+            return;
+          }
+          try {
+            const compressedUri = await compressImageFileOnWeb(file);
+            setItemImageUri(compressedUri);
+          } catch (err: any) {
+            window.alert('Failed to process camera photo: ' + (err.message || ''));
+          } finally {
+            setIsUploadingImage(false);
+          }
+        };
+        input.click();
+        return;
+      }
+
+      // On Native Mobile
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
       if (!permissionResult.granted) {
-        const msg = 'Camera permission is required to capture dish photos!';
-        if (Platform.OS === 'web') window.alert(msg);
-        else Alert.alert('Permission Required', msg);
+        Alert.alert('Permission Required', 'Camera permission is required to capture dish photos!');
         setIsUploadingImage(false);
         return;
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 0.7,
+        quality: 0.6,
         base64: true,
       });
 
@@ -290,7 +383,13 @@ export default function MenuManagement() {
   // -------------------------------------------------------------
   // Preset Selection Helper
   // -------------------------------------------------------------
-  const handleSelectPreset = (preset: typeof FOOD_PRESETS[0]) => {
+  // Only applies the image to avoid wiping the user's custom dish name & price
+  const handleSelectPresetImageOnly = (imageUri: string) => {
+    setItemImageUri(imageUri);
+  };
+
+  // Full autofill if user explicitly wants to clone the preset
+  const handleSelectPresetFull = (preset: typeof FOOD_PRESETS[0]) => {
     setItemName(preset.name);
     if (!itemPrice) setItemPrice(preset.defaultPrice.toString());
     if (!itemCostPrice) setItemCostPrice(preset.defaultCost.toString());
@@ -404,6 +503,7 @@ export default function MenuManagement() {
     } else {
       addMenuItem(itemPayload);
     }
+    broadcastImmediately();
     
     setItemModalVisible(false);
   };
@@ -411,6 +511,7 @@ export default function MenuManagement() {
   const handleDeleteItem = (item: MenuItem) => {
     const confirmDelete = () => {
       deleteMenuItem(item.id);
+      broadcastImmediately();
     };
 
     if (Platform.OS === 'web') {
@@ -442,6 +543,7 @@ export default function MenuManagement() {
     }
 
     adjustMenuItemStock(stockAdjustItem.id, val, stockMode);
+    broadcastImmediately();
     setStockAdjustItem(null);
     setStockDeltaInput('');
   };
@@ -465,6 +567,7 @@ export default function MenuManagement() {
     }
 
     addCategory(newCatName.trim());
+    broadcastImmediately();
     setCatModalVisible(false);
     setNewCatName('');
   };
@@ -473,6 +576,7 @@ export default function MenuManagement() {
     const count = menuItems.filter(i => i.category === catName).length;
     const confirmDelete = () => {
       deleteCategory(catName);
+      broadcastImmediately();
     };
 
     const warning = count > 0 
@@ -650,19 +754,26 @@ export default function MenuManagement() {
       {/* Search & Category Filter Pills */}
       <View style={styles.filterSection}>
         <View style={styles.searchBox}>
-          <Ionicons name="search" size={18} color="#8E8E93" style={{ marginRight: 8 }} />
+          <View style={styles.searchIconOrb}>
+            <Ionicons name="search" size={16} color={BRAND.burgundy} />
+          </View>
           <TextInput 
             style={styles.searchInput}
             placeholder={`Search dishes, combos, badges, prices...`}
-            placeholderTextColor="#8E8E93"
+            placeholderTextColor="#8A7A70"
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="close-circle" size={18} color="#8E8E93" />
+            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.searchClearBtn}>
+              <Ionicons name="close-circle" size={18} color={BRAND.gold} />
             </TouchableOpacity>
-          ) : null}
+          ) : (
+            <View style={styles.searchShortcutBadge}>
+              <Ionicons name="sparkles" size={11} color="#B45309" style={{ marginRight: 3 }} />
+              <Text style={styles.searchShortcutText}>MENU</Text>
+            </View>
+          )}
         </View>
 
         {activeTab === 'items' && (
@@ -1119,6 +1230,40 @@ export default function MenuManagement() {
               {/* TAB 1: BASIC DETAILS */}
               {modalTab === 'basic' && (
                 <View style={styles.modalTabPane}>
+                  {/* Photo Quick Status & Switch */}
+                  <TouchableOpacity 
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 12,
+                      backgroundColor: itemImageUri ? '#FDFBF7' : '#F8F9FA',
+                      borderWidth: 1.5,
+                      borderColor: itemImageUri ? '#D4AF37' : '#E2E8F0',
+                      borderRadius: 12,
+                      padding: 10,
+                      marginBottom: 16
+                    }}
+                    onPress={() => setModalTab('image')}
+                    activeOpacity={0.8}
+                  >
+                    {itemImageUri ? (
+                      <Image source={{ uri: itemImageUri }} style={{ width: 44, height: 44, borderRadius: 8 }} />
+                    ) : (
+                      <View style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: '#52141C15', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="camera-outline" size={22} color="#52141C" />
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '800', color: '#1E293B' }}>
+                        {itemImageUri ? 'Dish Photo Attached' : 'Add Dish Photo (Recommended)'}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: '#64748B' }}>
+                        {itemImageUri ? 'Tap to change photo or pick curated preset' : 'Tap to upload from device, snap photo or choose preset'}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color="#D4AF37" />
+                  </TouchableOpacity>
+
                   <Text style={styles.inputLabel}>Dish / Deal Name *</Text>
                   <TextInput 
                     style={styles.modalInput} 
@@ -1299,21 +1444,30 @@ export default function MenuManagement() {
                   </View>
 
                   {/* 1-Tap Curated Food Presets */}
-                  <Text style={[styles.inputLabel, { marginTop: 16 }]}>Or Choose 1-Tap Curated Preset</Text>
+                  <Text style={[styles.inputLabel, { marginTop: 16 }]}>Or Choose 1-Tap Curated Preset (Click to apply image)</Text>
                   <View style={styles.presetGrid}>
-                    {FOOD_PRESETS.map(preset => (
-                      <TouchableOpacity 
-                        key={preset.id}
-                        style={[styles.presetCard, itemImageUri === preset.imageUri && styles.presetCardActive]}
-                        onPress={() => handleSelectPreset(preset)}
-                      >
-                        <Image source={{ uri: preset.imageUri }} style={styles.presetImage} />
-                        <View style={styles.presetOverlay}>
-                          <Text style={styles.presetName} numberOfLines={1}>{preset.name}</Text>
-                          <Text style={styles.presetPrice}>{money(preset.defaultPrice)}</Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
+                    {FOOD_PRESETS.map(preset => {
+                      const isSelected = itemImageUri === preset.imageUri;
+                      return (
+                        <TouchableOpacity 
+                          key={preset.id}
+                          style={[styles.presetCard, isSelected && styles.presetCardActive]}
+                          onPress={() => handleSelectPresetImageOnly(preset.imageUri)}
+                          activeOpacity={0.8}
+                        >
+                          <Image source={{ uri: preset.imageUri }} style={styles.presetImage} />
+                          <View style={styles.presetOverlay}>
+                            <Text style={styles.presetName} numberOfLines={1}>{preset.name}</Text>
+                            <Text style={styles.presetPrice}>{money(preset.defaultPrice)}</Text>
+                          </View>
+                          {isSelected && (
+                            <View style={styles.presetSelectedBadge}>
+                              <Ionicons name="checkmark-circle" size={16} color="#059669" />
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
                 </View>
               )}
@@ -1887,17 +2041,72 @@ const styles = StyleSheet.create({
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    height: 42,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 8,
+    paddingRight: 10,
+    height: 46,
+    borderWidth: 1.5,
+    borderColor: 'rgba(212, 175, 55, 0.45)',
+    gap: 8,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 4px 18px rgba(82, 20, 28, 0.06), 0 2px 6px rgba(212, 175, 55, 0.12), inset 0 1px 0 #FFFFFF',
+        transition: 'all 0.2s ease',
+      } as any,
+      ios: {
+        shadowColor: '#52141C',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  searchIconOrb: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(82, 20, 28, 0.08)',
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: 'rgba(212, 175, 55, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13.5,
+    fontWeight: '600',
     color: BRAND.ink,
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+        outlineWidth: 0,
+      } as any,
+    }),
+  },
+  searchClearBtn: {
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchShortcutBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(254, 243, 199, 0.85)',
+    borderRadius: 20,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+  },
+  searchShortcutText: {
+    color: '#92400E',
+    fontSize: 9.5,
+    fontWeight: '900',
+    letterSpacing: 0.8,
   },
   categoryPillsScroll: {
     gap: 8,
@@ -2661,6 +2870,15 @@ const styles = StyleSheet.create({
     color: BRAND.gold,
     fontSize: 9,
     fontWeight: '800',
+  },
+  presetSelectedBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 2,
+    zIndex: 4,
   },
   marginAnalysisBanner: {
     flexDirection: 'row',

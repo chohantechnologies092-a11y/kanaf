@@ -25,6 +25,7 @@ import {
 } from '../utils/kitchenMath';
 
 import { usePortalBase } from '../hooks/usePortalBase';
+import RoyalDropdown from '../components/RoyalDropdown';
 
 const BRAND = {
   burgundy: '#52171B',
@@ -405,35 +406,18 @@ export default function ChefDayConsoleScreen({ backRoute = '/admin/dashboard' }:
         )}
 
         {activeSessions.length > 1 && (
-          <View style={{ marginBottom: 10 }}>
-            <Text style={{ fontSize: 12, fontWeight: '800', color: BRAND.ink }}>
-              Live handovers ({activeSessions.length}) - choose your shift
-            </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
-              {activeSessions.map((s) => {
-                const on = activeSession?.id === s.id;
-                return (
-                  <TouchableOpacity
-                    key={s.id}
-                    onPress={() => setSelectedSessionId(s.id)}
-                    activeOpacity={0.8}
-                    style={{
-                      paddingHorizontal: 14,
-                      paddingVertical: 8,
-                      marginRight: 8,
-                      borderRadius: 18,
-                      borderWidth: 1,
-                      borderColor: on ? BRAND.burgundy : BRAND.border,
-                      backgroundColor: on ? BRAND.burgundy : '#FFFFFF',
-                    }}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: '800', color: on ? '#FFFFFF' : BRAND.ink }}>
-                      {shiftTitle(s)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+          <View style={{ marginBottom: 12 }}>
+            <RoyalDropdown
+              label={`Live Handovers (${activeSessions.length}) - Choose Active Shift`}
+              options={activeSessions.map((s) => ({
+                label: shiftTitle(s),
+                value: s.id,
+                sublabel: `Head Chef: ${s.headChef} • Float: Rs. ${s.cashHandedOver}`,
+              }))}
+              value={selectedSessionId || (activeSession?.id || '')}
+              onSelect={(id) => setSelectedSessionId(id)}
+              icon="time-outline"
+            />
           </View>
         )}
 
@@ -803,21 +787,21 @@ export default function ChefDayConsoleScreen({ backRoute = '/admin/dashboard' }:
             </View>
 
             <ScrollView style={styles.modalBody}>
-              {/* Select Ingredient */}
-              <Text style={styles.inputLabel}>Select Kitchen Ingredient</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ingPillRow}>
-                {liveLines.map((l) => (
-                  <TouchableOpacity
-                    key={l.itemId}
-                    style={[styles.ingPill, selectedAdjustItemId === l.itemId && styles.ingPillActive]}
-                    onPress={() => setSelectedAdjustItemId(l.itemId)}
-                  >
-                    <Text style={[styles.ingPillText, selectedAdjustItemId === l.itemId && styles.ingPillTextActive]}>
-                      {l.itemName} ({l.unit})
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              {/* Select Ingredient Dropdown */}
+              <RoyalDropdown
+                label="Select Kitchen Ingredient *"
+                placeholder="Choose ingredient to adjust..."
+                options={liveLines.map((l) => ({
+                  label: `${l.itemName} (${l.unit})`,
+                  value: l.itemId,
+                  badge: `${formatQty(l.expectedOnHand, l.unit)} in kitchen`,
+                }))}
+                value={selectedAdjustItemId || ''}
+                onSelect={(id) => setSelectedAdjustItemId(id)}
+                icon="cube-outline"
+                searchable
+                style={{ marginBottom: 12 }}
+              />
 
               {/* Quantity */}
               <View style={styles.formRow}>
@@ -957,29 +941,31 @@ export default function ChefDayConsoleScreen({ backRoute = '/admin/dashboard' }:
               </View>
 
               {/* Link to existing kitchen inventory item (optional) */}
-              <Text style={styles.inputLabel}>Link to Kitchen Stock Item (Optional)</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ingPillRow}>
-                <TouchableOpacity
-                  style={[styles.ingPill, !marketInvItemId && styles.ingPillActive]}
-                  onPress={() => setMarketInvItemId(undefined)}
-                >
-                  <Text style={[styles.ingPillText, !marketInvItemId && styles.ingPillTextActive]}>None (Ad-hoc expense)</Text>
-                </TouchableOpacity>
-                {liveLines.map((l) => (
-                  <TouchableOpacity
-                    key={l.itemId}
-                    style={[styles.ingPill, marketInvItemId === l.itemId && styles.ingPillActive]}
-                    onPress={() => {
-                      setMarketInvItemId(l.itemId);
-                      setMarketItemName(l.itemName);
-                    }}
-                  >
-                    <Text style={[styles.ingPillText, marketInvItemId === l.itemId && styles.ingPillTextActive]}>
-                      {l.itemName}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <RoyalDropdown
+                label="Link to Kitchen Stock Item (Optional)"
+                placeholder="None (Ad-hoc expense)"
+                options={[
+                  { label: 'None (Ad-hoc expense / Not in standard inventory)', value: '' },
+                  ...liveLines.map((l) => ({
+                    label: `${l.itemName} (${l.unit})`,
+                    value: l.itemId,
+                    badge: `${formatQty(l.expectedOnHand, l.unit)}`,
+                  })),
+                ]}
+                value={marketInvItemId || ''}
+                onSelect={(val) => {
+                  if (!val) {
+                    setMarketInvItemId(undefined);
+                  } else {
+                    setMarketInvItemId(val);
+                    const found = liveLines.find((l) => l.itemId === val);
+                    if (found) setMarketItemName(found.itemName);
+                  }
+                }}
+                icon="link-outline"
+                searchable
+                style={{ marginTop: 6, marginBottom: 12 }}
+              />
 
               {marketInvItemId && (
                 <View style={[styles.formCol, { marginTop: 10 }]}>

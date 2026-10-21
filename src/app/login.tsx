@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Modal,
   Pressable,
   KeyboardAvoidingView,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,13 +20,19 @@ import { useRoleStore, CustomRole } from '../store/roleStore';
 import SultanLogo from '../components/SultanLogo';
 import IslamicBackground from '../components/IslamicBackground';
 
-const roles: { label: string; value: Role; icon: keyof typeof Ionicons.glyphMap; desc: string }[] = [
-  { label: 'Admin', value: 'admin', icon: 'shield-checkmark-outline', desc: 'Full System & POS' },
-  { label: 'Manager', value: 'manager', icon: 'business-outline', desc: '5-Floor & Ledger' },
-  { label: 'Order Taker', value: 'waiter', icon: 'walk-outline', desc: 'Floor Tables & KOT Punch' },
-  { label: 'Kitchen', value: 'kitchen', icon: 'restaurant-outline', desc: 'Live KDS Display' },
-  { label: 'Juice Bar', value: 'juicebar', icon: 'cafe-outline', desc: 'Live Beverage Orders' },
-  { label: 'Playland', value: 'playland', icon: 'game-controller-outline', desc: 'Basement Rides & Tickets' },
+const roles: {
+  label: string;
+  urdu: string;
+  value: Role;
+  icon: keyof typeof Ionicons.glyphMap;
+  desc: string;
+}[] = [
+  { label: 'Admin', urdu: 'ایڈمن کنٹرول', value: 'admin', icon: 'shield-checkmark-outline', desc: 'Full System & POS' },
+  { label: 'Manager', urdu: 'منیجر ڈیش بورڈ', value: 'manager', icon: 'business-outline', desc: '5-Floor & Ledger' },
+  { label: 'Order Taker', urdu: 'آرڈر ٹیکر', value: 'waiter', icon: 'walk-outline', desc: 'Floor Tables & KOT' },
+  { label: 'Kitchen', urdu: 'باورچی خانہ KDS', value: 'kitchen', icon: 'restaurant-outline', desc: 'Live Station Display' },
+  { label: 'Juice Bar', urdu: 'جوس بار', value: 'juicebar', icon: 'cafe-outline', desc: 'Live Beverages' },
+  { label: 'Playland', urdu: 'پلے لینڈ', value: 'playland', icon: 'game-controller-outline', desc: 'Basement Rides & Fun' },
 ];
 
 export default function LoginScreen() {
@@ -39,7 +46,74 @@ export default function LoginScreen() {
   const allRoles = useRoleStore((state) => state.roles);
   const customRoles = allRoles.filter((r) => !r.isSystem);
 
+  // Unified roles: standard roles + custom roles in the EXACT SAME grid
+  const displayRoles = useMemo(() => {
+    const list: Array<{
+      key: string;
+      label: string;
+      urdu: string;
+      desc: string;
+      icon: keyof typeof Ionicons.glyphMap;
+      badgeColor?: string;
+      isCustom: boolean;
+      customRole?: CustomRole;
+      value?: Role;
+      count: number;
+    }> = [];
+
+    // Standard system roles
+    roles.forEach((r) => {
+      const count = staff.filter(
+        (s) => s.role.toLowerCase() === r.value?.toLowerCase()
+      ).length;
+      list.push({
+        key: r.value || r.label,
+        label: r.label,
+        urdu: r.urdu,
+        desc: r.desc,
+        icon: r.icon,
+        value: r.value,
+        isCustom: false,
+        count,
+      });
+    });
+
+    // Custom roles directly merged into the SAME grid
+    customRoles.forEach((cr) => {
+      const count = staff.filter(
+        (s) =>
+          s.customRoleId === cr.id ||
+          s.role.toLowerCase() === cr.name.toLowerCase()
+      ).length;
+      list.push({
+        key: cr.id,
+        label: cr.name,
+        urdu: cr.urduName && cr.urduName.trim() ? cr.urduName : 'کسٹم رول',
+        desc: cr.description || `Staff role on ${cr.baseRole}`,
+        icon: (cr.icon || 'person-outline') as any,
+        badgeColor: cr.badgeColor,
+        isCustom: true,
+        customRole: cr,
+        count,
+      });
+    });
+
+    return list;
+  }, [staff, customRoles]);
+
   const isWaiterApp = (Platform.OS !== 'web' || params.role === 'waiter') && params.all !== 'true';
+
+  const { width: screenWidth } = useWindowDimensions();
+  // Keep strictly 2 rows: 3 per row for <=6 roles, 4 per row for 7-8 roles
+  const isDesktopOrTablet = screenWidth >= 640;
+  const targetCols = displayRoles.length <= 6 ? 3 : displayRoles.length <= 8 ? 4 : 5;
+  const cardWidth = !isDesktopOrTablet
+    ? '48%'
+    : targetCols === 5
+    ? '18.8%'
+    : targetCols === 4
+    ? '23.5%'
+    : '31.8%';
 
   const defaultWaiter = isWaiterApp
     ? staff.find((s) => s.role.toLowerCase() === 'waiter' && s.status === 'Active')
@@ -51,6 +125,29 @@ export default function LoginScreen() {
   const [pin, setPin] = useState(defaultWaiter?.pin || '');
   const [errorMessage, setErrorMessage] = useState('');
   const [showPin, setShowPin] = useState(false);
+
+  // Live Clock & Date for header widget
+  const [currentTime, setCurrentTime] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const now = currentTime;
+  let h = now.getHours();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12;
+  h = h ? h : 12;
+  const hoursStr = String(h).padStart(2, '0');
+  const minutesStr = String(now.getMinutes()).padStart(2, '0');
+  const secondsStr = String(now.getSeconds()).padStart(2, '0');
+
+  const dayName = now.toLocaleDateString('en-US', { weekday: 'short' });
+  const dateFormatted = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const urduDays = ['اتوار', 'پیر', 'منگل', 'بدھ', 'جمعرات', 'جمعہ', 'ہفتہ'];
+  const urduDay = urduDays[now.getDay()];
 
   // Already signed in? Go straight to role's home.
   useEffect(() => {
@@ -173,18 +270,76 @@ export default function LoginScreen() {
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
-            {/* Header with HD Logo */}
-            <View style={styles.header}>
-              <View style={styles.logoBadgeOuter}>
-                <SultanLogo size="xl" width={130} height={130} />
+            <View style={[styles.mainLoginCard, isWaiterApp && styles.mainLoginCardWaiter]}>
+              {/* Back to Welcome Screen */}
+              <TouchableOpacity
+                style={styles.backToWelcomeBtn}
+                onPress={() => router.replace('/' as any)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="arrow-back" size={16} color="#D5A943" style={{ marginRight: 6 }} />
+                <Text style={styles.backToWelcomeText}>Welcome Screen / خوش آمدید</Text>
+              </TouchableOpacity>
+
+              {/* Header with HD Logo on Left, Details, and Live Clock on Right */}
+              <View style={styles.header}>
+                <View style={styles.headerLeft}>
+                  <View style={styles.logoBadgeOuter}>
+                    <SultanLogo size="md" width={isDesktopOrTablet ? 116 : 86} height={isDesktopOrTablet ? 98 : 74} style={styles.logoDropShadow} />
+                  </View>
+                  <View style={styles.headerDetails}>
+                    <Text style={styles.title}>
+                      {isWaiterApp ? 'Sultan Order Taker Terminal' : 'SULTAN STAFF PORTAL'}
+                    </Text>
+                    <Text style={styles.urduSubtitle}>
+                      {isWaiterApp ? 'آرڈر ٹیکر ٹرمینل • فلور ٹیبلز اور لائیو پنچ' : 'سلطان ریسٹورنٹ سٹاف پورٹل • لاگ ان ٹرمینل منتخب کریں'}
+                    </Text>
+                    <Text style={styles.subtitle}>
+                      {isWaiterApp ? 'Floor Tables & Live Order Punch' : 'Select your operational terminal to sign in'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Luxury Royal Timepiece Widget on Right */}
+                {isDesktopOrTablet && (
+                  <View style={styles.clockCard}>
+                    {/* Time Cluster with Digital Digit Boxes */}
+                    <View style={styles.timeCluster}>
+                      <View style={styles.timeDigitBox}>
+                        <Text style={styles.timeDigitText}>{hoursStr}</Text>
+                      </View>
+                      <Text style={styles.timeColon}>:</Text>
+                      <View style={styles.timeDigitBox}>
+                        <Text style={styles.timeDigitText}>{minutesStr}</Text>
+                      </View>
+                      <View style={styles.timeSecCol}>
+                        <View style={styles.timeAmPmBadge}>
+                          <Text style={styles.timeAmPmText}>{ampm}</Text>
+                        </View>
+                        <Text style={styles.timeSecText}>:{secondsStr}</Text>
+                      </View>
+                    </View>
+
+                    {/* Golden Vertical Divider */}
+                    <View style={styles.clockDivider} />
+
+                    {/* Date & Terminal Info Column */}
+                    <View style={styles.clockDateCol}>
+                      <View style={styles.clockTopStatusRow}>
+                        <View style={styles.clockLiveDot} />
+                        <Text style={styles.clockStatusText}>SULTAN TIME • {urduDay}</Text>
+                      </View>
+                      <View style={styles.clockDateRow}>
+                        <Ionicons name="calendar-outline" size={13} color="#D5A943" style={{ marginRight: 5 }} />
+                        <Text style={styles.clockDate}>{dayName}, {dateFormatted}</Text>
+                      </View>
+                      <View style={styles.clockShiftPill}>
+                        <Text style={styles.clockShiftText}>🟢 POS & Kitchen Active</Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
               </View>
-              <Text style={styles.title}>
-                {isWaiterApp ? 'Sultan Order Taker Terminal' : 'Sultan Staff Portal'}
-              </Text>
-              <Text style={styles.subtitle}>
-                {isWaiterApp ? 'Floor Tables & Live Order Punch' : 'Select your operational role to sign in'}
-              </Text>
-            </View>
 
             {isWaiterApp ? (
               <View style={styles.modalCard}>
@@ -315,121 +470,83 @@ export default function LoginScreen() {
                 )}
               </View>
             ) : (
-              <>
-                {/* Role Cards Grid */}
-                <View style={styles.rolesGrid}>
-                  {roles.map((r) => {
-                    const count = staff.filter(
-                      (s) => s.role.toLowerCase() === r.value?.toLowerCase()
-                    ).length;
+              // Unified Role Cards Grid (Standard & Custom Roles all in the same 2 rows!)
+              <View style={styles.rolesGrid}>
+                  {displayRoles.map((item) => {
                     return (
                       <TouchableOpacity
-                        key={r.value}
-                        style={styles.roleCard}
-                        onPress={() => handleRoleSelect(r.value)}
+                        key={item.key}
+                        style={[
+                          styles.roleCard,
+                          { width: cardWidth },
+                          item.isCustom && { borderColor: (item.badgeColor || '#D5A943') + '65' },
+                        ]}
+                        onPress={() => {
+                          if (item.isCustom && item.customRole) {
+                            handleCustomRoleSelect(item.customRole);
+                          } else if (item.value) {
+                            handleRoleSelect(item.value);
+                          }
+                        }}
                         activeOpacity={0.82}
                       >
-                        <View style={styles.roleIconCircle}>
+                        <View
+                          style={[
+                            styles.roleIconCircle,
+                            item.isCustom && {
+                              backgroundColor: (item.badgeColor || '#D5A943') + '20',
+                              borderColor: item.badgeColor || '#D5A943',
+                            },
+                          ]}
+                        >
                           <Ionicons
-                            name={r.icon}
-                            size={26}
-                            color="#D5A943"
+                            name={item.icon}
+                            size={20}
+                            color={item.isCustom ? item.badgeColor || '#D5A943' : '#D5A943'}
                           />
                         </View>
-                        <Text style={styles.roleText}>
-                          {r.label}
+                        <Text style={styles.roleText} numberOfLines={1}>
+                          {item.label}
                         </Text>
-                        <Text style={styles.roleDesc}>
-                          {r.desc}
+                        <Text
+                          style={[
+                            styles.roleUrduText,
+                            item.isCustom && { color: item.badgeColor || '#D5A943' },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {item.urdu}
                         </Text>
-                        <View style={styles.staffCountBadge}>
-                          <Text style={styles.staffCountText}>
-                            {count} Staff Active
+                        <Text style={styles.roleDesc} numberOfLines={1}>
+                          {item.desc}
+                        </Text>
+                        <View
+                          style={[
+                            styles.staffCountBadge,
+                            item.isCustom && { borderColor: (item.badgeColor || '#D5A943') + '40' },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.onlineDot,
+                              item.isCustom && { backgroundColor: item.badgeColor || '#10B981' },
+                            ]}
+                          />
+                          <Text
+                            style={[
+                              styles.staffCountText,
+                              item.isCustom && { color: item.badgeColor || '#D5A943' },
+                            ]}
+                          >
+                            {item.count} Active
                           </Text>
                         </View>
                       </TouchableOpacity>
                     );
                   })}
                 </View>
-
-                {/* Custom Roles Section if created */}
-                {customRoles.length > 0 && (
-                  <View style={{ marginTop: 20, width: '100%' }}>
-                    <View style={styles.customRolesHeader}>
-                      <Ionicons name="shield-outline" size={15} color="#D5A943" />
-                      <Text style={styles.customRolesSectionTitle}>
-                        Custom Staff Roles ({customRoles.length})
-                      </Text>
-                    </View>
-                    <View style={styles.rolesGrid}>
-                      {customRoles.map((cr) => {
-                        const count = staff.filter(
-                          (s) =>
-                            s.customRoleId === cr.id ||
-                            s.role.toLowerCase() === cr.name.toLowerCase()
-                        ).length;
-                        return (
-                          <TouchableOpacity
-                            key={cr.id}
-                            style={[styles.roleCard, { borderColor: cr.badgeColor + '50' }]}
-                            onPress={() => handleCustomRoleSelect(cr)}
-                            activeOpacity={0.82}
-                          >
-                            <View
-                              style={[
-                                styles.roleIconCircle,
-                                { backgroundColor: cr.badgeColor + '20' },
-                              ]}
-                            >
-                              <Ionicons
-                                name={(cr.icon || 'person-outline') as any}
-                                size={26}
-                                color={cr.badgeColor}
-                              />
-                            </View>
-                            <Text style={styles.roleText}>{cr.name}</Text>
-                            {Boolean(cr.urduName && cr.urduName.trim()) && (
-                              <Text
-                                style={{
-                                  fontSize: 11,
-                                  color: '#D5A943',
-                                  marginTop: 1,
-                                  fontWeight: '600',
-                                }}
-                              >
-                                {cr.urduName}
-                              </Text>
-                            )}
-                            <Text style={styles.roleDesc} numberOfLines={2}>
-                              {cr.description || `Staff role on ${cr.baseRole} portal.`}
-                            </Text>
-                            <View
-                              style={[
-                                styles.staffCountBadge,
-                                { borderColor: cr.badgeColor + '40' },
-                              ]}
-                            >
-                              <Text style={[styles.staffCountText, { color: cr.badgeColor }]}>
-                                {count} Staff Active
-                              </Text>
-                            </View>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </View>
-                )}
-
-                {/* Back Button */}
-                <TouchableOpacity
-                  style={styles.backButton}
-                  onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-                >
-                  <Ionicons name="arrow-back" size={16} color="#D5A943" style={{ marginRight: 6 }} />
-                  <Text style={styles.backButtonText}>Back to Welcome Screen</Text>
-                </TouchableOpacity>
-              </>
             )}
+            </View>
           </View>
         </ScrollView>
 
@@ -610,96 +727,328 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingVertical: 24,
+    paddingVertical: 12,
   },
   content: {
-    paddingHorizontal: 20,
-    maxWidth: 580,
-    width: '100%',
+    paddingHorizontal: 16,
+    maxWidth: 1420,
+    width: '96%',
     alignSelf: 'center',
   },
-  header: {
+  mainLoginCard: {
+    backgroundColor: 'rgba(38, 8, 13, 0.85)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(212, 175, 55, 0.35)',
+    borderRadius: 22,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    width: '100%',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        boxShadow: '0 16px 50px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+      } as any,
+    }),
+  },
+  mainLoginCardWaiter: {
+    maxWidth: 540,
+    alignSelf: 'center',
+  },
+  backToWelcomeBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(213, 169, 67, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(213, 169, 67, 0.35)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
+    marginBottom: 8,
+    ...Platform.select({
+      web: { cursor: 'pointer' } as any
+    }),
+  },
+  backToWelcomeText: {
+    color: '#D5A943',
+    fontSize: 11.5,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    gap: 16,
+    paddingHorizontal: 4,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    flex: 1,
   },
   logoBadgeOuter: {
-    padding: 8,
-    borderRadius: 28,
-    backgroundColor: 'rgba(213, 169, 67, 0.12)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(213, 169, 67, 0.35)',
-    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  logoDropShadow: {
+    ...Platform.select({
+      web: {
+        filter: 'drop-shadow(0px 6px 18px rgba(213, 169, 67, 0.45))',
+      } as any,
+    }),
+  },
+  headerDetails: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
   },
   title: {
-    fontSize: 26,
-    fontWeight: '800',
+    fontSize: 24,
+    fontWeight: '900',
     color: '#ffffff',
-    textAlign: 'center',
-    marginBottom: 4,
-    letterSpacing: 0.5,
+    textAlign: 'left',
+    marginBottom: 2,
+    letterSpacing: 0.6,
+  },
+  urduSubtitle: {
+    fontSize: 13,
+    color: '#D5A943',
+    fontWeight: '700',
+    textAlign: 'left',
+    marginBottom: 3,
+    letterSpacing: 0.4,
   },
   subtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-    textAlign: 'center',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.75)',
+    textAlign: 'left',
+  },
+  clockCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(20, 4, 7, 0.92)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(213, 169, 67, 0.45)',
+    borderRadius: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    gap: 12,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 225, 130, 0.22)',
+      } as any,
+    }),
+  },
+  timeCluster: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  timeDigitBox: {
+    backgroundColor: 'rgba(0, 0, 0, 0.60)',
+    borderWidth: 1,
+    borderColor: 'rgba(213, 169, 67, 0.42)',
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    minWidth: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timeDigitText: {
+    fontSize: 23,
+    fontWeight: '900',
+    color: '#FFF3CA',
+    letterSpacing: 0.5,
+    ...Platform.select({
+      web: {
+        fontVariantNumeric: 'tabular-nums',
+      } as any,
+    }),
+  },
+  timeColon: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#D5A943',
+    marginHorizontal: 3,
+  },
+  timeSecCol: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 6,
+  },
+  timeAmPmBadge: {
+    backgroundColor: 'rgba(213, 169, 67, 0.22)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    borderWidth: 0.5,
+    borderColor: 'rgba(213, 169, 67, 0.5)',
+    marginBottom: 2,
+  },
+  timeAmPmText: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    color: '#D5A943',
+    letterSpacing: 0.6,
+  },
+  timeSecText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: 'rgba(255, 255, 255, 0.85)',
+    ...Platform.select({
+      web: {
+        fontVariantNumeric: 'tabular-nums',
+      } as any,
+    }),
+  },
+  clockDivider: {
+    width: 1,
+    height: 48,
+    backgroundColor: 'rgba(213, 169, 67, 0.28)',
+  },
+  clockDateCol: {
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  clockTopStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  clockLiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+    marginRight: 5,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 0 8px #10B981',
+      } as any,
+    }),
+  },
+  clockStatusText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#D5A943',
+    letterSpacing: 0.8,
+  },
+  clockDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 3,
+  },
+  clockDate: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  clockShiftPill: {
+    backgroundColor: 'rgba(16, 185, 129, 0.14)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  clockShiftText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#6EE7B7',
+    letterSpacing: 0.3,
   },
   rolesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 4,
+    width: '100%',
   },
   roleCard: {
-    width: '48%',
-    backgroundColor: 'rgba(30, 7, 9, 0.85)',
-    paddingVertical: 18,
-    paddingHorizontal: 14,
-    borderRadius: 16,
+    backgroundColor: 'rgba(25, 5, 8, 0.90)',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: 'rgba(213, 169, 67, 0.3)',
+    borderColor: 'rgba(213, 169, 67, 0.28)',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 4,
+    justifyContent: 'center',
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+        transition: 'all 0.16s ease-in-out',
+        boxShadow: '0 3px 12px rgba(0, 0, 0, 0.25)',
+      } as any,
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 3,
+      },
+    }),
   },
   roleIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(213, 169, 67, 0.18)',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(213, 169, 67, 0.14)',
     borderWidth: 1.2,
     borderColor: '#D5A943',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 6,
   },
   roleText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 14.5,
+    fontWeight: '800',
     color: '#ffffff',
-    marginBottom: 2,
+    textAlign: 'center',
+    letterSpacing: 0.3,
   },
-  roleDesc: {
+  roleUrduText: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.65)',
+    fontWeight: '700',
+    color: '#D5A943',
+    marginTop: 1,
+    marginBottom: 2,
     textAlign: 'center',
   },
+  roleDesc: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.65)',
+    textAlign: 'center',
+    lineHeight: 13,
+  },
   staffCountBadge: {
-    marginTop: 10,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: 'rgba(213, 169, 67, 0.15)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 7,
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 10,
+    backgroundColor: 'rgba(213, 169, 67, 0.12)',
     borderWidth: 1,
     borderColor: 'rgba(213, 169, 67, 0.25)',
+    gap: 4,
+  },
+  onlineDot: {
+    width: 5.5,
+    height: 5.5,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
   },
   staffCountText: {
-    fontSize: 10,
+    fontSize: 9.5,
     color: '#D5A943',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   backButton: {
     marginTop: 14,

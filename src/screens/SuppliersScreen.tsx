@@ -23,6 +23,7 @@ import {
   PurchaseOrderItem,
   SupplierPayment,
 } from '../store/opsStore';
+import RoyalDropdown from '../components/RoyalDropdown';
 
 const BRAND = {
   burgundy: '#52171B',
@@ -996,48 +997,30 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
               </View>
             </View>
 
-            {/* Category Filter Pills */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-              <TouchableOpacity
-                style={[styles.categoryPill, selectedCategory === 'All' && styles.categoryPillActive]}
-                onPress={() => setSelectedCategory('All')}
-              >
-                <Text
-                  style={[
-                    styles.categoryPillText,
-                    selectedCategory === 'All' && styles.categoryPillTextActive,
-                  ]}
-                >
-                  All Categories
-                </Text>
-              </TouchableOpacity>
-              {SUPPLIER_CATEGORIES.map((cat) => {
-                const isSelected = selectedCategory === cat;
-                const meta = CATEGORY_COLORS[cat] || CATEGORY_COLORS.Other;
-                return (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[styles.categoryPill, isSelected && styles.categoryPillActive]}
-                    onPress={() => setSelectedCategory(cat)}
-                  >
-                    <Ionicons
-                      name={meta.icon}
-                      size={14}
-                      color={isSelected ? '#FFFFFF' : meta.text}
-                      style={{ marginRight: 6 }}
-                    />
-                    <Text
-                      style={[
-                        styles.categoryPillText,
-                        isSelected && styles.categoryPillTextActive,
-                      ]}
-                    >
-                      {cat}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+            {/* Category Filter Dropdown */}
+            <View style={{ marginBottom: 14 }}>
+              <RoyalDropdown
+                label="Filter by Supplier Category"
+                placeholder="All Categories"
+                options={[
+                  { label: `All Categories (${suppliers.length})`, value: 'All', badge: `${suppliers.length}` },
+                  ...SUPPLIER_CATEGORIES.map((cat) => {
+                    const count = suppliers.filter((s) => s.category === cat).length;
+                    const meta = CATEGORY_COLORS[cat] || CATEGORY_COLORS.Other;
+                    return {
+                      label: cat,
+                      value: cat,
+                      icon: meta.icon,
+                      badge: `${count}`,
+                    };
+                  }),
+                ]}
+                value={selectedCategory}
+                onSelect={(cat) => setSelectedCategory(cat)}
+                icon="grid-outline"
+                searchable
+              />
+            </View>
 
             {/* Supplier Cards Grid */}
             <View style={styles.suppliersGrid}>
@@ -1496,43 +1479,28 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
               </View>
             </View>
 
-            {/* Vendor Filter Pills */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-              <TouchableOpacity
-                style={[styles.categoryPill, paymentSupplierFilter === 'all' && styles.categoryPillActive]}
-                onPress={() => setPaymentSupplierFilter('all')}
-              >
-                <Text
-                  style={[
-                    styles.categoryPillText,
-                    paymentSupplierFilter === 'all' && styles.categoryPillTextActive,
-                  ]}
-                >
-                  All Vendors ({supplierPayments.length})
-                </Text>
-              </TouchableOpacity>
-              {suppliers.map((s) => {
-                const count = supplierPayments.filter((p) => p.supplierId === s.id).length;
-                if (count === 0) return null;
-                const isSelected = paymentSupplierFilter === s.id;
-                return (
-                  <TouchableOpacity
-                    key={s.id}
-                    style={[styles.categoryPill, isSelected && styles.categoryPillActive]}
-                    onPress={() => setPaymentSupplierFilter(s.id)}
-                  >
-                    <Text
-                      style={[
-                        styles.categoryPillText,
-                        isSelected && styles.categoryPillTextActive,
-                      ]}
-                    >
-                      {s.name} ({count})
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+            {/* Vendor Filter Dropdown */}
+            <View style={{ marginBottom: 14 }}>
+              <RoyalDropdown
+                label="Filter by Vendor"
+                placeholder="All Vendors"
+                options={[
+                  { label: `All Vendors (${supplierPayments.length})`, value: 'all', badge: `${supplierPayments.length}` },
+                  ...suppliers
+                    .filter((s) => supplierPayments.some((p) => p.supplierId === s.id))
+                    .map((s) => ({
+                      label: s.name,
+                      value: s.id,
+                      badge: `${supplierPayments.filter((p) => p.supplierId === s.id).length}`,
+                      sublabel: s.category,
+                    })),
+                ]}
+                value={paymentSupplierFilter}
+                onSelect={(val) => setPaymentSupplierFilter(val)}
+                icon="business-outline"
+                searchable
+              />
+            </View>
 
             {/* Payments List */}
             {filteredPayments.length === 0 ? (
@@ -1765,30 +1733,21 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
                 </View>
 
                 <View style={styles.formCol}>
-                  <Text style={styles.inputLabel}>Category *</Text>
-                  <View style={styles.pickerWrapper}>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                      {SUPPLIER_CATEGORIES.map((cat) => (
-                        <TouchableOpacity
-                          key={cat}
-                          style={[
-                            styles.catChoicePill,
-                            supplierForm.category === cat && styles.catChoicePillActive,
-                          ]}
-                          onPress={() => setSupplierForm({ ...supplierForm, category: cat })}
-                        >
-                          <Text
-                            style={[
-                              styles.catChoicePillText,
-                              supplierForm.category === cat && styles.catChoicePillTextActive,
-                            ]}
-                          >
-                            {cat}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
+                  <RoyalDropdown
+                    label="Category *"
+                    placeholder="Select category..."
+                    options={SUPPLIER_CATEGORIES.map((cat) => {
+                      const meta = CATEGORY_COLORS[cat] || CATEGORY_COLORS.Other;
+                      return {
+                        label: cat,
+                        value: cat,
+                        icon: meta.icon,
+                      };
+                    })}
+                    value={supplierForm.category}
+                    onSelect={(cat) => setSupplierForm({ ...supplierForm, category: cat })}
+                    searchable
+                  />
                 </View>
               </View>
 
@@ -1967,34 +1926,27 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
             </View>
 
             <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
-              {/* Supplier Selection */}
-              <View style={styles.formRow}>
+              {/* Supplier Selection Dropdown */}
+              <View style={[styles.formRow, { marginBottom: 12 }]}>
                 <View style={styles.formCol}>
-                  <Text style={styles.inputLabel}>Select Supplier *</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row', gap: 6 }}>
-                    {suppliers.map((s) => (
-                      <TouchableOpacity
-                        key={s.id}
-                        style={[
-                          styles.supChoicePill,
-                          poForm.supplierId === s.id && styles.supChoicePillActive,
-                        ]}
-                        onPress={() => {
-                          setPOForm({ ...poForm, supplierId: s.id });
-                          setSelectedSupplierForPO(s);
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.supChoicePillText,
-                            poForm.supplierId === s.id && styles.supChoicePillTextActive,
-                          ]}
-                        >
-                          {s.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                  <RoyalDropdown
+                    label="Select Supplier *"
+                    placeholder="Choose registered supplier..."
+                    options={suppliers.map((s) => ({
+                      label: s.name,
+                      value: s.id,
+                      badge: s.category,
+                      sublabel: `Bal: Rs. ${(s.currentBalance || 0).toLocaleString()} • ${s.phone}`,
+                    }))}
+                    value={poForm.supplierId}
+                    onSelect={(val) => {
+                      setPOForm({ ...poForm, supplierId: val });
+                      const found = suppliers.find((s) => s.id === val);
+                      if (found) setSelectedSupplierForPO(found);
+                    }}
+                    icon="business-outline"
+                    searchable
+                  />
                 </View>
               </View>
 
@@ -2273,52 +2225,42 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
 
                     {/* PO Specific Allocation (Optional) */}
                     {pendingPOs.length > 0 && (
-                      <View style={styles.formGroup}>
-                        <Text style={styles.inputLabel}>Allocate Against Specific Invoice / PO (Optional)</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
-                          <TouchableOpacity
-                            style={[
-                              styles.poAllocPill,
-                              !paymentForm.purchaseOrderId && styles.poAllocPillActive,
-                            ]}
-                            onPress={() => setPaymentForm((prev) => ({ ...prev, purchaseOrderId: '' }))}
-                          >
-                            <Text
-                              style={[
-                                styles.poAllocPillText,
-                                !paymentForm.purchaseOrderId && styles.poAllocPillTextActive,
-                              ]}
-                            >
-                              General Account Settlement
-                            </Text>
-                          </TouchableOpacity>
-                          {pendingPOs.map((po) => {
-                            const isSelected = paymentForm.purchaseOrderId === po.id;
-                            return (
-                              <TouchableOpacity
-                                key={po.id}
-                                style={[styles.poAllocPill, isSelected && styles.poAllocPillActive]}
-                                onPress={() => {
-                                  setPaymentForm((prev) => ({
-                                    ...prev,
-                                    purchaseOrderId: po.id,
-                                    amount: String(po.balanceDue),
-                                    notes: `Settlement for PO #${po.poNumber}${po.invoiceNo ? ` (Bill #${po.invoiceNo})` : ''}`,
-                                  }));
-                                }}
-                              >
-                                <Text
-                                  style={[
-                                    styles.poAllocPillText,
-                                    isSelected && styles.poAllocPillTextActive,
-                                  ]}
-                                >
-                                  {po.poNumber}: Due Rs. {po.balanceDue.toLocaleString()}
-                                </Text>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </ScrollView>
+                      <View style={[styles.formGroup, { marginBottom: 12 }]}>
+                        <RoyalDropdown
+                          label="Allocate Against Specific Invoice / PO (Optional)"
+                          placeholder="General Account Settlement"
+                          options={[
+                            {
+                              label: 'General Account Settlement (All Pending)',
+                              value: '',
+                              sublabel: 'Apply directly to vendor ledger balance',
+                            },
+                            ...pendingPOs.map((po) => ({
+                              label: `${po.poNumber}: Due Rs. ${po.balanceDue.toLocaleString()}`,
+                              value: po.id,
+                              badge: `Due: Rs. ${po.balanceDue.toLocaleString()}`,
+                              sublabel: po.invoiceNo ? `Vendor Bill #${po.invoiceNo}` : undefined,
+                            })),
+                          ]}
+                          value={paymentForm.purchaseOrderId || ''}
+                          onSelect={(val) => {
+                            if (!val) {
+                              setPaymentForm((prev) => ({ ...prev, purchaseOrderId: '' }));
+                            } else {
+                              const po = pendingPOs.find((p) => p.id === val);
+                              if (po) {
+                                setPaymentForm((prev) => ({
+                                  ...prev,
+                                  purchaseOrderId: po.id,
+                                  amount: String(po.balanceDue),
+                                  notes: `Settlement for PO #${po.poNumber}${po.invoiceNo ? ` (Bill #${po.invoiceNo})` : ''}`,
+                                }));
+                              }
+                            }
+                          }}
+                          icon="receipt-outline"
+                          searchable
+                        />
                       </View>
                     )}
                   </View>

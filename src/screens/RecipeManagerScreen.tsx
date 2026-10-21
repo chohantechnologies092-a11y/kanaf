@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import KitchenOpsNav from '../components/KitchenOpsNav';
+import RoyalDropdown from '../components/RoyalDropdown';
 import { useOpsStore } from '../store/opsStore';
 import { useRestaurantStore } from '../store/restaurantStore';
 import { useKitchenStore } from '../store/kitchenStore';
@@ -546,32 +547,24 @@ export default function RecipeManagerScreen({ backRoute = '/admin/dashboard' }: 
                   </View>
                 </View>
 
-                {/* Variant Selector Tabs if dish has sizes/variants */}
+                {/* Variant Selector Dropdown if dish has sizes/variants */}
                 {activeDish.variants && activeDish.variants.length > 0 && (
-                  <View style={styles.variantBar}>
-                    <Text style={styles.variantBarLabel}>Select Size / Variant:</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                      {activeDish.variants.map((v) => {
-                        const isVActive = currentVariantName === v.name;
+                  <View style={{ marginVertical: 10 }}>
+                    <RoyalDropdown
+                      label="Select Size / Variant:"
+                      options={activeDish.variants.map((v) => {
                         const vRecipe = findRecipe(recipes, activeDish.id, v.name);
-                        return (
-                          <TouchableOpacity
-                            key={v.name}
-                            style={[styles.variantTab, isVActive && styles.variantTabActive]}
-                            onPress={() => setSelectedVariant(v.name)}
-                          >
-                            <Text style={[styles.variantTabText, isVActive && styles.variantTabTextActive]}>
-                              {v.name} ({money(v.price)})
-                            </Text>
-                            {vRecipe ? (
-                              <Ionicons name="checkmark-circle" size={12} color={isVActive ? BRAND.gold : BRAND.success} />
-                            ) : (
-                              <Ionicons name="ellipse-outline" size={10} color={BRAND.muted} />
-                            )}
-                          </TouchableOpacity>
-                        );
+                        return {
+                          label: `${v.name} (${money(v.price)})`,
+                          value: v.name,
+                          badge: vRecipe ? 'BOM Ready' : 'No BOM',
+                          sublabel: vRecipe ? 'Recipe defined' : 'Missing Recipe BOM',
+                        };
                       })}
-                    </ScrollView>
+                      value={currentVariantName || activeDish.variants[0]?.name || ''}
+                      onSelect={(val) => setSelectedVariant(val)}
+                      icon="layers-outline"
+                    />
                   </View>
                 )}
 

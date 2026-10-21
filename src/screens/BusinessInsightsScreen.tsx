@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -92,6 +93,7 @@ export default function BusinessInsightsScreen({ backRoute = '/admin/dashboard' 
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backBtn}
+          {...(Platform.OS === 'web' ? ({ className: 'interactive-btn' } as any) : {})}
           onPress={() => (router.canGoBack() ? router.back() : router.replace(backRoute as any))}
         >
           <Ionicons name="arrow-back" size={20} color={BRAND.ink} />
@@ -107,6 +109,7 @@ export default function BusinessInsightsScreen({ backRoute = '/admin/dashboard' 
         <View style={styles.periodPills}>
           <TouchableOpacity
             style={[styles.periodPill, period === 'today' && styles.periodPillActive]}
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-btn' } as any) : {})}
             onPress={() => setPeriod('today')}
           >
             <Text style={[styles.periodPillText, period === 'today' && styles.periodPillTextActive]}>
@@ -115,6 +118,7 @@ export default function BusinessInsightsScreen({ backRoute = '/admin/dashboard' 
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.periodPill, period === 'week' && styles.periodPillActive]}
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-btn' } as any) : {})}
             onPress={() => setPeriod('week')}
           >
             <Text style={[styles.periodPillText, period === 'week' && styles.periodPillTextActive]}>
@@ -123,6 +127,7 @@ export default function BusinessInsightsScreen({ backRoute = '/admin/dashboard' 
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.periodPill, period === 'all' && styles.periodPillActive]}
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-btn' } as any) : {})}
             onPress={() => setPeriod('all')}
           >
             <Text style={[styles.periodPillText, period === 'all' && styles.periodPillTextActive]}>
@@ -134,27 +139,66 @@ export default function BusinessInsightsScreen({ backRoute = '/admin/dashboard' 
 
       {/* KPI Cards */}
       <View style={styles.kpiRow}>
-        <View style={styles.kpiCard}>
-          <Text style={styles.kpiLabel}>Total Period Sales</Text>
-          <Text style={[styles.kpiVal, { color: BRAND.burgundy }]}>{money(totalSales)}</Text>
-          <Text style={styles.kpiMeta}>{totalBills} Invoices Closed</Text>
+        <View
+          {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
+          style={[
+            styles.kpiCard,
+            {
+              backgroundColor: 'rgba(254, 243, 199, 0.95)',
+              borderColor: 'rgba(212, 175, 55, 0.45)',
+            },
+          ]}
+        >
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <Text style={[styles.kpiLabel, { color: '#B45309' }]}>Total Period Sales</Text>
+            <Ionicons name="cash" size={16} color="#B45309" />
+          </View>
+          <Text style={[styles.kpiVal, { color: '#52141C' }]}>{money(totalSales)}</Text>
+          <Text style={[styles.kpiMeta, { color: '#78350F' }]}>{totalBills} Invoices Closed</Text>
         </View>
-        <View style={styles.kpiCard}>
-          <Text style={styles.kpiLabel}>Average Ticket Size</Text>
-          <Text style={styles.kpiVal}>{money(avgTicket)}</Text>
-          <Text style={styles.kpiMeta}>Spend per Table/Order</Text>
+        <View
+          {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
+          style={[
+            styles.kpiCard,
+            {
+              backgroundColor: 'rgba(240, 249, 255, 0.95)',
+              borderColor: 'rgba(2, 132, 199, 0.35)',
+            },
+          ]}
+        >
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <Text style={[styles.kpiLabel, { color: '#0369A1' }]}>Average Ticket Size</Text>
+            <Ionicons name="receipt-outline" size={16} color="#0284C7" />
+          </View>
+          <Text style={[styles.kpiVal, { color: '#0369A1' }]}>{money(avgTicket)}</Text>
+          <Text style={[styles.kpiMeta, { color: '#075985' }]}>Spend per Table/Order</Text>
         </View>
-        <View style={styles.kpiCard}>
-          <Text style={styles.kpiLabel}>Dine-In Revenue Share</Text>
-          <Text style={[styles.kpiVal, { color: BRAND.success }]}>
+        <View
+          {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
+          style={[
+            styles.kpiCard,
+            {
+              backgroundColor: 'rgba(236, 253, 245, 0.95)',
+              borderColor: 'rgba(16, 185, 129, 0.35)',
+            },
+          ]}
+        >
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <Text style={[styles.kpiLabel, { color: '#047857' }]}>Dine-In Revenue Share</Text>
+            <Ionicons name="restaurant-outline" size={16} color="#059669" />
+          </View>
+          <Text style={[styles.kpiVal, { color: '#047857' }]}>
             {percent(dineInSales, totalSales)}%
           </Text>
-          <Text style={styles.kpiMeta}>{money(dineInSales)} in Halls</Text>
+          <Text style={[styles.kpiMeta, { color: '#065F46' }]}>{money(dineInSales)} in Halls</Text>
         </View>
       </View>
 
       {/* 5 Floors Revenue Contribution */}
-      <View style={styles.card}>
+      <View
+        {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
+        style={styles.card}
+      >
         <Text style={styles.cardTitle}>Floor-wise Dine-In Revenue Breakdown</Text>
         <Text style={styles.cardSubtitle}>
           {"Sales performance distributed across Sultan's 5 dining levels:"}
@@ -182,34 +226,67 @@ export default function BusinessInsightsScreen({ backRoute = '/admin/dashboard' 
       </View>
 
       {/* Channel Breakdown (Dine-In vs Takeaway vs Delivery) */}
-      <View style={styles.card}>
+      <View
+        {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
+        style={styles.card}
+      >
         <Text style={styles.cardTitle}>Order Channels (Revenue & Volume)</Text>
         <View style={styles.channelRow}>
-          <View style={styles.channelCol}>
-            <View style={[styles.channelIcon, { backgroundColor: '#E8F5E9' }]}>
-              <Ionicons name="restaurant" size={20} color="#2E7D32" />
+          <View
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
+            style={[
+              styles.channelCol,
+              {
+                backgroundColor: 'rgba(236, 253, 245, 0.9)',
+                borderWidth: 1,
+                borderColor: 'rgba(16, 185, 129, 0.3)',
+              },
+            ]}
+          >
+            <View style={[styles.channelIcon, { backgroundColor: '#D1FAE5' }]}>
+              <Ionicons name="restaurant" size={20} color="#059669" />
             </View>
             <Text style={styles.channelName}>Dine-In</Text>
-            <Text style={styles.channelAmount}>{money(dineInSales)}</Text>
-            <Text style={styles.channelMeta}>{dineInInvoices.length} Orders</Text>
+            <Text style={[styles.channelAmount, { color: '#047857' }]}>{money(dineInSales)}</Text>
+            <Text style={[styles.channelMeta, { color: '#065F46' }]}>{dineInInvoices.length} Orders</Text>
           </View>
 
-          <View style={styles.channelCol}>
-            <View style={[styles.channelIcon, { backgroundColor: '#FFF3E0' }]}>
-              <Ionicons name="bag-handle" size={20} color="#E65100" />
+          <View
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
+            style={[
+              styles.channelCol,
+              {
+                backgroundColor: 'rgba(254, 243, 199, 0.9)',
+                borderWidth: 1,
+                borderColor: 'rgba(245, 158, 11, 0.3)',
+              },
+            ]}
+          >
+            <View style={[styles.channelIcon, { backgroundColor: '#FDE68A' }]}>
+              <Ionicons name="bag-handle" size={20} color="#D97706" />
             </View>
             <Text style={styles.channelName}>Takeaway</Text>
-            <Text style={styles.channelAmount}>{money(takeawaySales)}</Text>
-            <Text style={styles.channelMeta}>{takeawayInvoices.length} Orders</Text>
+            <Text style={[styles.channelAmount, { color: '#B45309' }]}>{money(takeawaySales)}</Text>
+            <Text style={[styles.channelMeta, { color: '#92400E' }]}>{takeawayInvoices.length} Orders</Text>
           </View>
 
-          <View style={styles.channelCol}>
-            <View style={[styles.channelIcon, { backgroundColor: '#E3F2FD' }]}>
-              <Ionicons name="bicycle" size={20} color="#1565C0" />
+          <View
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
+            style={[
+              styles.channelCol,
+              {
+                backgroundColor: 'rgba(240, 249, 255, 0.9)',
+                borderWidth: 1,
+                borderColor: 'rgba(2, 132, 199, 0.3)',
+              },
+            ]}
+          >
+            <View style={[styles.channelIcon, { backgroundColor: '#E0F2FE' }]}>
+              <Ionicons name="bicycle" size={20} color="#0284C7" />
             </View>
             <Text style={styles.channelName}>Delivery</Text>
-            <Text style={styles.channelAmount}>{money(deliverySales)}</Text>
-            <Text style={styles.channelMeta}>{deliveryInvoices.length} Orders</Text>
+            <Text style={[styles.channelAmount, { color: '#0369A1' }]}>{money(deliverySales)}</Text>
+            <Text style={[styles.channelMeta, { color: '#075985' }]}>{deliveryInvoices.length} Orders</Text>
           </View>
         </View>
       </View>

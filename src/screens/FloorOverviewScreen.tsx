@@ -133,14 +133,14 @@ export default function FloorOverviewScreen({ backRoute = '/manager/dashboard' }
           style={styles.backBtn}
           onPress={() => (router.canGoBack() ? router.back() : router.replace(backRoute as any))}
         >
-          <Ionicons name="arrow-back" size={20} color={BRAND.ink} />
+          <Ionicons name="arrow-back" size={20} color="#F3D179" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Sultan 5-Floor Operations</Text>
           <Text style={styles.headerSubtitle}>Multi-Level Dine-In, Banquet & Rooftop Management</Text>
         </View>
         <TouchableOpacity style={styles.setupBtn} onPress={handlePopulateFloors}>
-          <Ionicons name="layers-outline" size={16} color="#d8cdcdff" style={{ marginRight: 6 }} />
+          <Ionicons name="layers-outline" size={16} color="#24050A" style={{ marginRight: 6 }} />
           <Text style={styles.setupBtnText}>{isMobile ? 'Template' : '5-Floor Template'}</Text>
         </TouchableOpacity>
       </View>
@@ -338,38 +338,62 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
     gap: 12,
+    padding: 16,
+    borderRadius: 14,
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, #380A11 0%, #200408 100%)',
+      },
+      default: {
+        backgroundColor: '#24050A',
+      },
+    }),
+    borderWidth: 1.5,
+    borderColor: 'rgba(212, 175, 55, 0.32)',
+    shadowColor: '#24050A',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 3,
   },
   backBtn: {
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(212, 175, 55, 0.18)',
     borderWidth: 1,
-    borderColor: BRAND.border,
+    borderColor: 'rgba(212, 175, 55, 0.35)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: '800',
-    color: BRAND.ink,
+    fontWeight: '900',
+    color: '#F3D179',
+    letterSpacing: -0.3,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: BRAND.muted,
+    color: 'rgba(255, 255, 255, 0.72)',
+    marginTop: 2,
   },
   setupBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: BRAND.burgundy,
+    backgroundColor: '#D4AF37',
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 10,
+    shadowColor: '#D4AF37',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 2,
   },
   setupBtnText: {
-    color: '#fff',
+    color: '#24050A',
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '900',
   },
   kpiRow: {
     flexDirection: 'row',

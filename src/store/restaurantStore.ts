@@ -702,6 +702,15 @@ export function reconcileTablesWithTickets(tables: Table[], tickets: Ticket[]): 
   });
 }
 
+function notifySync() {
+  try {
+    const { broadcastImmediately } = require('../services/syncService');
+    if (typeof broadcastImmediately === 'function') {
+      broadcastImmediately();
+    }
+  } catch (e) {}
+}
+
 export const useRestaurantStore = create<RestaurantState>()(
   persist(
     (set) => ({
@@ -1356,34 +1365,64 @@ export const useRestaurantStore = create<RestaurantState>()(
         onlineFeedbackUrl: url.trim().replace(/\/+$/, '')
       }),
 
-      addMenuItem: (item) => set((state) => ({
-        menuItems: [...state.menuItems, { ...item, id: `m${Date.now()}` }]
-      })),
+      addMenuItem: (item) => {
+        set((state) => {
+          const newCategories = (item.category && !state.categories.includes(item.category))
+            ? [...state.categories, item.category]
+            : state.categories;
+          return {
+            menuItems: [...state.menuItems, { ...item, id: `m${Date.now()}` }],
+            categories: newCategories,
+          };
+        });
+        notifySync();
+      },
       
-      updateMenuItem: (id, item) => set((state) => ({
-        menuItems: state.menuItems.map(m => m.id === id ? { ...m, ...item } : m)
-      })),
+      updateMenuItem: (id, item) => {
+        set((state) => {
+          const newCategories = (item.category && !state.categories.includes(item.category))
+            ? [...state.categories, item.category]
+            : state.categories;
+          return {
+            menuItems: state.menuItems.map(m => m.id === id ? { ...m, ...item } : m),
+            categories: newCategories,
+          };
+        });
+        notifySync();
+      },
 
-      deleteMenuItem: (id) => set((state) => ({
-        menuItems: state.menuItems.filter(m => m.id !== id)
-      })),
+      deleteMenuItem: (id) => {
+        set((state) => ({
+          menuItems: state.menuItems.filter(m => m.id !== id)
+        }));
+        notifySync();
+      },
 
-      adjustMenuItemStock: (id, deltaOrQuantity, mode = 'add') => set((state) => ({
-        menuItems: state.menuItems.map(m => {
-          if (m.id !== id) return m;
-          const current = typeof m.stockQty === 'number' ? m.stockQty : 0;
-          const newQty = mode === 'set' ? Math.max(0, deltaOrQuantity) : Math.max(0, current + deltaOrQuantity);
-          return { ...m, trackStock: true, stockQty: newQty };
-        })
-      })),
+      adjustMenuItemStock: (id, deltaOrQuantity, mode = 'add') => {
+        set((state) => ({
+          menuItems: state.menuItems.map(m => {
+            if (m.id !== id) return m;
+            const current = typeof m.stockQty === 'number' ? m.stockQty : 0;
+            const newQty = mode === 'set' ? Math.max(0, deltaOrQuantity) : Math.max(0, current + deltaOrQuantity);
+            return { ...m, trackStock: true, stockQty: newQty };
+          })
+        }));
+        notifySync();
+      },
 
-      addCategory: (categoryName) => set((state) => ({
-        categories: [...state.categories, categoryName]
-      })),
+      addCategory: (categoryName) => {
+        set((state) => ({
+          categories: state.categories.includes(categoryName) ? state.categories : [...state.categories, categoryName]
+        }));
+        notifySync();
+      },
 
-      deleteCategory: (categoryName) => set((state) => ({
-        categories: state.categories.filter(c => c !== categoryName)
-      })),
+      deleteCategory: (categoryName) => {
+        set((state) => ({
+          categories: state.categories.filter(c => c !== categoryName)
+        }));
+        notifySync();
+      },
 
       addTable: (table) => set((state) => ({
         tables: [...state.tables, { ...table, status: table.status || 'available', id: `t${Date.now()}` }]

@@ -33,6 +33,7 @@ import { money, formatTime, formatDay, toWhatsAppNumber } from '../utils/format'
 import { useAuthStore } from '../store/authStore';
 import { useRolePermissions } from '../store/roleStore';
 import PermissionDeniedScreen from '../components/PermissionDeniedScreen';
+import RoyalDropdown from '../components/RoyalDropdown';
 
 const UNITS = ['kg', 'Liters', 'bottles', 'packs', 'grams', 'cylinders', 'pcs', 'cartons', 'crates', 'bags', 'Tins'];
 
@@ -680,55 +681,63 @@ Please confirm delivery schedule and send invoice copy. Shukriya!`;
         </View>
       </View>
 
-      {/* KPI Cards Row */}
+      {/* KPI Cards Row (Liquid Glass Info Boxes) */}
       <View style={styles.kpiGrid}>
-        <View style={[styles.kpiCard, { borderLeftColor: BRAND.gold }]}>
-          <View style={styles.kpiIconBox}>
-            <Ionicons name="cash-outline" size={22} color={BRAND.burgundy} />
+        <View 
+          style={[styles.kpiCard, styles.kpiCardGold]}
+          {...(Platform.OS === 'web' ? { className: 'interactive-card' } : {})}
+        >
+          <View style={[styles.kpiIconBox, { backgroundColor: 'rgba(212, 175, 55, 0.22)' }]}>
+            <Ionicons name="cash" size={20} color="#B8860B" />
           </View>
           <View>
-            <Text style={styles.kpiLabel}>Total Asset Valuation</Text>
-            <Text style={styles.kpiValue}>{money(metrics.totalValuation)}</Text>
+            <Text style={[styles.kpiLabel, { color: '#854D0E' }]}>Total Asset Valuation</Text>
+            <Text style={[styles.kpiValue, { color: '#713F12' }]}>{money(metrics.totalValuation)}</Text>
           </View>
         </View>
 
-        <View style={[styles.kpiCard, { borderLeftColor: BRAND.info }]}>
-          <View style={[styles.kpiIconBox, { backgroundColor: BRAND.infoSoft }]}>
-            <Ionicons name="cube-outline" size={22} color={BRAND.info} />
+        <View 
+          style={[styles.kpiCard, styles.kpiCardSapphire]}
+          {...(Platform.OS === 'web' ? { className: 'interactive-card' } : {})}
+        >
+          <View style={[styles.kpiIconBox, { backgroundColor: 'rgba(2, 132, 199, 0.2)' }]}>
+            <Ionicons name="cube" size={20} color="#0284C7" />
           </View>
           <View>
-            <Text style={styles.kpiLabel}>Total SKU Items</Text>
-            <Text style={styles.kpiValue}>{metrics.totalItems} Items</Text>
+            <Text style={[styles.kpiLabel, { color: '#075985' }]}>Total SKU Items</Text>
+            <Text style={[styles.kpiValue, { color: '#0369A1' }]}>{metrics.totalItems} Items</Text>
           </View>
         </View>
 
         <TouchableOpacity
-          style={[styles.kpiCard, { borderLeftColor: BRAND.warn }]}
+          style={[styles.kpiCard, styles.kpiCardAmber]}
           onPress={() => setActiveTab('lowstock')}
-          activeOpacity={0.7}
+          activeOpacity={0.75}
+          {...(Platform.OS === 'web' ? { className: 'interactive-card' } : {})}
         >
-          <View style={[styles.kpiIconBox, { backgroundColor: BRAND.warnSoft }]}>
-            <Ionicons name="alert-circle-outline" size={22} color={BRAND.warn} />
+          <View style={[styles.kpiIconBox, { backgroundColor: 'rgba(245, 158, 11, 0.22)' }]}>
+            <Ionicons name="alert-circle" size={22} color="#D97706" />
           </View>
           <View>
-            <Text style={styles.kpiLabel}>Low Stock & Out</Text>
-            <Text style={[styles.kpiValue, { color: BRAND.warn }]}>
+            <Text style={[styles.kpiLabel, { color: '#92400E' }]}>Low Stock & Out</Text>
+            <Text style={[styles.kpiValue, { color: '#B45309' }]}>
               {metrics.lowCount + metrics.outCount} Items
             </Text>
           </View>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.kpiCard, { borderLeftColor: BRAND.danger }]}
+          style={[styles.kpiCard, styles.kpiCardRuby]}
           onPress={() => setActiveTab('expiries')}
-          activeOpacity={0.7}
+          activeOpacity={0.75}
+          {...(Platform.OS === 'web' ? { className: 'interactive-card' } : {})}
         >
-          <View style={[styles.kpiIconBox, { backgroundColor: BRAND.dangerSoft }]}>
-            <Ionicons name="timer-outline" size={22} color={BRAND.danger} />
+          <View style={[styles.kpiIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.2)' }]}>
+            <Ionicons name="timer" size={20} color="#DC2626" />
           </View>
           <View>
-            <Text style={styles.kpiLabel}>Expiry Alerts</Text>
-            <Text style={[styles.kpiValue, { color: BRAND.danger }]}>
+            <Text style={[styles.kpiLabel, { color: '#991B1B' }]}>Expiry Alerts</Text>
+            <Text style={[styles.kpiValue, { color: '#B91C1C' }]}>
               {metrics.expiredCount + metrics.criticalExpiryCount} Urgencies
             </Text>
           </View>
@@ -870,74 +879,43 @@ Please confirm delivery schedule and send invoice copy. Shukriya!`;
       {/* ========================================================================= */}
       {activeTab === 'raw' && (
         <View>
-          {/* Category Chips Scroll */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.categoriesScroll}
-            contentContainerStyle={styles.categoriesContent}
-          >
-            <TouchableOpacity
-              style={[styles.categoryChip, selectedCategory === 'All' && styles.categoryChipActive]}
-              onPress={() => setSelectedCategory('All')}
-            >
-              <Text style={[styles.categoryChipText, selectedCategory === 'All' && styles.categoryChipTextActive]}>
-                All Categories ({inventory.length})
-              </Text>
-            </TouchableOpacity>
-            {INVENTORY_CATEGORIES.map((cat) => {
-              const count = inventory.filter((i) => i.category === cat).length;
-              return (
-                <TouchableOpacity
-                  key={cat}
-                  style={[styles.categoryChip, selectedCategory === cat && styles.categoryChipActive]}
-                  onPress={() => setSelectedCategory(cat)}
-                >
-                  <Text style={[styles.categoryChipText, selectedCategory === cat && styles.categoryChipTextActive]}>
-                    {cat} ({count})
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          {/* Storage Locations Filter Scroll */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ marginBottom: 12 }}
-            contentContainerStyle={{ gap: 6 }}
-          >
-            <TouchableOpacity
-              style={[styles.locationChip, selectedLocation === 'All' && styles.locationChipActive]}
-              onPress={() => setSelectedLocation('All')}
-            >
-              <Ionicons
-                name="location-outline"
-                size={12}
-                color={selectedLocation === 'All' ? '#FFF' : BRAND.muted}
+          {/* Dual Dropdown Filters: Category & Storage Zone */}
+          <View style={styles.filterDropdownRow}>
+            <View style={{ flex: 1, minWidth: 200 }}>
+              <RoyalDropdown
+                label="Filter by Category"
+                options={[
+                  { label: `All Categories (${inventory.length})`, value: 'All', badge: `${inventory.length}` },
+                  ...INVENTORY_CATEGORIES.map((cat) => ({
+                    label: cat,
+                    value: cat,
+                    badge: `${inventory.filter((i) => i.category === cat).length}`,
+                  })),
+                ]}
+                value={selectedCategory}
+                onSelect={(val) => setSelectedCategory(val)}
+                icon="grid-outline"
+                searchable
               />
-              <Text style={[styles.locationChipText, selectedLocation === 'All' && styles.locationChipTextActive]}>
-                All Storage Zones
-              </Text>
-            </TouchableOpacity>
-            {STORAGE_LOCATIONS.map((loc) => (
-              <TouchableOpacity
-                key={loc}
-                style={[styles.locationChip, selectedLocation === loc && styles.locationChipActive]}
-                onPress={() => setSelectedLocation(loc)}
-              >
-                <Ionicons
-                  name="file-tray-full-outline"
-                  size={12}
-                  color={selectedLocation === loc ? '#FFF' : BRAND.muted}
-                />
-                <Text style={[styles.locationChipText, selectedLocation === loc && styles.locationChipTextActive]}>
-                  {loc}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+            </View>
+            <View style={{ flex: 1, minWidth: 200 }}>
+              <RoyalDropdown
+                label="Filter by Storage Zone"
+                options={[
+                  { label: 'All Storage Zones', value: 'All', icon: 'location-outline' as const },
+                  ...STORAGE_LOCATIONS.map((loc) => ({
+                    label: loc,
+                    value: loc,
+                    icon: 'file-tray-full-outline' as const,
+                  })),
+                ]}
+                value={selectedLocation}
+                onSelect={(val) => setSelectedLocation(val)}
+                icon="location-outline"
+                searchable
+              />
+            </View>
+          </View>
 
           {/* Status Filter Chips */}
           <View style={styles.statusFilterRow}>
@@ -1798,48 +1776,35 @@ Please confirm delivery schedule and send invoice copy. Shukriya!`;
                 onChangeText={setFormName}
               />
 
-              <Text style={styles.inputLabel}>Category</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                {INVENTORY_CATEGORIES.map((cat) => (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[styles.formChip, formCategory === cat && styles.formChipActive]}
-                    onPress={() => setFormCategory(cat)}
-                  >
-                    <Text style={[styles.formChipText, formCategory === cat && styles.formChipTextActive]}>
-                      {cat}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <RoyalDropdown
+                label="Category"
+                options={INVENTORY_CATEGORIES}
+                value={formCategory}
+                onSelect={(val) => setFormCategory(val)}
+                icon="pricetag-outline"
+                searchable
+                style={{ marginBottom: 12 }}
+              />
 
-              <Text style={styles.inputLabel}>Storage Location / Zone</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                {STORAGE_LOCATIONS.map((loc) => (
-                  <TouchableOpacity
-                    key={loc}
-                    style={[styles.formChip, formLocation === loc && styles.formChipActive]}
-                    onPress={() => setFormLocation(loc)}
-                  >
-                    <Text style={[styles.formChipText, formLocation === loc && styles.formChipTextActive]}>
-                      {loc}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <RoyalDropdown
+                label="Storage Location / Zone"
+                options={STORAGE_LOCATIONS}
+                value={formLocation}
+                onSelect={(val) => setFormLocation(val)}
+                icon="location-outline"
+                searchable
+                style={{ marginBottom: 12 }}
+              />
 
-              <Text style={styles.inputLabel}>Measurement Unit</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                {UNITS.map((u) => (
-                  <TouchableOpacity
-                    key={u}
-                    style={[styles.formChip, formUnit === u && styles.formChipActive]}
-                    onPress={() => setFormUnit(u)}
-                  >
-                    <Text style={[styles.formChipText, formUnit === u && styles.formChipTextActive]}>{u}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <RoyalDropdown
+                label="Measurement Unit"
+                options={UNITS}
+                value={formUnit}
+                onSelect={(val) => setFormUnit(val)}
+                icon="scale-outline"
+                searchable
+                style={{ marginBottom: 12 }}
+              />
 
               <View style={styles.formRow2}>
                 <View style={{ flex: 1 }}>
@@ -1942,25 +1907,30 @@ Please confirm delivery schedule and send invoice copy. Shukriya!`;
             </View>
 
             <ScrollView style={{ maxHeight: 500 }} showsVerticalScrollIndicator={false}>
-              <Text style={styles.inputLabel}>Select Ingredient / Material *</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                {inventory.map((inv) => (
-                  <TouchableOpacity
-                    key={inv.id}
-                    style={[styles.formChip, recItemId === inv.id && styles.formChipActive]}
-                    onPress={() => {
-                      setRecItemId(inv.id);
-                      if (inv.supplier) setRecSupplier(inv.supplier);
-                      if (inv.costPerUnit) setRecUnitCost(inv.costPerUnit.toString());
-                      if (inv.location) setRecLocation(inv.location);
-                    }}
-                  >
-                    <Text style={[styles.formChipText, recItemId === inv.id && styles.formChipTextActive]}>
-                      {inv.name} ({inv.stock} {inv.unit})
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <RoyalDropdown
+                label="Select Ingredient / Material *"
+                placeholder="Choose ingredient to receive..."
+                options={inventory.map((inv) => ({
+                  label: `${inv.name} (${inv.stock} ${inv.unit})`,
+                  value: inv.id,
+                  sublabel: `${inv.category} • Zone: ${inv.location || 'N/A'}`,
+                  badge: `${inv.stock} ${inv.unit}`,
+                }))}
+                value={recItemId}
+                onSelect={(val) => {
+                  setRecItemId(val);
+                  const inv = inventory.find((i) => i.id === val);
+                  if (inv) {
+                    if (inv.supplier) setRecSupplier(inv.supplier);
+                    if (inv.costPerUnit) setRecUnitCost(inv.costPerUnit.toString());
+                    if (inv.location) setRecLocation(inv.location);
+                  }
+                }}
+                searchable
+                searchPlaceholder="Search material by name..."
+                icon="cube-outline"
+                style={{ marginBottom: 12 }}
+              />
 
               <View style={styles.formRow2}>
                 <View style={{ flex: 1 }}>
@@ -2004,25 +1974,23 @@ Please confirm delivery schedule and send invoice copy. Shukriya!`;
                 </View>
               </View>
 
-              {/* Quick Supplier Picker if available */}
+              {/* Quick Supplier Dropdown if available */}
               {suppliers.length > 0 ? (
-                <View style={{ marginBottom: 10 }}>
-                  <Text style={[styles.inputLabel, { fontSize: 11, color: BRAND.muted }]}>
-                    Quick Pick Supplier:
-                  </Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {suppliers.map((s) => (
-                      <TouchableOpacity
-                        key={s.id}
-                        style={[styles.smallChip, recSupplier === s.name && styles.smallChipActive]}
-                        onPress={() => setRecSupplier(s.name)}
-                      >
-                        <Text style={[styles.smallChipText, recSupplier === s.name && styles.smallChipTextActive]}>
-                          {s.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                <View style={{ marginBottom: 12 }}>
+                  <RoyalDropdown
+                    label="Quick Pick Supplier"
+                    placeholder="Select from registered suppliers..."
+                    options={suppliers.map((s) => ({
+                      label: s.name,
+                      value: s.name,
+                      badge: s.category,
+                      sublabel: s.phone,
+                    }))}
+                    value={recSupplier}
+                    onSelect={(val) => setRecSupplier(val)}
+                    icon="business-outline"
+                    searchable
+                  />
                 </View>
               ) : null}
 
@@ -2348,35 +2316,25 @@ Please confirm delivery schedule and send invoice copy. Shukriya!`;
               <Text style={styles.inputLabel}>Item Name (English) *</Text>
               <TextInput style={styles.input} value={formName} onChangeText={setFormName} />
 
-              <Text style={styles.inputLabel}>Category</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                {INVENTORY_CATEGORIES.map((cat) => (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[styles.formChip, formCategory === cat && styles.formChipActive]}
-                    onPress={() => setFormCategory(cat)}
-                  >
-                    <Text style={[styles.formChipText, formCategory === cat && styles.formChipTextActive]}>
-                      {cat}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <RoyalDropdown
+                label="Category"
+                options={INVENTORY_CATEGORIES}
+                value={formCategory}
+                onSelect={(val) => setFormCategory(val)}
+                icon="pricetag-outline"
+                searchable
+                style={{ marginBottom: 12 }}
+              />
 
-              <Text style={styles.inputLabel}>Storage Location / Zone</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                {STORAGE_LOCATIONS.map((loc) => (
-                  <TouchableOpacity
-                    key={loc}
-                    style={[styles.formChip, formLocation === loc && styles.formChipActive]}
-                    onPress={() => setFormLocation(loc)}
-                  >
-                    <Text style={[styles.formChipText, formLocation === loc && styles.formChipTextActive]}>
-                      {loc}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <RoyalDropdown
+                label="Storage Location / Zone"
+                options={STORAGE_LOCATIONS}
+                value={formLocation}
+                onSelect={(val) => setFormLocation(val)}
+                icon="location-outline"
+                searchable
+                style={{ marginBottom: 12 }}
+              />
 
               <View style={styles.formRow2}>
                 <View style={{ flex: 1 }}>
@@ -2532,20 +2490,43 @@ const styles = StyleSheet.create({
   kpiCard: {
     flex: 1,
     minWidth: 180,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: 14,
+    borderWidth: 1.5,
     borderColor: '#EFEFF4',
-    borderLeftWidth: 4,
+    borderLeftWidth: 4.5,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.05)',
+      } as any,
+    }),
+    elevation: 2,
+  },
+  kpiCardGold: {
+    backgroundColor: 'rgba(254, 249, 235, 0.9)',
+    borderColor: 'rgba(212, 175, 55, 0.35)',
+    borderLeftColor: '#D4AF37',
+  },
+  kpiCardSapphire: {
+    backgroundColor: 'rgba(240, 249, 255, 0.9)',
+    borderColor: 'rgba(2, 132, 199, 0.35)',
+    borderLeftColor: '#0284C7',
+  },
+  kpiCardAmber: {
+    backgroundColor: 'rgba(254, 243, 199, 0.9)',
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    borderLeftColor: '#F59E0B',
+  },
+  kpiCardRuby: {
+    backgroundColor: 'rgba(254, 226, 226, 0.9)',
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    borderLeftColor: '#EF4444',
   },
   kpiIconBox: {
     width: 40,
@@ -2665,8 +2646,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: BRAND.muted,
   },
-  locationChipTextActive: {
-    color: '#FFFFFF',
+  filterDropdownRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 14,
+    zIndex: 10,
   },
   statusFilterRow: {
     flexDirection: 'row',

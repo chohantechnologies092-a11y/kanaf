@@ -16,6 +16,7 @@ import { useRestaurantStore, MenuItem } from '../store/restaurantStore';
 import { useOpsStore } from '../store/opsStore';
 import { BRAND } from '../constants/brand';
 import { money } from '../utils/format';
+import RoyalDropdown from '../components/RoyalDropdown';
 
 export default function ItemAvailabilityScreen({ backRoute = '/kitchen/kds' }: { backRoute?: string }) {
   const router = useRouter();
@@ -121,30 +122,33 @@ export default function ItemAvailabilityScreen({ backRoute = '/kitchen/kds' }: {
         )}
       </View>
 
-      {/* Category Pills */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll}>
-        {['All', ...categories].map((c) => {
-          const isSel = activeCat === c;
-          const outCountInCat = menuItems.filter(
-            (m) => (c === 'All' || m.category === c) && unavailableSet.has(m.id)
-          ).length;
-
-          return (
-            <TouchableOpacity
-              key={c}
-              style={[styles.catPill, isSel && styles.catPillActive]}
-              onPress={() => setActiveCat(c)}
-            >
-              <Text style={[styles.catPillText, isSel && styles.catPillTextActive]}>{c}</Text>
-              {outCountInCat > 0 && (
-                <View style={styles.outBadge}>
-                  <Text style={styles.outBadgeText}>{outCountInCat}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      {/* Category Dropdown Filter */}
+      <View style={{ marginBottom: 14 }}>
+        <RoyalDropdown
+          label="Filter by Category"
+          placeholder="All Categories"
+          options={[
+            {
+              label: `All Categories (${menuItems.length})`,
+              value: 'All',
+              badge: unavailableIds.length > 0 ? `${unavailableIds.length} Sold Out` : undefined,
+            },
+            ...categories.map((c) => {
+              const outCount = menuItems.filter((m) => m.category === c && unavailableSet.has(m.id)).length;
+              const totalCount = menuItems.filter((m) => m.category === c).length;
+              return {
+                label: `${c} (${totalCount})`,
+                value: c,
+                badge: outCount > 0 ? `${outCount} Out` : undefined,
+              };
+            }),
+          ]}
+          value={activeCat}
+          onSelect={(c) => setActiveCat(c)}
+          icon="restaurant-outline"
+          searchable
+        />
+      </View>
 
       {/* Items List */}
       <Text style={styles.listTitle}>

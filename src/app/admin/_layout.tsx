@@ -81,6 +81,22 @@ export default function AdminLayout() {
 
   if (!ready) return null;
 
+  // POS Terminal is Fullscreen (No Sidebar, No Outer Layout Header, No Mobile BottomNav)
+  const isPos = pathname === '/admin/pos' || pathname.endsWith('/pos');
+  if (isPos) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#140306' }}>
+        <StatusBar barStyle="light-content" backgroundColor="#140306" />
+        <Stack 
+          screenOptions={{ 
+            headerShown: false,
+            contentStyle: { backgroundColor: '#F8FAFC' }
+          }} 
+        />
+      </View>
+    );
+  }
+
   // Find active screen title for desktop breadcrumbs
   const currentItem = filteredMenuItems.find(it => it.route === pathname);
   const screenTitle = currentItem ? currentItem.label : 'Admin Operations';
@@ -90,6 +106,65 @@ export default function AdminLayout() {
     return (
       <View style={styles.desktopShell}>
         <StatusBar barStyle="light-content" backgroundColor="#140306" />
+
+        {/* Global Web Animations & Micro-Interactions */}
+        {Platform.OS === 'web' && (
+          <style>{`
+            @keyframes sultanPageLanding {
+              0% {
+                opacity: 0;
+                transform: translateY(14px);
+              }
+              100% {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+            @keyframes pulseBeacon {
+              0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+              50% { transform: scale(1.1); opacity: 0.85; box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+            }
+            @keyframes pulseGlowGold {
+              0%, 100% { box-shadow: 0 0 12px rgba(212, 175, 55, 0.3); }
+              50% { box-shadow: 0 0 24px rgba(212, 175, 55, 0.55); }
+            }
+            [data-page-landing="true"],
+            .page-animate-fade {
+              animation: sultanPageLanding 0.35s cubic-bezier(0.16, 1, 0.3, 1) both !important;
+            }
+            /* Universal Card / Box / Tile Hover */
+            [data-card],
+            [data-hover],
+            [data-interactive],
+            [data-tile],
+            [data-box],
+            .interactive-card {
+              transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                          box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                          filter 0.22s ease,
+                          border-color 0.22s ease !important;
+            }
+            [data-card]:hover,
+            [data-hover]:hover,
+            [data-interactive]:hover,
+            [data-tile]:hover,
+            [data-box]:hover,
+            .interactive-card:hover {
+              transform: translateY(-3.5px) scale(1.006) !important;
+              box-shadow: 0 14px 32px rgba(82, 20, 28, 0.14), 0 0 0 1.5px rgba(212, 175, 55, 0.48) !important;
+              filter: brightness(1.03) !important;
+              z-index: 4 !important;
+            }
+            [data-card]:active,
+            [data-hover]:active,
+            [data-interactive]:active,
+            [data-tile]:active,
+            [data-box]:active,
+            .interactive-card:active {
+              transform: translateY(-0.5px) scale(0.985) !important;
+            }
+          `}</style>
+        )}
 
         {/* 1. Permanent Left Liquid Glass Sidebar */}
         <AppSidebar
@@ -103,13 +178,20 @@ export default function AdminLayout() {
 
         {/* 2. Main Workspace (Top Bar + Screen Stack) */}
         <View style={styles.workspaceArea}>
-          {/* Top Glass Header Bar */}
+          {/* Top Royal Sultan Header Bar (Inspired by Baithak topbar.php) */}
           <View style={styles.desktopTopBar}>
             <View style={styles.topBarLeft}>
-              <View style={styles.breadcrumbBadge}>
-                <Ionicons name="shield-checkmark" size={14} color="#D5A943" />
-                <Text style={styles.breadcrumbAdmin}>Executive Admin</Text>
+              {/* Baithak Brand Capsule */}
+              <View style={styles.topLogoCapsule}>
+                <SultanLogo size="xs" width={24} height={24} style={{ marginRight: 8 }} />
+                <Text style={styles.topBrandName}>SULTAN RESTAURANT</Text>
               </View>
+
+              <View style={styles.breadcrumbBadge}>
+                <Ionicons name="shield-checkmark" size={13} color="#D4AF37" />
+                <Text style={styles.breadcrumbAdmin}>EXECUTIVE ADMIN</Text>
+              </View>
+
               <Text style={styles.breadcrumbDivider}>/</Text>
               <Text style={styles.topBarScreenTitle}>{screenTitle}</Text>
             </View>
@@ -117,24 +199,31 @@ export default function AdminLayout() {
             <View style={styles.topBarRight}>
               <SyncStatusBadge compact={false} />
 
-              {/* Fast POS Shortcut */}
+              {/* Fast POS Shortcut - Glowing Sultan Gold */}
               {can('canAccessPOS') && (
                 <TouchableOpacity
                   style={styles.headerPosBtn}
                   onPress={() => router.push('/admin/pos')}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="calculator" size={15} color="#160406" />
+                  <Ionicons name="calculator" size={15} color="#24050A" />
                   <Text style={styles.headerPosBtnText}>POS Billing</Text>
                 </TouchableOpacity>
               )}
 
-              {/* User greeting */}
+              {/* User greeting with Royal Avatar */}
               <View style={styles.topUserSnippet}>
-                <View style={styles.userDot} />
-                <Text style={styles.topUserName} numberOfLines={1}>
-                  {user?.name || 'Admin'}
-                </Text>
+                <View style={styles.topAvatarCircle}>
+                  <Text style={styles.topAvatarText}>
+                    {(user?.name || 'Admin')[0].toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.userTextCol}>
+                  <Text style={styles.userGreetingSub}>Welcome,</Text>
+                  <Text style={styles.topUserName} numberOfLines={1}>
+                    {user?.name || 'Admin'}
+                  </Text>
+                </View>
               </View>
 
               {/* Logout button */}
@@ -144,14 +233,18 @@ export default function AdminLayout() {
                 activeOpacity={0.7}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons name="log-out-outline" size={18} color="#D5A943" style={{ marginRight: 6 }} />
+                <Ionicons name="log-out-outline" size={16} color="#F87171" style={{ marginRight: 5 }} />
                 <Text style={styles.logoutText}>Logout</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Screen Content */}
-          <View style={styles.desktopContent}>
+          <View 
+            key={pathname}
+            style={styles.desktopContent}
+            {...(Platform.OS === 'web' ? ({ dataSet: { pageLanding: 'true' } } as any) : {})}
+          >
             <Stack 
               screenOptions={{ 
                 headerShown: false,
@@ -167,9 +260,9 @@ export default function AdminLayout() {
   // Mobile Layout
   return (
     <SafeAreaView style={styles.mobileShell} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#140306" />
+      <StatusBar barStyle="light-content" backgroundColor="#24050A" />
 
-      {/* Mobile Top Header */}
+      {/* Mobile Top Header (Royal Baithak Theme) */}
       <View style={styles.mobileHeader}>
         <View style={styles.mobileHeaderLeft}>
           <TouchableOpacity 
@@ -177,10 +270,12 @@ export default function AdminLayout() {
             onPress={() => setIsDrawerOpen(true)}
             activeOpacity={0.7}
           >
-            <Ionicons name="menu" size={24} color="#D5A943" />
+            <Ionicons name="menu" size={24} color="#F3D179" />
           </TouchableOpacity>
-          <SultanLogo size="xs" width={24} height={24} style={{ marginRight: 6, marginLeft: 6 }} />
-          <Text style={styles.mobileHeaderTitle}>Sultan Admin</Text>
+          <View style={styles.mobileLogoBox}>
+            <SultanLogo size="xs" width={22} height={22} style={{ marginRight: 6 }} />
+            <Text style={styles.mobileHeaderTitle}>SULTAN ADMIN</Text>
+          </View>
         </View>
 
         <View style={styles.mobileHeaderRight}>
@@ -190,13 +285,17 @@ export default function AdminLayout() {
             onPress={logout}
             activeOpacity={0.7}
           >
-            <Ionicons name="log-out-outline" size={18} color="#D5A943" />
+            <Ionicons name="log-out-outline" size={18} color="#F87171" />
           </TouchableOpacity>
         </View>
       </View>
       
       {/* Mobile Screen Stack */}
-      <View style={styles.mobileContent}>
+      <View 
+        key={pathname}
+        style={styles.mobileContent}
+        {...(Platform.OS === 'web' ? ({ dataSet: { pageLanding: 'true' } } as any) : {})}
+      >
         <Stack 
           screenOptions={{ 
             headerShown: false,
@@ -243,137 +342,216 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   desktopTopBar: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 24,
-    paddingVertical: 14,
+    backgroundColor: '#24050A',
+    paddingHorizontal: 22,
+    paddingVertical: 11,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomWidth: 1.5,
+    borderBottomColor: 'rgba(212, 175, 55, 0.28)',
     zIndex: 10,
     ...Platform.select({
       web: {
-        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+        backgroundImage: 'linear-gradient(135deg, rgba(56, 10, 17, 0.9) 0%, rgba(30, 4, 8, 0.96) 100%)',
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+        boxShadow: '0 4px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
       } as any,
     }),
   },
   topBarLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+  },
+  topLogoCapsule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(212, 175, 55, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.38)',
+    marginRight: 4,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        boxShadow: '0 2px 10px rgba(212, 175, 55, 0.18)',
+      } as any,
+    }),
+  },
+  topBrandName: {
+    color: '#F3D179',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 1.2,
   },
   breadcrumbBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#FEF3C7',
+    gap: 5,
+    backgroundColor: 'rgba(212, 175, 55, 0.18)',
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 7,
+    paddingVertical: 4.5,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: 'rgba(212, 175, 55, 0.42)',
   },
   breadcrumbAdmin: {
-    color: '#B45309',
-    fontSize: 11,
+    color: '#F3D179',
+    fontSize: 10.5,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
   breadcrumbDivider: {
-    color: '#CBD5E1',
+    color: 'rgba(212, 175, 55, 0.4)',
     fontSize: 14,
     fontWeight: '700',
-    marginHorizontal: 4,
+    marginHorizontal: 3,
   },
   topBarScreenTitle: {
-    color: '#0F172A',
-    fontSize: 18,
+    color: '#FFFFFF',
+    fontSize: 15.5,
     fontWeight: '800',
-    letterSpacing: -0.2,
+    letterSpacing: 0.2,
   },
   topBarRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
   },
   headerPosBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#701A26',
-    paddingHorizontal: 13,
-    paddingVertical: 7,
-    borderRadius: 8,
-    shadowColor: '#701A26',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
+    backgroundColor: '#D4AF37',
+    paddingHorizontal: 14,
+    paddingVertical: 7.5,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: '#F3D179',
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, #F3D179 0%, #D4AF37 55%, #B8860B 100%)',
+        boxShadow: '0 4px 16px rgba(212, 175, 55, 0.45)',
+        cursor: 'pointer',
+      } as any,
+    }),
   },
   headerPosBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
+    color: '#24050A',
+    fontWeight: '900',
     fontSize: 12,
+    letterSpacing: 0.3,
   },
   topUserSnippet: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    gap: 9,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    paddingHorizontal: 11,
+    paddingVertical: 5.5,
+    borderRadius: 25,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: 'rgba(212, 175, 55, 0.28)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+      } as any,
+    }),
   },
-  userDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#10B981',
+  topAvatarCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#D4AF37',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#F3D179',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 0 10px rgba(212, 175, 55, 0.4)',
+      } as any,
+    }),
+  },
+  topAvatarText: {
+    color: '#24050A',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  userTextCol: {
+    marginRight: 4,
+  },
+  userGreetingSub: {
+    color: 'rgba(255, 255, 255, 0.55)',
+    fontSize: 9.5,
+    fontWeight: '600',
+    lineHeight: 11,
   },
   topUserName: {
-    color: '#0F172A',
-    fontSize: 13,
-    fontWeight: '700',
-    maxWidth: 140,
+    color: '#F3D179',
+    fontSize: 12.5,
+    fontWeight: '800',
+    maxWidth: 130,
+    lineHeight: 15,
   },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF1F2',
-    paddingHorizontal: 13,
-    paddingVertical: 7,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 6.5,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FECDD3',
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      } as any,
+    }),
   },
   logoutText: {
-    color: '#E11D48',
+    color: '#FCA5A5',
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: 11.5,
   },
   desktopContent: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F7F4EE',
     overflow: 'hidden',
+    ...Platform.select({
+      web: {
+        backgroundImage: 'radial-gradient(circle at 12% 8%, rgba(82, 20, 28, 0.05) 0%, transparent 40%), radial-gradient(circle at 88% 92%, rgba(212, 175, 55, 0.04) 0%, transparent 45%), linear-gradient(180deg, #FBF9F5 0%, #F4EEE4 100%)',
+      } as any,
+    }),
   },
 
   // Mobile
   mobileShell: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#200408',
   },
   mobileHeader: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#200408',
     paddingHorizontal: 14,
     paddingVertical: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomWidth: 1.5,
+    borderBottomColor: 'rgba(212, 175, 55, 0.28)',
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, rgba(56, 10, 17, 0.94) 0%, rgba(28, 4, 8, 0.97) 100%)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+      } as any,
+    }),
   },
   mobileHeaderLeft: {
     flexDirection: 'row',
@@ -381,24 +559,35 @@ const styles = StyleSheet.create({
   },
   hamburgerBtn: {
     padding: 6,
+    marginRight: 6,
+  },
+  mobileLogoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(212, 175, 55, 0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.25)',
   },
   mobileHeaderTitle: {
-    color: '#701A26',
-    fontSize: 17,
+    color: '#F3D179',
+    fontSize: 13.5,
     fontWeight: '900',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   mobileHeaderRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   mobileLogoutBtn: {
     padding: 6,
     borderRadius: 6,
-    backgroundColor: '#FFF1F2',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
     borderWidth: 1,
-    borderColor: '#FECDD3',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   mobileContent: {
     flex: 1,

@@ -529,10 +529,16 @@ export default function ShiftManagementScreen() {
             {activeShift && (
               <>
                 {/* Active Shift Header Badge */}
-                <View style={styles.activeShiftBanner}>
+                <View
+                  {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
+                  style={styles.activeShiftBanner}
+                >
                   <View style={styles.activeBannerLeft}>
                     <View style={styles.activeStatusPill}>
-                      <View style={styles.greenPulseDot} />
+                      <View
+                        {...(Platform.OS === 'web' ? ({ className: 'pulse-beacon' } as any) : {})}
+                        style={styles.greenPulseDot}
+                      />
                       <Text style={styles.activeStatusPillText}>REGISTER LIVE • {activeShift.shiftType.toUpperCase()} SHIFT</Text>
                     </View>
                     <Text style={styles.activeShiftTitle}>{activeShift.registerId}</Text>
@@ -1583,17 +1589,22 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   activeShiftBanner: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(236, 253, 245, 0.95)',
     borderRadius: 16,
     padding: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderWidth: 1.5,
+    borderColor: 'rgba(16, 185, 129, 0.45)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 16,
     flexWrap: 'wrap',
     gap: 12,
+    shadowColor: '#10B981',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 3,
   },
   activeBannerLeft: {
     flex: 1,

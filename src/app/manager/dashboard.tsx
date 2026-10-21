@@ -11,18 +11,24 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useRestaurantStore, Invoice } from '../../store/restaurantStore';
+import { useShiftStore } from '../../store/shiftStore';
 import { useAuthStore } from '../../store/authStore';
 import { useRoleStore, useRolePermissions } from '../../store/roleStore';
 import { broadcastImmediately } from '../../services/syncService';
+import SultanLogo from '../../components/SultanLogo';
 
 const BRAND = {
   bg: '#F8FAFC',
   cardBg: '#FFFFFF',
   cardBorder: '#E2E8F0',
-  burgundy: '#701A26',
+  burgundy: '#52141C',
+  burgundyDark: '#24050A',
   burgundyLight: '#FDF2F4',
-  gold: '#B48214',
-  goldLight: '#FEF3C7',
+  gold: '#D4AF37',
+  goldLight: '#F3D179',
+  goldDark: '#B8860B',
+  goldSoft: 'rgba(212, 175, 55, 0.12)',
+  goldBorder: 'rgba(212, 175, 55, 0.28)',
   textPrimary: '#0F172A',
   textSecondary: '#475569',
   textMuted: '#94A3B8',
@@ -53,6 +59,10 @@ export default function ManagerDashboard() {
   const tickets = useRestaurantStore(state => state.tickets);
   const tables = useRestaurantStore(state => state.tables);
   const staff = useRestaurantStore(state => state.staff);
+
+  // Shift Store Integration
+  const shifts = useShiftStore(state => state.shifts);
+  const activeShift = useMemo(() => shifts.find(s => s.status === 'open') || null, [shifts]);
 
   const [activeHourlyMetric, setActiveHourlyMetric] = useState<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -87,6 +97,32 @@ export default function ManagerDashboard() {
 
   const shiftSales = useMemo(() => {
     return todaysInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+  }, [todaysInvoices]);
+
+  // Payment Breakdown (Cash vs Card vs Online)
+  const paymentMetrics = useMemo(() => {
+    let cash = 0;
+    let card = 0;
+    let online = 0;
+
+    todaysInvoices.forEach(inv => {
+      if (inv.payments && inv.payments.length > 0) {
+        inv.payments.forEach(p => {
+          if (p.type === 'card') card += p.amount;
+          else if (p.type === 'online') online += p.amount;
+          else cash += p.amount;
+        });
+      } else {
+        cash += inv.total || 0;
+      }
+    });
+
+    const total = (cash + card + online) || 1;
+    return {
+      cash: { amount: cash, pct: Math.round((cash / total) * 100) || 60 },
+      card: { amount: card, pct: Math.round((card / total) * 100) || 30 },
+      online: { amount: online, pct: Math.round((online / total) * 100) || 10 },
+    };
   }, [todaysInvoices]);
 
   const activeOrders = tickets.length;
@@ -312,15 +348,16 @@ export default function ManagerDashboard() {
       <View style={[styles.headerCard, isMobile && styles.headerCardMobile]}>
         <View style={styles.headerLeft}>
           <View style={styles.titleRow}>
-            <Text style={styles.headerTitle}>Manager Shift Console & Analytics</Text>
-            <View style={styles.livePulsePill}>
-              <View style={styles.pulseDot} {...({ dataSet: { beacon: 'pulse' } } as any)} />
-              <Text style={styles.livePulseText}>Shift Active</Text>
+            <View style={styles.headerLogoCapsule}>
+              <SultanLogo size="xs" variant="circle" />
+            </View>
+            <View>
+              <Text style={styles.headerTitle}>Manager Operations Console</Text>
+              <Text style={styles.headerSubtitle}>
+                {formattedDate} • Shift Operations, Floor Status & KDS Velocity
+              </Text>
             </View>
           </View>
-          <Text style={styles.headerSubtitle}>
-            {formattedDate} • Real-time dining occupancy, shift revenue & kitchen preparation queue
-          </Text>
         </View>
 
         <View style={styles.headerRight}>
@@ -334,10 +371,10 @@ export default function ManagerDashboard() {
             <Ionicons 
               name="sync-outline" 
               size={15} 
-              color={BRAND.burgundy} 
+              color={BRAND.goldDark} 
               {...(isRefreshing ? ({ dataSet: { spin: 'true' } } as any) : {})}
             />
-            <Text style={styles.refreshSyncBtnText}>{isRefreshing ? 'Refreshing...' : 'Live Sync'}</Text>
+            <Text style={styles.refreshSyncBtnText}>{isRefreshing ? 'Syncing...' : 'Live Sync'}</Text>
           </TouchableOpacity>
 
           {can('canAccessPOS') && (
@@ -347,19 +384,73 @@ export default function ManagerDashboard() {
               activeOpacity={0.8}
               {...({ dataSet: { btn: 'hover' } } as any)}
             >
-              <Ionicons name="calculator" size={16} color="#FFFFFF" />
-              <Text style={styles.actionPosBtnText}>Punch Order (POS)</Text>
+              <Ionicons name="calculator" size={16} color="#24050A" />
+              <Text style={styles.actionPosBtnText}>Launch POS</Text>
             </TouchableOpacity>
           )}
         </View>
       </View>
+
+      {/* 1.1 Active Shift Status Capsule (from Baithak home.php) */}
+      {activeShift ? (
+        <View style={styles.shiftStatusCapsule}>
+          <View style={styles.shiftCapsuleLeft}>
+            <View style={styles.shiftLiveBadge}>
+              <View style={styles.pulseDot} {...({ dataSet: { beacon: 'pulse' } } as any)} />
+              <Text style={styles.shiftLiveText}>ACTIVE REGISTER SHIFT</Text>
+            </View>
+            <Text style={styles.shiftCapsuleHeading}>
+              Shift #{activeShift.id.slice(-4).toUpperCase()} • Cashier: <Text style={{ color: BRAND.gold }}>{activeShift.cashierName}</Text>
+            </Text>
+            <Text style={styles.shiftCapsuleDetails}>
+              Started at {new Date(activeShift.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • Opening Drawer Float: Rs. {activeShift.openingFloat.toLocaleString()}
+            </Text>
+          </View>
+          <View style={styles.shiftCapsuleActions}>
+            <TouchableOpacity 
+              style={styles.shiftActionBtn} 
+              onPress={() => router.push('/manager/shift')}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="cash-outline" size={15} color="#D4AF37" />
+              <Text style={styles.shiftActionBtnText}>Drawer Float</Text>
+            </TouchableOpacity>
+            {can('canAccessReports') && (
+              <TouchableOpacity 
+                style={[styles.shiftActionBtn, styles.shiftActionBtnGold]} 
+                onPress={() => router.push('/manager/reports')}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="document-text-outline" size={15} color="#24050A" />
+                <Text style={[styles.shiftActionBtnText, { color: '#24050A', fontWeight: '800' }]}>Z-Report</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      ) : (
+        <View style={styles.shiftAlertBanner}>
+          <View style={styles.shiftAlertLeft}>
+            <Ionicons name="alert-circle" size={20} color="#F59E0B" />
+            <Text style={styles.shiftAlertText}>
+              No active register shift is currently open. Ensure cashier shifts are open before processing orders to balance collections.
+            </Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.shiftAlertBtn}
+            onPress={() => router.push('/manager/shift')}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.shiftAlertBtnText}>Open Shift →</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Admin Quick Visibility Test Bar */}
       {user?.role === 'admin' && (
         <View style={styles.adminNoticePill}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, flexWrap: 'wrap' }}>
             <View style={styles.adminNoticeIconCircle}>
-              <Ionicons name="shield-checkmark" size={15} color="#B48214" />
+              <Ionicons name="shield-checkmark" size={15} color="#D4AF37" />
             </View>
             <View style={{ flex: 1, minWidth: 200 }}>
               <Text style={styles.adminNoticeTitle}>
@@ -441,99 +532,223 @@ export default function ManagerDashboard() {
         </View>
       )}
 
-      {/* 2. Core KPI Cards (4 Cards) */}
+      {/* 2. Core KPI Cards (4 Jewel-Toned Cards from Baithak) */}
       <View style={styles.kpiGrid}>
+        {/* Card 1: Shift Revenue (Royal Maroon) */}
         <View 
-          style={[styles.kpiCard, isMobile ? styles.kpiCardFull : styles.kpiCardQuarter]}
+          style={[
+            styles.kpiJewelCard, 
+            styles.kpiJewelMaroon,
+            isMobile ? styles.kpiCardFull : styles.kpiCardHalf
+          ]}
           {...({ dataSet: { card: 'interactive', stagger: '1' } } as any)}
         >
+          <View style={styles.watermarkIconBox} pointerEvents="none">
+            <Ionicons name="cash" size={105} color="rgba(255, 255, 255, 0.05)" />
+          </View>
+
           <View style={styles.kpiTopRow}>
-            <Text style={styles.kpiLabel}>SHIFT REVENUE</Text>
-            <View 
-              style={[styles.kpiIconBox, { backgroundColor: BRAND.emeraldLight }]}
-              {...({ dataSet: { icon: 'box' } } as any)}
-            >
-              <Ionicons name="cash-outline" size={19} color={BRAND.emeraldDark} />
+            <View style={styles.kpiTitleGroup}>
+              <Text style={styles.kpiJewelLabel}>SHIFT REVENUE (PAID)</Text>
+              <View style={styles.jewelPillGold}>
+                <Text style={styles.jewelPillGoldText}>SETTLED</Text>
+              </View>
+            </View>
+            <View style={[styles.kpiIconBoxJewel, { backgroundColor: 'rgba(212, 175, 55, 0.18)' }]}>
+              <Ionicons name="wallet-outline" size={19} color="#F3D179" />
             </View>
           </View>
+
           {isRefreshing ? (
-            <View style={styles.skeletonValue} {...({ dataSet: { skeleton: 'box' } } as any)} />
+            <View style={styles.skeletonValueDark} {...({ dataSet: { skeleton: 'box' } } as any)} />
           ) : canViewRevenue && can('canAccessReports') ? (
-            <Text style={styles.kpiMainValue}>Rs. {shiftSales.toLocaleString()}</Text>
+            <Text style={styles.kpiMainValueJewel}>Rs. {shiftSales.toLocaleString()}</Text>
           ) : (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginVertical: 3 }}>
-              <Text style={[styles.kpiMainValue, { letterSpacing: 2, color: BRAND.textMuted }]}>••••••</Text>
-              <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                <Text style={{ fontSize: 9, fontWeight: '800', color: '#991B1B' }}>RESTRICTED</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginVertical: 4 }}>
+              <Text style={[styles.kpiMainValueJewel, { letterSpacing: 2, color: 'rgba(255,255,255,0.4)' }]}>••••••</Text>
+              <View style={{ backgroundColor: 'rgba(239, 68, 68, 0.25)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                <Text style={{ fontSize: 9, fontWeight: '800', color: '#FCA5A5' }}>RESTRICTED</Text>
               </View>
             </View>
           )}
-          <Text style={styles.kpiSubtext}>
-            {canViewRevenue && can('canAccessReports') ? `${todaysInvoices.length} settled tickets` : 'Revenue hidden by Admin policy'}
-          </Text>
+
+          <View style={styles.frostedChipRow}>
+            <View style={styles.frostedChip}>
+              <Ionicons name="cash-outline" size={11} color="#F3D179" />
+              <Text style={styles.frostedChipText}>Cash: Rs. {paymentMetrics.cash.amount.toLocaleString()} ({paymentMetrics.cash.pct}%)</Text>
+            </View>
+            <View style={styles.frostedChip}>
+              <Ionicons name="card-outline" size={11} color="#93C5FD" />
+              <Text style={styles.frostedChipText}>Card: Rs. {paymentMetrics.card.amount.toLocaleString()} ({paymentMetrics.card.pct}%)</Text>
+            </View>
+          </View>
+
+          <View style={styles.kpiFooterJewel}>
+            <Text style={styles.kpiSubtextJewel}>
+              {canViewRevenue && can('canAccessReports') ? `${todaysInvoices.length} settled tickets` : 'Revenue hidden by role policy'}
+            </Text>
+            {can('canAccessInvoices') && (
+              <TouchableOpacity onPress={() => router.push('/manager/invoices')}>
+                <Text style={styles.kpiLinkGold}>Invoices →</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
+        {/* Card 2: Dine-In Occupancy (Deep Teal) */}
         <View 
-          style={[styles.kpiCard, isMobile ? styles.kpiCardFull : styles.kpiCardQuarter]}
+          style={[
+            styles.kpiJewelCard, 
+            styles.kpiJewelTeal,
+            isMobile ? styles.kpiCardFull : styles.kpiCardHalf
+          ]}
           {...({ dataSet: { card: 'interactive', stagger: '2' } } as any)}
         >
+          <View style={styles.watermarkIconBox} pointerEvents="none">
+            <Ionicons name="restaurant" size={105} color="rgba(255, 255, 255, 0.05)" />
+          </View>
+
           <View style={styles.kpiTopRow}>
-            <Text style={styles.kpiLabel}>DINE-IN OCCUPANCY</Text>
-            <View 
-              style={[styles.kpiIconBox, { backgroundColor: BRAND.skyLight }]}
-              {...({ dataSet: { icon: 'box' } } as any)}
-            >
-              <Ionicons name="restaurant-outline" size={19} color={BRAND.sky} />
+            <View style={styles.kpiTitleGroup}>
+              <Text style={styles.kpiJewelLabel}>DINE-IN OCCUPANCY</Text>
+              <View style={styles.jewelPillTeal}>
+                <Text style={styles.jewelPillTealText}>{occupancyRate}% OCCUPIED</Text>
+              </View>
+            </View>
+            <View style={[styles.kpiIconBoxJewel, { backgroundColor: 'rgba(16, 185, 129, 0.2)' }]}>
+              <Ionicons name="restaurant-outline" size={19} color="#34D399" />
             </View>
           </View>
+
           {isRefreshing ? (
-            <View style={styles.skeletonValue} {...({ dataSet: { skeleton: 'box' } } as any)} />
+            <View style={styles.skeletonValueDark} {...({ dataSet: { skeleton: 'box' } } as any)} />
           ) : (
-            <Text style={styles.kpiMainValue}>{occupiedTables} / {tables.length}</Text>
+            <Text style={styles.kpiMainValueJewel}>
+              {occupiedTables} / {tables.length} <Text style={{ fontSize: 17, fontWeight: '600', color: '#6EE7B7' }}>Tables</Text>
+            </Text>
           )}
-          <Text style={styles.kpiSubtext}>{freeTables} free tables ({occupancyRate}%)</Text>
+
+          <View style={styles.frostedChipRow}>
+            <View style={styles.frostedChip}>
+              <Ionicons name="checkmark-circle-outline" size={11} color="#6EE7B7" />
+              <Text style={styles.frostedChipText}>{freeTables} Available</Text>
+            </View>
+            <View style={styles.frostedChip}>
+              <Ionicons name="time-outline" size={11} color="#FBBF24" />
+              <Text style={styles.frostedChipText}>{occupiedTables} In-Service</Text>
+            </View>
+          </View>
+
+          <View style={styles.kpiFooterJewel}>
+            <Text style={styles.kpiSubtextJewel}>{freeTables} free tables ready for guests</Text>
+            <TouchableOpacity onPress={() => router.push('/manager/floors')}>
+              <Text style={styles.kpiLinkGold}>View Floors →</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
+        {/* Card 3: Kitchen KDS Load (Amethyst Purple) */}
         <View 
-          style={[styles.kpiCard, isMobile ? styles.kpiCardFull : styles.kpiCardQuarter]}
+          style={[
+            styles.kpiJewelCard, 
+            styles.kpiJewelAmethyst,
+            isMobile ? styles.kpiCardFull : styles.kpiCardHalf
+          ]}
           {...({ dataSet: { card: 'interactive', stagger: '3' } } as any)}
         >
+          <View style={styles.watermarkIconBox} pointerEvents="none">
+            <Ionicons name="flame" size={105} color="rgba(255, 255, 255, 0.05)" />
+          </View>
+
           <View style={styles.kpiTopRow}>
-            <Text style={styles.kpiLabel}>KITCHEN LOAD</Text>
-            <View 
-              style={[styles.kpiIconBox, { backgroundColor: BRAND.amberLight }]}
-              {...({ dataSet: { icon: 'box' } } as any)}
-            >
-              <Ionicons name="flame-outline" size={19} color={BRAND.amber} />
+            <View style={styles.kpiTitleGroup}>
+              <Text style={styles.kpiJewelLabel}>KITCHEN LOAD & KOTs</Text>
+              <View style={styles.jewelPillPurple}>
+                <Text style={styles.jewelPillPurpleText}>{activeOrders > 3 ? 'RUSH' : 'NORMAL'}</Text>
+              </View>
+            </View>
+            <View style={[styles.kpiIconBoxJewel, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
+              <Ionicons name="flame-outline" size={19} color="#C084FC" />
             </View>
           </View>
+
           {isRefreshing ? (
-            <View style={styles.skeletonValue} {...({ dataSet: { skeleton: 'box' } } as any)} />
+            <View style={styles.skeletonValueDark} {...({ dataSet: { skeleton: 'box' } } as any)} />
           ) : (
-            <Text style={styles.kpiMainValue}>{activeOrders} Orders</Text>
+            <Text style={styles.kpiMainValueJewel}>
+              {activeOrders} <Text style={{ fontSize: 17, fontWeight: '600', color: '#D8B4FE' }}>Active Orders</Text>
+            </Text>
           )}
-          <Text style={styles.kpiSubtext}>Cooking & Plating</Text>
+
+          <View style={styles.frostedChipRow}>
+            <View style={styles.frostedChip}>
+              <Ionicons name="timer-outline" size={11} color="#C084FC" />
+              <Text style={styles.frostedChipText}>Cooking & Plating</Text>
+            </View>
+            <View style={styles.frostedChip}>
+              <Ionicons name="speedometer-outline" size={11} color="#A7F3D0" />
+              <Text style={styles.frostedChipText}>Target: 12-15m</Text>
+            </View>
+          </View>
+
+          <View style={styles.kpiFooterJewel}>
+            <Text style={styles.kpiSubtextJewel}>Live preparation queue velocity</Text>
+            <TouchableOpacity onPress={() => router.push('/kitchen/kds')}>
+              <Text style={styles.kpiLinkGold}>Open KDS →</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
+        {/* Card 4: Active Crew & Presence (Deep Amber) */}
         <View 
-          style={[styles.kpiCard, isMobile ? styles.kpiCardFull : styles.kpiCardQuarter]}
+          style={[
+            styles.kpiJewelCard, 
+            styles.kpiJewelAmber,
+            isMobile ? styles.kpiCardFull : styles.kpiCardHalf
+          ]}
           {...({ dataSet: { card: 'interactive', stagger: '4' } } as any)}
         >
+          <View style={styles.watermarkIconBox} pointerEvents="none">
+            <Ionicons name="people" size={105} color="rgba(255, 255, 255, 0.05)" />
+          </View>
+
           <View style={styles.kpiTopRow}>
-            <Text style={styles.kpiLabel}>ACTIVE CREW</Text>
-            <View 
-              style={[styles.kpiIconBox, { backgroundColor: BRAND.indigoLight }]}
-              {...({ dataSet: { icon: 'box' } } as any)}
-            >
-              <Ionicons name="people-outline" size={19} color={BRAND.indigo} />
+            <View style={styles.kpiTitleGroup}>
+              <Text style={styles.kpiJewelLabel}>ACTIVE SHIFT CREW</Text>
+              <View style={styles.jewelPillAmber}>
+                <Text style={styles.jewelPillAmberText}>ON DUTY</Text>
+              </View>
+            </View>
+            <View style={[styles.kpiIconBoxJewel, { backgroundColor: 'rgba(245, 158, 11, 0.2)' }]}>
+              <Ionicons name="people-outline" size={19} color="#FBBF24" />
             </View>
           </View>
+
           {isRefreshing ? (
-            <View style={styles.skeletonValue} {...({ dataSet: { skeleton: 'box' } } as any)} />
+            <View style={styles.skeletonValueDark} {...({ dataSet: { skeleton: 'box' } } as any)} />
           ) : (
-            <Text style={styles.kpiMainValue}>{activeStaff.length} On Duty</Text>
+            <Text style={styles.kpiMainValueJewel}>
+              {activeStaff.length} <Text style={{ fontSize: 17, fontWeight: '600', color: '#FCD34D' }}>Crew Members</Text>
+            </Text>
           )}
-          <Text style={styles.kpiSubtext}>{activeWaiters} Waiters • {activeKitchen} Kitchen</Text>
+
+          <View style={styles.frostedChipRow}>
+            <View style={styles.frostedChip}>
+              <Ionicons name="person-outline" size={11} color="#FBBF24" />
+              <Text style={styles.frostedChipText}>{activeWaiters} Waiters</Text>
+            </View>
+            <View style={styles.frostedChip}>
+              <Ionicons name="restaurant-outline" size={11} color="#FCD34D" />
+              <Text style={styles.frostedChipText}>{activeKitchen} Kitchen Crew</Text>
+            </View>
+          </View>
+
+          <View style={styles.kpiFooterJewel}>
+            <Text style={styles.kpiSubtextJewel}>Shift roster & active personnel</Text>
+            <TouchableOpacity onPress={() => router.push('/manager/shift')}>
+              <Text style={styles.kpiLinkGold}>Shift Roster →</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -762,20 +977,23 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   headerCard: {
-    backgroundColor: BRAND.cardBg,
-    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    borderRadius: 18,
     padding: 20,
-    borderWidth: 1,
-    borderColor: BRAND.cardBorder,
+    borderWidth: 1.5,
+    borderColor: 'rgba(212, 175, 55, 0.28)',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        boxShadow: '0 12px 32px rgba(82, 20, 28, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.95)',
+      } as any,
+    }),
+    elevation: 3,
   },
   headerCardMobile: {
     flexDirection: 'column',
@@ -789,8 +1007,15 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     flexWrap: 'wrap',
+  },
+  headerLogoCapsule: {
+    padding: 6,
+    borderRadius: 10,
+    backgroundColor: 'rgba(82, 20, 28, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.25)',
   },
   headerTitle: {
     fontSize: 22,
@@ -835,18 +1060,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: BRAND.burgundyLight,
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(112, 26, 38, 0.2)',
+    borderColor: 'rgba(212, 175, 55, 0.35)',
     paddingHorizontal: 11,
     paddingVertical: 7,
     borderRadius: 8,
   },
   refreshSyncBtnActive: {
-    backgroundColor: '#FDE8EB',
+    backgroundColor: 'rgba(212, 175, 55, 0.22)',
   },
   refreshSyncBtnText: {
-    color: BRAND.burgundy,
+    color: BRAND.goldDark,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -854,15 +1079,355 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: BRAND.burgundy,
+    backgroundColor: '#D4AF37',
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 10,
+    shadowColor: '#D4AF37',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
   },
   actionPosBtnText: {
-    color: '#FFFFFF',
+    color: '#24050A',
     fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+
+  // 1.1 Shift Status Capsule & Alert Banner (from Baithak home.php)
+  shiftStatusCapsule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginBottom: 20,
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, #380A11 0%, #200408 100%)',
+      },
+      default: {
+        backgroundColor: '#24050A',
+      },
+    }),
+    borderWidth: 1.5,
+    borderColor: 'rgba(212, 175, 55, 0.38)',
+    shadowColor: '#24050A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  shiftCapsuleLeft: {
+    flex: 1,
+    minWidth: 280,
+  },
+  shiftLiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  shiftLiveText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#34D399',
+    letterSpacing: 0.8,
+  },
+  shiftCapsuleHeading: {
+    fontSize: 15,
     fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
+  },
+  shiftCapsuleDetails: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.72)',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  shiftCapsuleActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  shiftActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: 'rgba(212, 175, 55, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.35)',
+  },
+  shiftActionBtnGold: {
+    backgroundColor: '#D4AF37',
+    borderColor: '#F3D179',
+  },
+  shiftActionBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#F3D179',
+  },
+  shiftAlertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginBottom: 20,
+    backgroundColor: 'rgba(254, 243, 199, 0.88)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(245, 158, 11, 0.48)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        boxShadow: '0 8px 24px rgba(245, 158, 11, 0.15)',
+      } as any,
+    }),
+  },
+  shiftAlertLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    minWidth: 260,
+  },
+  shiftAlertText: {
+    fontSize: 13,
+    color: '#78350F',
+    fontWeight: '600',
+    flex: 1,
+    lineHeight: 18,
+  },
+  shiftAlertBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 9,
+    backgroundColor: '#D97706',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+        boxShadow: '0 4px 14px rgba(217, 119, 6, 0.35)',
+        cursor: 'pointer',
+      } as any,
+    }),
+  },
+  shiftAlertBtnText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+
+  // 2. Core Jewel-Toned KPI Cards from Baithak
+  kpiJewelCard: {
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 4,
+    position: 'relative',
+    overflow: 'hidden',
+    justifyContent: 'space-between',
+    minHeight: 180,
+  },
+  kpiJewelMaroon: {
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, #4D101A 0%, #200408 100%)',
+      },
+      default: {
+        backgroundColor: '#380A11',
+      },
+    }),
+    borderColor: 'rgba(212, 175, 55, 0.38)',
+  },
+  kpiJewelAmber: {
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, #4A1E08 0%, #1D0A02 100%)',
+      },
+      default: {
+        backgroundColor: '#2E1A0D',
+      },
+    }),
+    borderColor: 'rgba(245, 158, 11, 0.38)',
+  },
+  kpiJewelTeal: {
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, #093322 0%, #03140C 100%)',
+      },
+      default: {
+        backgroundColor: '#0E3324',
+      },
+    }),
+    borderColor: 'rgba(16, 185, 129, 0.38)',
+  },
+  kpiJewelAmethyst: {
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, #2B1343 0%, #11051D 100%)',
+      },
+      default: {
+        backgroundColor: '#261738',
+      },
+    }),
+    borderColor: 'rgba(168, 85, 247, 0.38)',
+  },
+  watermarkIconBox: {
+    position: 'absolute',
+    right: -10,
+    bottom: -15,
+    opacity: 0.9,
+  },
+  kpiTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  kpiJewelLabel: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: 'rgba(255, 255, 255, 0.78)',
+    letterSpacing: 0.9,
+  },
+  jewelPillGold: {
+    backgroundColor: 'rgba(212, 175, 55, 0.22)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.35)',
+  },
+  jewelPillGoldText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#F3D179',
+    letterSpacing: 0.5,
+  },
+  jewelPillAmber: {
+    backgroundColor: 'rgba(245, 158, 11, 0.22)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+  },
+  jewelPillAmberText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FCD34D',
+  },
+  jewelPillTeal: {
+    backgroundColor: 'rgba(16, 185, 129, 0.22)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.35)',
+  },
+  jewelPillTealText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#6EE7B7',
+  },
+  jewelPillPurple: {
+    backgroundColor: 'rgba(168, 85, 247, 0.22)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.35)',
+  },
+  jewelPillPurpleText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#D8B4FE',
+  },
+  kpiIconBoxJewel: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  kpiMainValueJewel: {
+    fontSize: 27,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+    marginVertical: 4,
+  },
+  skeletonValueDark: {
+    height: 30,
+    width: '65%',
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    marginVertical: 4,
+  },
+  frostedChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginVertical: 6,
+  },
+  frostedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  frostedChipText: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '600',
+  },
+  kpiFooterJewel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    paddingTop: 10,
+    marginTop: 6,
+  },
+  kpiSubtextJewel: {
+    fontSize: 11.5,
+    color: 'rgba(255, 255, 255, 0.72)',
+    fontWeight: '500',
+  },
+  kpiLinkGold: {
+    fontSize: 12,
+    color: '#F3D179',
+    fontWeight: '800',
+  },
+
+  kpiCardHalf: {
+    width: 'calc(50% - 8px)' as any,
   },
 
   kpiGrid: {
@@ -930,11 +1495,19 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   chartCard: {
-    backgroundColor: BRAND.cardBg,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: BRAND.cardBorder,
+    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    borderRadius: 18,
+    padding: 22,
+    borderWidth: 1.5,
+    borderColor: 'rgba(212, 175, 55, 0.24)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        boxShadow: '0 12px 32px rgba(82, 20, 28, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.95)',
+      } as any,
+    }),
+    elevation: 3,
   },
   chartCardFull: {
     width: '100%',

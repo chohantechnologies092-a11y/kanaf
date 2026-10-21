@@ -22,6 +22,7 @@ import { printInvoiceReceipt } from '../components/Invoice';
 import { useAuthStore } from '../store/authStore';
 import { useRolePermissions } from '../store/roleStore';
 import PermissionDeniedScreen from '../components/PermissionDeniedScreen';
+import RoyalDropdown from '../components/RoyalDropdown';
 
 interface InvoicesScreenProps {
   userRole: 'admin' | 'manager';
@@ -427,56 +428,69 @@ export default function InvoicesScreen({ userRole, targetRoleOverride, backRoute
 
       <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
         {/* KPI Financial Overview */}
+        {/* KPI Financial Overview (Liquid Glass Info Boxes) */}
         <View style={styles.kpiContainer}>
-          <View style={[styles.kpiCard, kpiCardResponsiveStyle, { borderLeftColor: '#27AE60' }]}>
-            <View style={styles.kpiIconWrap}>
-              <Ionicons name="cash-outline" size={20} color="#27AE60" />
+          <View 
+            style={[styles.kpiCard, styles.kpiCardEmerald, kpiCardResponsiveStyle]}
+            {...(Platform.OS === 'web' ? { className: 'interactive-card' } : {})}
+          >
+            <View style={[styles.kpiIconWrap, { backgroundColor: 'rgba(16, 185, 129, 0.18)' }]}>
+              <Ionicons name="cash" size={20} color="#059669" />
             </View>
             <View>
-              <Text style={[styles.kpiLabel, isSmallMobile && { fontSize: 10 }]}>Total Revenue</Text>
-              <Text style={[styles.kpiValue, isSmallMobile && { fontSize: 16 }]}>
+              <Text style={[styles.kpiLabel, { color: '#065F46' }, isSmallMobile && { fontSize: 10 }]}>Total Revenue</Text>
+              <Text style={[styles.kpiValue, { color: '#047857' }, isSmallMobile && { fontSize: 16 }]}>
                 {canViewRevenue ? `Rs. ${metrics.totalSales.toLocaleString()}` : '••••••••'}
               </Text>
-              <Text style={[styles.kpiSub, isSmallMobile && { fontSize: 10 }]}>From {metrics.count} settled bills</Text>
+              <Text style={[styles.kpiSub, { color: '#065F46' }, isSmallMobile && { fontSize: 10 }]}>From {metrics.count} settled bills</Text>
             </View>
           </View>
 
-          <View style={[styles.kpiCard, kpiCardResponsiveStyle, { borderLeftColor: '#007AFF' }]}>
-            <View style={styles.kpiIconWrap}>
-              <Ionicons name="receipt-outline" size={20} color="#007AFF" />
+          <View 
+            style={[styles.kpiCard, styles.kpiCardSapphire, kpiCardResponsiveStyle]}
+            {...(Platform.OS === 'web' ? { className: 'interactive-card' } : {})}
+          >
+            <View style={[styles.kpiIconWrap, { backgroundColor: 'rgba(2, 132, 199, 0.18)' }]}>
+              <Ionicons name="receipt" size={20} color="#0284C7" />
             </View>
             <View>
-              <Text style={[styles.kpiLabel, isSmallMobile && { fontSize: 10 }]}>Settled Invoices</Text>
-              <Text style={[styles.kpiValue, isSmallMobile && { fontSize: 16 }]}>{metrics.count}</Text>
-              <Text style={[styles.kpiSub, isSmallMobile && { fontSize: 10 }]}>
+              <Text style={[styles.kpiLabel, { color: '#075985' }, isSmallMobile && { fontSize: 10 }]}>Settled Invoices</Text>
+              <Text style={[styles.kpiValue, { color: '#0369A1' }, isSmallMobile && { fontSize: 16 }]}>{metrics.count} Bills</Text>
+              <Text style={[styles.kpiSub, { color: '#075985' }, isSmallMobile && { fontSize: 10 }]}>
                 Avg: {canViewRevenue ? `Rs. ${metrics.aov.toLocaleString()}` : '••••'} / bill
               </Text>
             </View>
           </View>
 
-          <View style={[styles.kpiCard, kpiCardResponsiveStyle, { borderLeftColor: '#F39C12' }]}>
-            <View style={styles.kpiIconWrap}>
-              <Ionicons name="wallet-outline" size={20} color="#F39C12" />
+          <View 
+            style={[styles.kpiCard, styles.kpiCardAmber, kpiCardResponsiveStyle]}
+            {...(Platform.OS === 'web' ? { className: 'interactive-card' } : {})}
+          >
+            <View style={[styles.kpiIconWrap, { backgroundColor: 'rgba(245, 158, 11, 0.18)' }]}>
+              <Ionicons name="wallet" size={20} color="#D97706" />
             </View>
             <View>
-              <Text style={[styles.kpiLabel, isSmallMobile && { fontSize: 10 }]}>Cash vs Digital</Text>
-              <Text style={[styles.kpiValue, isSmallMobile && { fontSize: 16 }]}>
+              <Text style={[styles.kpiLabel, { color: '#92400E' }, isSmallMobile && { fontSize: 10 }]}>Cash vs Digital</Text>
+              <Text style={[styles.kpiValue, { color: '#B45309' }, isSmallMobile && { fontSize: 16 }]}>
                 {canViewRevenue ? `Rs. ${metrics.cashTotal.toLocaleString()}` : '••••••••'}
               </Text>
-              <Text style={[styles.kpiSub, isSmallMobile && { fontSize: 10 }]}>
+              <Text style={[styles.kpiSub, { color: '#92400E' }, isSmallMobile && { fontSize: 10 }]}>
                 Card/Online: {canViewRevenue ? `Rs. ${metrics.digitalTotal.toLocaleString()}` : '••••••••'}
               </Text>
             </View>
           </View>
 
-          <View style={[styles.kpiCard, kpiCardResponsiveStyle, { borderLeftColor: '#E74C3C' }]}>
-            <View style={styles.kpiIconWrap}>
-              <Ionicons name="close-circle-outline" size={20} color="#E74C3C" />
+          <View 
+            style={[styles.kpiCard, styles.kpiCardRuby, kpiCardResponsiveStyle]}
+            {...(Platform.OS === 'web' ? { className: 'interactive-card' } : {})}
+          >
+            <View style={[styles.kpiIconWrap, { backgroundColor: 'rgba(239, 68, 68, 0.18)' }]}>
+              <Ionicons name="close-circle" size={20} color="#DC2626" />
             </View>
             <View>
-              <Text style={[styles.kpiLabel, isSmallMobile && { fontSize: 10 }]}>Voided / Cancelled</Text>
-              <Text style={[styles.kpiValue, { color: '#E74C3C' }, isSmallMobile && { fontSize: 16 }]}>{metrics.voidedCount}</Text>
-              <Text style={[styles.kpiSub, isSmallMobile && { fontSize: 10 }]}>Tax: Rs. {metrics.totalTax.toLocaleString()}</Text>
+              <Text style={[styles.kpiLabel, { color: '#991B1B' }, isSmallMobile && { fontSize: 10 }]}>Voided / Cancelled</Text>
+              <Text style={[styles.kpiValue, { color: '#DC2626' }, isSmallMobile && { fontSize: 16 }]}>{metrics.voidedCount}</Text>
+              <Text style={[styles.kpiSub, { color: '#991B1B' }, isSmallMobile && { fontSize: 10 }]}>Tax: Rs. {metrics.totalTax.toLocaleString()}</Text>
             </View>
           </View>
         </View>
@@ -523,84 +537,69 @@ export default function InvoicesScreen({ userRole, targetRoleOverride, backRoute
             </View>
           </View>
 
-          {/* Quick Date Filters */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChipsRow}>
-            <Text style={styles.filterLabel}>Period:</Text>
-            {(['all', 'today', 'yesterday', 'week', 'month'] as const).map((period) => (
-              <TouchableOpacity
-                key={period}
-                style={[styles.filterChip, dateFilter === period && styles.filterChipActive]}
-                onPress={() => setDateFilter(period)}
-              >
-                <Text style={[styles.filterChipText, dateFilter === period && styles.filterChipTextActive]}>
-                  {period === 'all' && 'All Time'}
-                  {period === 'today' && 'Today'}
-                  {period === 'yesterday' && 'Yesterday'}
-                  {period === 'week' && 'Past 7 Days'}
-                  {period === 'month' && 'Past 30 Days'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-
-            <View style={styles.filterDivider} />
-
-            {/* Order Type Filters */}
-            <Text style={styles.filterLabel}>Type:</Text>
-            {(['all', 'dine-in', 'takeaway', 'delivery'] as const).map((type) => (
-              <TouchableOpacity
-                key={type}
-                style={[styles.filterChip, orderTypeFilter === type && styles.filterChipActive]}
-                onPress={() => setOrderTypeFilter(type)}
-              >
-                <Text style={[styles.filterChipText, orderTypeFilter === type && styles.filterChipTextActive]}>
-                  {type === 'all' && 'All Orders'}
-                  {type === 'dine-in' && '🍽️ Dine-In'}
-                  {type === 'takeaway' && '🛍️ Takeaway'}
-                  {type === 'delivery' && '🛵 Delivery'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-
-            <View style={styles.filterDivider} />
-
-            {/* Payment Filters */}
-            <Text style={styles.filterLabel}>Payment:</Text>
-            {(['all', 'cash', 'card', 'online'] as const).map((pm) => (
-              <TouchableOpacity
-                key={pm}
-                style={[styles.filterChip, paymentFilter === pm && styles.filterChipActive]}
-                onPress={() => setPaymentFilter(pm)}
-              >
-                <Text style={[styles.filterChipText, paymentFilter === pm && styles.filterChipTextActive]}>
-                  {pm.toUpperCase()}
-                </Text>
-              </TouchableOpacity>
-            ))}
-
-            <View style={styles.filterDivider} />
-
-            {/* Status Filter */}
-            <Text style={styles.filterLabel}>Status:</Text>
-            {(['all', 'settled', 'refunded', 'voided'] as const).map((st) => (
-              <TouchableOpacity
-                key={st}
-                style={[
-                  styles.filterChip,
-                  statusFilter === st && (st === 'voided' ? styles.filterChipVoidActive : st === 'refunded' ? styles.filterChipRefundActive : styles.filterChipActive),
+          {/* Filter Dropdowns Grid */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+            <View style={{ flex: 1, minWidth: 140 }}>
+              <RoyalDropdown
+                label="Period"
+                options={[
+                  { label: 'All Time', value: 'all', icon: 'calendar-outline' as const },
+                  { label: 'Today', value: 'today', icon: 'today-outline' as const },
+                  { label: 'Yesterday', value: 'yesterday', icon: 'time-outline' as const },
+                  { label: 'Past 7 Days', value: 'week', icon: 'calendar-clear-outline' as const },
+                  { label: 'Past 30 Days', value: 'month', icon: 'calendar-number-outline' as const },
                 ]}
-                onPress={() => setStatusFilter(st)}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    statusFilter === st && (st === 'voided' ? styles.filterChipVoidTextActive : styles.filterChipTextActive),
-                  ]}
-                >
-                  {st === 'all' ? 'All Status' : st === 'settled' ? '✅ Settled' : st === 'refunded' ? '↩️ Returned / Refunded' : '❌ Voided'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+                value={dateFilter}
+                onSelect={(val) => setDateFilter(val as any)}
+                icon="calendar-outline"
+              />
+            </View>
+
+            <View style={{ flex: 1, minWidth: 140 }}>
+              <RoyalDropdown
+                label="Order Type"
+                options={[
+                  { label: 'All Orders', value: 'all' },
+                  { label: '🍽️ Dine-In', value: 'dine-in' },
+                  { label: '🛍️ Takeaway', value: 'takeaway' },
+                  { label: '🛵 Delivery', value: 'delivery' },
+                ]}
+                value={orderTypeFilter}
+                onSelect={(val) => setOrderTypeFilter(val as any)}
+                icon="restaurant-outline"
+              />
+            </View>
+
+            <View style={{ flex: 1, minWidth: 140 }}>
+              <RoyalDropdown
+                label="Payment Method"
+                options={[
+                  { label: 'All Payments', value: 'all' },
+                  { label: '💵 Cash', value: 'cash' },
+                  { label: '💳 Card', value: 'card' },
+                  { label: '📱 Online', value: 'online' },
+                ]}
+                value={paymentFilter}
+                onSelect={(val) => setPaymentFilter(val as any)}
+                icon="wallet-outline"
+              />
+            </View>
+
+            <View style={{ flex: 1, minWidth: 140 }}>
+              <RoyalDropdown
+                label="Invoice Status"
+                options={[
+                  { label: 'All Statuses', value: 'all' },
+                  { label: '✅ Settled', value: 'settled' },
+                  { label: '↩️ Refunded', value: 'refunded' },
+                  { label: '❌ Voided', value: 'voided' },
+                ]}
+                value={statusFilter}
+                onSelect={(val) => setStatusFilter(val as any)}
+                icon="checkmark-circle-outline"
+              />
+            </View>
+          </View>
         </View>
 
         {/* Results Counter */}
@@ -1435,20 +1434,48 @@ const styles = StyleSheet.create({
   kpiCard: {
     flex: 1,
     minWidth: 160,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 14,
-    borderLeftWidth: 4,
-    borderWidth: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 14,
+    padding: 15,
+    borderLeftWidth: 4.5,
+    borderWidth: 1.5,
     borderColor: '#E5E5EA',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 2,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.05)',
+      } as any,
+    }),
+    elevation: 3,
+  },
+  kpiCardEmerald: {
+    backgroundColor: 'rgba(236, 253, 245, 0.9)',
+    borderColor: 'rgba(16, 185, 129, 0.35)',
+    borderLeftColor: '#10B981',
+  },
+  kpiCardSapphire: {
+    backgroundColor: 'rgba(240, 249, 255, 0.9)',
+    borderColor: 'rgba(2, 132, 199, 0.35)',
+    borderLeftColor: '#0284C7',
+  },
+  kpiCardAmber: {
+    backgroundColor: 'rgba(254, 243, 199, 0.9)',
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    borderLeftColor: '#F59E0B',
+  },
+  kpiCardRuby: {
+    backgroundColor: 'rgba(254, 226, 226, 0.9)',
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    borderLeftColor: '#EF4444',
   },
   kpiIconWrap: {
-    marginBottom: 6,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   kpiLabel: {
     fontSize: 11,

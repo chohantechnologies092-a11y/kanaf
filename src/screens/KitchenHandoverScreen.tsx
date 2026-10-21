@@ -21,6 +21,7 @@ import { useKitchenStore, getActiveSessions } from '../store/kitchenStore';
 import { seedKitchenStarter } from '../store/kitchenSeed';
 import type { ShiftKind, ShiftStation } from '../types/kitchen';
 import { SHIFT_KIND_META, SHIFT_STATION_META } from '../types/kitchen';
+import RoyalDropdown from '../components/RoyalDropdown';
 import {
   averageDailyUsage,
   formatQty,
@@ -482,23 +483,18 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
 
         {/* LIVE SHIFT SWITCHER (several handovers can run on the same day) */}
         {activeSessions.length > 1 && (
-          <View style={{ marginBottom: 10 }}>
-            <Text style={styles.inputLabel}>Live handovers today ({activeSessions.length})</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
-              {activeSessions.map((s) => {
-                const on = activeSession?.id === s.id;
-                return (
-                  <TouchableOpacity
-                    key={s.id}
-                    style={[styles.chefPill, on && styles.chefPillActive]}
-                    onPress={() => setSelectedActiveId(s.id)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.chefPillText, on && styles.chefPillTextActive]}>{shiftTitle(s)}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+          <View style={{ marginBottom: 12 }}>
+            <RoyalDropdown
+              label={`Live Handovers Today (${activeSessions.length}) - Select Shift`}
+              options={activeSessions.map((s) => ({
+                label: shiftTitle(s),
+                value: s.id,
+                sublabel: `Head Chef: ${s.headChef} • Hand cash: Rs. ${s.cashHandedOver}`,
+              }))}
+              value={selectedActiveId || (activeSession?.id || '')}
+              onSelect={(id) => setSelectedActiveId(id)}
+              icon="time-outline"
+            />
           </View>
         )}
 
@@ -635,26 +631,19 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
           {/* Handover Details Header */}
           <View style={styles.formRow}>
             <View style={styles.formCol}>
-              <Text style={styles.inputLabel}>Head Chef Name *</Text>
-              <TextInput
-                style={styles.input}
+              <RoyalDropdown
+                label="Head Chef Name *"
+                placeholder="Select or enter chef name..."
+                options={kitchenStaff.map((s) => ({
+                  label: `${s.name} (${s.role})`,
+                  value: s.name,
+                  badge: s.role,
+                }))}
                 value={headChef}
-                onChangeText={setHeadChef}
-                placeholder="e.g. Chef Omar"
+                onSelect={(val) => setHeadChef(val)}
+                icon="restaurant-outline"
+                searchable
               />
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
-                {kitchenStaff.map((s) => (
-                  <TouchableOpacity
-                    key={s.id}
-                    style={[styles.chefPill, headChef === s.name && styles.chefPillActive]}
-                    onPress={() => setHeadChef(s.name)}
-                  >
-                    <Text style={[styles.chefPillText, headChef === s.name && styles.chefPillTextActive]}>
-                      {s.name} ({s.role})
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
             </View>
 
             <View style={styles.formCol}>
@@ -681,37 +670,33 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
           </View>
 
           {/* Shift & kitchen: several handovers can run on the same day */}
-          <View style={[styles.formCol, { marginBottom: 12 }]}>
-            <Text style={styles.inputLabel}>Shift & Kitchen *</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
-              {(Object.keys(SHIFT_KIND_META) as ShiftKind[]).map((k) => (
-                <TouchableOpacity
-                  key={k}
-                  style={[styles.chefPill, shift === k && styles.chefPillActive]}
-                  onPress={() => setShift(k)}
-                >
-                  <Text style={[styles.chefPillText, shift === k && styles.chefPillTextActive]}>
-                    {SHIFT_KIND_META[k].label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-              <View style={{ width: 14 }} />
-              {(Object.keys(SHIFT_STATION_META) as ShiftStation[]).map((k) => (
-                <TouchableOpacity
-                  key={k}
-                  style={[styles.chefPill, station === k && styles.chefPillActive]}
-                  onPress={() => setStation(k)}
-                >
-                  <Text style={[styles.chefPillText, station === k && styles.chefPillTextActive]}>
-                    {SHIFT_STATION_META[k].label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <Text style={styles.inputHint}>
-              Admin or manager can issue several handovers in one day (morning chef, evening chef, juice bar). POS sales are
-              matched to the right handover automatically.
-            </Text>
+          <View style={[styles.formRow, { marginBottom: 12 }]}>
+            <View style={styles.formCol}>
+              <RoyalDropdown
+                label="Shift Period *"
+                options={(Object.keys(SHIFT_KIND_META) as ShiftKind[]).map((k) => ({
+                  label: SHIFT_KIND_META[k].label,
+                  value: k,
+                  icon: SHIFT_KIND_META[k].icon as any,
+                }))}
+                value={shift}
+                onSelect={(k) => setShift(k as ShiftKind)}
+                icon="time-outline"
+              />
+            </View>
+
+            <View style={styles.formCol}>
+              <RoyalDropdown
+                label="Kitchen Station *"
+                options={(Object.keys(SHIFT_STATION_META) as ShiftStation[]).map((k) => ({
+                  label: SHIFT_STATION_META[k].label,
+                  value: k,
+                }))}
+                value={station}
+                onSelect={(k) => setStation(k as ShiftStation)}
+                icon="flame-outline"
+              />
+            </View>
           </View>
 
           {/* Requisition Table Filter & Quick Actions Bar */}
@@ -731,8 +716,30 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
               )}
             </View>
 
-            {/* Smart Filter Chips & Category Scroll */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }}>
+            {/* Category Dropdown and Smart Filter Chips */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: 1 }}>
+              <View style={{ minWidth: 180, flex: 1 }}>
+                <RoyalDropdown
+                  placeholder="All Categories"
+                  options={categories.map((cat) => {
+                    const count = cat === 'All' ? cookingItems.length : cookingItems.filter(i => i.category === cat).length;
+                    return {
+                      label: `${cat} (${count})`,
+                      value: cat,
+                      badge: `${count}`,
+                    };
+                  })}
+                  value={filterCategory}
+                  onSelect={(cat) => {
+                    setFilterCategory(cat);
+                    setShowOnlyRequested(false);
+                    setShowOnlyLowStock(false);
+                  }}
+                  icon="grid-outline"
+                  searchable
+                />
+              </View>
+
               {/* Selected Items Toggle Chip */}
               <TouchableOpacity
                 style={[styles.smartFilterChip, showOnlyRequested && styles.smartFilterChipActive]}
@@ -770,26 +777,7 @@ export default function KitchenHandoverScreen({ backRoute = '/admin/dashboard' }
                   Low In Store ({lowStockCount})
                 </Text>
               </TouchableOpacity>
-
-              {categories.map((cat) => {
-                const count = cat === 'All' ? cookingItems.length : cookingItems.filter(i => i.category === cat).length;
-                return (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[styles.catPill, filterCategory === cat && !showOnlyRequested && !showOnlyLowStock && styles.catPillActive]}
-                    onPress={() => {
-                      setFilterCategory(cat);
-                      setShowOnlyRequested(false);
-                      setShowOnlyLowStock(false);
-                    }}
-                  >
-                    <Text style={[styles.catPillText, filterCategory === cat && !showOnlyRequested && !showOnlyLowStock && styles.catPillTextActive]}>
-                      {cat} ({count})
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+            </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <TouchableOpacity

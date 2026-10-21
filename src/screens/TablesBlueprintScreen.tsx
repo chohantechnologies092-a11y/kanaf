@@ -26,6 +26,7 @@ import {
   sortFloors,
 } from '../constants/floors';
 import { useRolePermissions } from '../store/roleStore';
+import RoyalDropdown from '../components/RoyalDropdown';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 type TabKey = 'tables' | 'reservations' | 'zones';
@@ -529,6 +530,7 @@ export default function TablesBlueprintScreen({
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => setActionTableId(table.id)}
+          {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
           style={[
             styles.tile,
             { borderColor: meta.color + '40' },
@@ -760,16 +762,59 @@ export default function TablesBlueprintScreen({
   );
 
   // ---------- UI ----------
-  const STATS: { label: string; value: string; icon: IconName; color: string }[] = [
-    { label: 'Available', value: `${counts.available}/${tables.length}`, icon: 'checkmark-circle', color: STATUS_META.available.color },
-    { label: 'Occupied', value: `${counts.occupied + counts.billed}`, icon: 'people', color: STATUS_META.occupied.color },
-    { label: 'Reserved', value: `${counts.reserved}`, icon: 'calendar', color: STATUS_META.reserved.color },
-    { label: 'Seat occupancy', value: `${occupancyPct}%`, icon: 'pie-chart', color: '#2471A3' },
+  const STATS: {
+    label: string;
+    value: string;
+    icon: IconName;
+    color: string;
+    bg: string;
+    border: string;
+    iconBg: string;
+  }[] = [
+    {
+      label: 'Available',
+      value: `${counts.available}/${tables.length}`,
+      icon: 'checkmark-circle',
+      color: '#059669',
+      bg: 'rgba(236, 253, 245, 0.95)',
+      border: 'rgba(16, 185, 129, 0.35)',
+      iconBg: '#D1FAE5',
+    },
+    {
+      label: 'Occupied',
+      value: `${counts.occupied + counts.billed}`,
+      icon: 'people',
+      color: '#DC2626',
+      bg: 'rgba(254, 242, 242, 0.95)',
+      border: 'rgba(239, 68, 68, 0.35)',
+      iconBg: '#FEE2E2',
+    },
+    {
+      label: 'Reserved',
+      value: `${counts.reserved}`,
+      icon: 'calendar',
+      color: '#7C3AED',
+      bg: 'rgba(250, 245, 255, 0.95)',
+      border: 'rgba(168, 85, 247, 0.35)',
+      iconBg: '#EDE9FE',
+    },
+    {
+      label: 'Seat occupancy',
+      value: `${occupancyPct}%`,
+      icon: 'pie-chart',
+      color: '#0284C7',
+      bg: 'rgba(240, 249, 255, 0.95)',
+      border: 'rgba(14, 165, 233, 0.35)',
+      iconBg: '#E0F2FE',
+    },
     {
       label: 'Live dine-in bill',
       value: canViewRevenue ? `Rs. ${liveRevenue.toLocaleString()}` : 'Rs. ••••••',
       icon: 'cash',
-      color: GOLD,
+      color: '#B45309',
+      bg: 'rgba(254, 243, 199, 0.95)',
+      border: 'rgba(212, 175, 55, 0.45)',
+      iconBg: '#FDE68A',
     },
   ];
 
@@ -786,6 +831,7 @@ export default function TablesBlueprintScreen({
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, minWidth: 200 }}>
           <TouchableOpacity
             style={styles.backBtn}
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-btn' } as any) : {})}
             onPress={() => (router.canGoBack() ? router.back() : router.replace(backRoute as any))}
           >
             <Ionicons name="arrow-back" size={20} color="#fff" />
@@ -798,17 +844,23 @@ export default function TablesBlueprintScreen({
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={[styles.headerBtn, { backgroundColor: '#34495E' }]}
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-btn' } as any) : {})}
             onPress={() => router.push(floorsRoute as any)}
           >
             <Ionicons name="layers-outline" size={16} color="#fff" />
             <Text style={styles.headerBtnText}>🏛️ Manage Floors</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.headerBtn, styles.headerBtnGhost]} onPress={() => openAddReservationModal()}>
+          <TouchableOpacity
+            style={[styles.headerBtn, styles.headerBtnGhost]}
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-btn' } as any) : {})}
+            onPress={() => openAddReservationModal()}
+          >
             <Ionicons name="calendar-outline" size={16} color={STATUS_META.reserved.color} />
             {!isMobile && <Text style={[styles.headerBtnText, { color: STATUS_META.reserved.color }]}>Reservation</Text>}
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.headerBtn, { backgroundColor: '#4a121a' }]}
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-btn' } as any) : {})}
             onPress={() => openAddTableModal(undefined, 'majlis')}
           >
             <SeatingTypeIcon type="majlis" size={16} color="#fff" />
@@ -816,6 +868,7 @@ export default function TablesBlueprintScreen({
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.headerBtn, { backgroundColor: '#E65100' }]}
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-btn' } as any) : {})}
             onPress={() => openAddTableModal(undefined, 'couches')}
           >
             <SeatingTypeIcon type="couches" size={16} color="#fff" />
@@ -823,6 +876,7 @@ export default function TablesBlueprintScreen({
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.headerBtn, { backgroundColor: '#1976D2' }]}
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-btn' } as any) : {})}
             onPress={() => openAddTableModal(undefined, 'tables')}
           >
             <SeatingTypeIcon type="tables" size={16} color="#fff" />
@@ -835,13 +889,23 @@ export default function TablesBlueprintScreen({
         {/* Stats */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsRow}>
           {STATS.map((s) => (
-            <View key={s.label} style={styles.statCard}>
-              <View style={[styles.statIcon, { backgroundColor: s.color + '1A' }]}>
+            <View
+              key={s.label}
+              {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
+              style={[
+                styles.statCard,
+                {
+                  backgroundColor: s.bg,
+                  borderColor: s.border,
+                },
+              ]}
+            >
+              <View style={[styles.statIcon, { backgroundColor: s.iconBg }]}>
                 <Ionicons name={s.icon} size={18} color={s.color} />
               </View>
               <View>
-                <Text style={styles.statValue}>{s.value}</Text>
-                <Text style={styles.statLabel}>{s.label}</Text>
+                <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
+                <Text style={[styles.statLabel, { color: s.color }]}>{s.label}</Text>
               </View>
             </View>
           ))}
@@ -852,7 +916,12 @@ export default function TablesBlueprintScreen({
           {TABS.map((tab) => {
             const active = activeTab === tab.key;
             return (
-              <TouchableOpacity key={tab.key} style={[styles.segmentItem, active && styles.segmentItemActive]} onPress={() => setActiveTab(tab.key)}>
+              <TouchableOpacity
+                key={tab.key}
+                {...(Platform.OS === 'web' ? ({ className: 'interactive-btn' } as any) : {})}
+                style={[styles.segmentItem, active && styles.segmentItemActive]}
+                onPress={() => setActiveTab(tab.key)}
+              >
                 <Ionicons name={active ? tab.icon : (`${tab.icon}-outline` as IconName)} size={16} color={active ? '#fff' : '#636366'} />
                 <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
                   {tab.label}
@@ -870,9 +939,9 @@ export default function TablesBlueprintScreen({
         {/* ---------- FLOOR TAB ---------- */}
         {activeTab === 'tables' && (
           <>
-            {/* Search and Status filters */}
-            <View style={styles.toolbar}>
-              <View style={styles.searchBox}>
+            {/* Search Box */}
+            <View style={[styles.toolbar, { marginBottom: 10 }]}>
+              <View style={[styles.searchBox, { flex: 1 }]}>
                 <Ionicons name="search" size={16} color="#8E8E93" />
                 <TextInput
                   style={styles.searchInput}
@@ -882,112 +951,68 @@ export default function TablesBlueprintScreen({
                   onChangeText={setSearch}
                 />
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                {(['all', 'available', 'occupied', 'billed', 'reserved'] as const).map((f) => {
-                  const active = statusFilter === f;
-                  const color = f === 'all' ? BRAND : STATUS_META[f].color;
-                  const count = f === 'all' ? tables.length : counts[f];
-                  return (
-                    <TouchableOpacity
-                      key={f}
-                      style={[styles.chip, active && { backgroundColor: color, borderColor: color }]}
-                      onPress={() => setStatusFilter(f)}
-                    >
-                      {f !== 'all' && <View style={[styles.chipDot, { backgroundColor: active ? '#fff' : color }]} />}
-                      <Text style={[styles.chipText, active && { color: '#fff' }]}>
-                        {f === 'all' ? 'All' : STATUS_META[f].label} {count}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
             </View>
 
-            {/* Multi-Level Floors Filter Row */}
-            <View style={{ marginBottom: 10 }}>
-              <Text style={styles.filterSectionTitle}>Select Restaurant Floor</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
-                <TouchableOpacity
-                  style={[
-                    styles.floorFilterChip,
-                    floorFilter === 'all' && { backgroundColor: BRAND, borderColor: BRAND },
+            {/* Unified 3-Dropdown Filters Row */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+              <View style={{ flex: 1, minWidth: 150 }}>
+                <RoyalDropdown
+                  label="Floor"
+                  options={[
+                    { label: `All Floors (${tables.length})`, value: 'all', icon: 'layers' as const, badge: `${tables.length}` },
+                    ...availableFloors.map((fl) => {
+                      const floorTablesCount = tables.filter((t) => getTableFloor(t).toLowerCase() === fl.toLowerCase()).length;
+                      const meta = getFloorMeta(fl, dynamicFloors);
+                      return {
+                        label: fl,
+                        value: fl,
+                        icon: (meta?.icon as any) || 'layers-outline',
+                        badge: `${floorTablesCount}`,
+                      };
+                    }),
                   ]}
-                  onPress={() => setFloorFilter('all')}
-                >
-                  <Ionicons name="layers" size={14} color={floorFilter === 'all' ? '#fff' : BRAND} />
-                  <Text style={[styles.floorFilterChipText, floorFilter === 'all' && { color: '#fff' }]}>
-                    All Floors
-                  </Text>
-                  <View style={[styles.countBadge, floorFilter === 'all' && { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
-                    <Text style={[styles.countBadgeText, floorFilter === 'all' && { color: '#fff' }]}>
-                      {tables.length}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                {availableFloors.map((fl) => {
-                  const active = floorFilter.toLowerCase() === fl.toLowerCase();
-                  const floorTablesCount = tables.filter((t) => getTableFloor(t).toLowerCase() === fl.toLowerCase()).length;
-                  const meta = getFloorMeta(fl, dynamicFloors);
-                  const chipColor = meta?.color || BRAND;
-                  return (
-                    <TouchableOpacity
-                      key={fl}
-                      style={[
-                        styles.floorFilterChip,
-                        active && { backgroundColor: chipColor, borderColor: chipColor },
-                      ]}
-                      onPress={() => setFloorFilter(fl)}
-                    >
-                      <Ionicons name={meta.icon as any} size={14} color={active ? '#fff' : chipColor} />
-                      <Text style={[styles.floorFilterChipText, active && { color: '#fff' }]}>{fl}</Text>
-                      <View style={[styles.countBadge, active && { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
-                        <Text style={[styles.countBadgeText, active && { color: '#fff' }]}>{floorTablesCount}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-
-            {/* 3-Seating Zones Type Filter (Tables, Couches, Majlis Cabins) */}
-            <View style={{ marginBottom: 14 }}>
-              <Text style={styles.filterSectionTitle}>Seating Style / Zone</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
-                <TouchableOpacity
-                  style={[
-                    styles.zoneTypeChip,
-                    seatingTypeFilter === 'all' && styles.zoneTypeChipActive,
+                  value={floorFilter}
+                  onSelect={(val) => setFloorFilter(val)}
+                  icon="layers-outline"
+                />
+              </View>
+              <View style={{ flex: 1, minWidth: 150 }}>
+                <RoyalDropdown
+                  label="Seating Zone"
+                  options={[
+                    { label: 'All Zones', value: 'all', icon: 'apps' as const },
+                    ...SEATING_ZONE_TYPES.map((type) => {
+                      const meta = SEATING_ZONES[type];
+                      const count = scopedTables.filter((t) => getTableSeatingType(t) === type).length;
+                      return {
+                        label: `${meta.label} (${count})`,
+                        value: type,
+                        badge: `${count}`,
+                      };
+                    }),
                   ]}
-                  onPress={() => setSeatingTypeFilter('all')}
-                >
-                  <Ionicons name="apps" size={14} color={seatingTypeFilter === 'all' ? '#fff' : '#636366'} />
-                  <Text style={[styles.zoneTypeChipText, seatingTypeFilter === 'all' && { color: '#fff' }]}>
-                    All Zones
-                  </Text>
-                </TouchableOpacity>
-
-                {SEATING_ZONE_TYPES.map((type) => {
-                  const meta = SEATING_ZONES[type];
-                  const active = seatingTypeFilter === type;
-                  const count = scopedTables.filter((t) => getTableSeatingType(t) === type).length;
-                  return (
-                    <TouchableOpacity
-                      key={type}
-                      style={[
-                        styles.zoneTypeChip,
-                        active && { backgroundColor: meta.color, borderColor: meta.color },
-                      ]}
-                      onPress={() => setSeatingTypeFilter(type)}
-                    >
-                      <SeatingTypeIcon type={type} size={15} color={active ? '#fff' : meta.color} />
-                      <Text style={[styles.zoneTypeChipText, active && { color: '#fff' }]}>
-                        {meta.label} ({count})
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+                  value={seatingTypeFilter}
+                  onSelect={(val) => setSeatingTypeFilter(val as any)}
+                  icon="apps-outline"
+                />
+              </View>
+              <View style={{ flex: 1, minWidth: 150 }}>
+                <RoyalDropdown
+                  label="Table Status"
+                  options={[
+                    { label: `All Statuses (${tables.length})`, value: 'all', badge: `${tables.length}` },
+                    ...((['available', 'occupied', 'billed', 'reserved'] as const).map((f) => ({
+                      label: `${STATUS_META[f].label} (${counts[f]})`,
+                      value: f,
+                      icon: STATUS_META[f].icon,
+                      badge: `${counts[f]}`,
+                    }))),
+                  ]}
+                  value={statusFilter}
+                  onSelect={(val) => setStatusFilter(val as any)}
+                  icon="radio-button-on-outline"
+                />
+              </View>
             </View>
 
             {/* 3-Zone Capacity Banner (Highlighting Majlis Cabins, Couches & Tables) */}
@@ -1048,26 +1073,21 @@ export default function TablesBlueprintScreen({
               {/* If Majlis cabins exist, list them as quick-clickable capacity chips */}
               {zoneSummary.majlis.cabins.length > 0 && (
                 <View style={styles.cabinsTagsContainer}>
-                  <Text style={styles.cabinsTagsLabel}>🕌 Sultan Arabian Majlis Cabins (Private Sitting):</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingTop: 4 }}>
-                    {zoneSummary.majlis.cabins.map((cabin) => (
-                      <TouchableOpacity
-                        key={cabin.id}
-                        style={[
-                          styles.cabinCapacityTag,
-                          cabin.status === 'occupied' && { borderColor: '#D64541', backgroundColor: '#FDEDEC' },
-                          cabin.status === 'reserved' && { borderColor: '#7D3C98', backgroundColor: '#F4ECF7' },
-                        ]}
-                        onPress={() => setActionTableId(cabin.id)}
-                      >
-                        <SeatingTypeIcon type="majlis" size={12} color="#4a121a" />
-                        <Text style={styles.cabinTagName}>{cabin.name}</Text>
-                        <View style={styles.cabinTagCapacity}>
-                          <Text style={styles.cabinTagCapacityText}>{cabin.seats} Guests</Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                  <RoyalDropdown
+                    label="🕌 Sultan Arabian Majlis Cabins (Private Sitting)"
+                    placeholder="Select Majlis cabin to view or manage..."
+                    options={zoneSummary.majlis.cabins.map((cabin) => ({
+                      label: `${cabin.name} (${cabin.seats} Guests)`,
+                      value: cabin.id,
+                      badge: cabin.status.toUpperCase(),
+                      sublabel: `Capacity: ${cabin.seats} Guests • Status: ${cabin.status}`,
+                      icon: 'home-outline',
+                    }))}
+                    value=""
+                    onSelect={(id) => setActionTableId(id)}
+                    icon="bed-outline"
+                    searchable
+                  />
                 </View>
               )}
             </View>
@@ -1095,24 +1115,23 @@ export default function TablesBlueprintScreen({
         {/* ---------- RESERVATIONS TAB ---------- */}
         {activeTab === 'reservations' && (
           <>
-            <View style={styles.toolbar}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                {(['all', 'confirmed', 'seated', 'cancelled'] as const).map((st) => {
-                  const active = resFilter === st;
-                  const count = st === 'all' ? reservations.length : reservations.filter((r) => r.status === st).length;
-                  return (
-                    <TouchableOpacity
-                      key={st}
-                      style={[styles.chip, active && { backgroundColor: BRAND, borderColor: BRAND }]}
-                      onPress={() => setResFilter(st)}
-                    >
-                      <Text style={[styles.chipText, active && { color: '#fff' }]}>
-                        {st.charAt(0).toUpperCase() + st.slice(1)} ({count})
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+            <View style={[styles.toolbar, { alignItems: 'center', gap: 12, marginBottom: 14 }]}>
+              <View style={{ flex: 1, minWidth: 200 }}>
+                <RoyalDropdown
+                  label="Filter Reservations"
+                  options={[
+                    { label: `All Reservations (${reservations.length})`, value: 'all', badge: `${reservations.length}` },
+                    ...((['confirmed', 'seated', 'cancelled'] as const).map((st) => ({
+                      label: `${st.charAt(0).toUpperCase() + st.slice(1)} (${reservations.filter((r) => r.status === st).length})`,
+                      value: st,
+                      badge: `${reservations.filter((r) => r.status === st).length}`,
+                    }))),
+                  ]}
+                  value={resFilter}
+                  onSelect={(st) => setResFilter(st as any)}
+                  icon="calendar-outline"
+                />
+              </View>
               <TouchableOpacity style={styles.headerBtn} onPress={() => openAddReservationModal()}>
                 <Ionicons name="add" size={16} color="#fff" />
                 <Text style={styles.headerBtnText}>New Reservation</Text>
@@ -1399,35 +1418,34 @@ export default function TablesBlueprintScreen({
               </Text>
             </View>
 
-            {/* Select Floor */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <Text style={styles.label}>Floor Location</Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setTableModalVisible(false);
-                  router.push(floorsRoute as any);
-                }}
-              >
-                <Text style={{ fontSize: 12, color: BRAND, fontWeight: '700' }}>+ Manage Floors</Text>
-              </TouchableOpacity>
+            {/* Select Floor Dropdown */}
+            <View style={{ marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <Text style={styles.label}>Floor Location *</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setTableModalVisible(false);
+                    router.push(floorsRoute as any);
+                  }}
+                >
+                  <Text style={{ fontSize: 12, color: BRAND, fontWeight: '700' }}>+ Manage Floors</Text>
+                </TouchableOpacity>
+              </View>
+              <RoyalDropdown
+                placeholder="Choose floor level..."
+                options={availableFloors.map((fl) => {
+                  const meta = getFloorMeta(fl, dynamicFloors);
+                  return {
+                    label: fl,
+                    value: fl,
+                    icon: (meta?.icon as any) || 'layers-outline',
+                  };
+                })}
+                value={formFloor}
+                onSelect={(fl) => setFormFloor(fl)}
+                icon="layers-outline"
+              />
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 12 }}>
-              {availableFloors.map((fl) => {
-                const active = formFloor === fl;
-                const meta = getFloorMeta(fl, dynamicFloors);
-                const chipColor = meta?.color || BRAND;
-                return (
-                  <TouchableOpacity
-                    key={fl}
-                    style={[styles.chip, active && { backgroundColor: chipColor, borderColor: chipColor }]}
-                    onPress={() => setFormFloor(fl)}
-                  >
-                    <Ionicons name={meta.icon as any} size={13} color={active ? '#fff' : chipColor} />
-                    <Text style={[styles.chipText, active && { color: '#fff' }]}>{fl}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
 
             {/* Select Seating Zone Type (Tables, Couches, Majlis Sitting) */}
             <Text style={styles.label}>Seating Zone Type</Text>
@@ -1765,32 +1783,43 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 24,
     paddingVertical: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ECE8E1',
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, #380A11 0%, #200408 100%)',
+      },
+      default: {
+        backgroundColor: '#24050A',
+      },
+    }),
+    borderBottomWidth: 1.5,
+    borderBottomColor: 'rgba(212, 175, 55, 0.32)',
   },
   backBtn: {
     width: 38,
     height: 38,
     borderRadius: 10,
-    backgroundColor: BRAND,
+    backgroundColor: 'rgba(212, 175, 55, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.35)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontSize: 22, fontWeight: '900', color: BRAND },
-  subtitle: { fontSize: 13, color: '#8E8E93', marginTop: 2 },
-  headerActions: { flexDirection: 'row', gap: 8 },
+  title: { fontSize: 22, fontWeight: '900', color: '#F3D179', letterSpacing: -0.3 },
+  subtitle: { fontSize: 13, color: 'rgba(255, 255, 255, 0.75)', marginTop: 2 },
+  headerActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   headerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: BRAND,
+    backgroundColor: 'rgba(212, 175, 55, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.35)',
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 9,
     borderRadius: 10,
   },
-  headerBtnGhost: { backgroundColor: '#F4ECF7', borderWidth: 1, borderColor: '#D7BDE2' },
-  headerBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  headerBtnGhost: { backgroundColor: 'rgba(255, 255, 255, 0.1)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.2)' },
+  headerBtnText: { color: '#F3D179', fontWeight: '800', fontSize: 13 },
   content: { padding: 20, paddingBottom: 80 },
 
   statsRow: { gap: 10, paddingBottom: 4 },
@@ -1804,7 +1833,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     minWidth: 160,
     borderWidth: 1,
-    borderColor: '#ECE8E1',
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
   statIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   statValue: { fontSize: 17, fontWeight: '900', color: '#1C1C1E' },
@@ -1812,16 +1846,37 @@ const styles = StyleSheet.create({
 
   segment: {
     flexDirection: 'row',
-    backgroundColor: '#E9E5DE',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 4,
     marginVertical: 16,
     alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   segmentItem: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 9 },
-  segmentItemActive: { backgroundColor: BRAND },
+  segmentItemActive: {
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(90deg, #D4AF37 0%, #B8860B 100%)',
+      },
+      default: {
+        backgroundColor: '#D4AF37',
+      },
+    }),
+    shadowColor: '#D4AF37',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
   segmentText: { fontSize: 14, fontWeight: '700', color: '#636366' },
-  segmentTextActive: { color: '#fff' },
+  segmentTextActive: { color: '#24050A', fontWeight: '900' },
   segmentBadge: { backgroundColor: '#7D3C98', borderRadius: 9, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   segmentBadgeText: { color: '#fff', fontSize: 11, fontWeight: '900' },
 

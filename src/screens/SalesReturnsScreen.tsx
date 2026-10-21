@@ -19,6 +19,7 @@ import { useAuthStore } from '../store/authStore';
 import { useKitchenStore } from '../store/kitchenStore';
 import { broadcastImmediately } from '../services/syncService';
 import SultanLogo from '../components/SultanLogo';
+import RoyalDropdown from '../components/RoyalDropdown';
 import {
   SalesReturn,
   ReturnedItem,
@@ -547,57 +548,44 @@ export default function SalesReturnsScreen({ userRole, backRoute = '/admin/dashb
               )}
             </View>
 
-            {/* Date Pills */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.datePills}>
-              {(['all', 'today', 'yesterday', 'week', 'month'] as const).map((d) => (
-                <TouchableOpacity
-                  key={d}
-                  style={[styles.datePill, dateFilter === d && styles.datePillActive]}
-                  onPress={() => setDateFilter(d)}
-                >
-                  <Text style={[styles.datePillText, dateFilter === d && styles.datePillTextActive]}>
-                    {d === 'all'
-                      ? 'All Time'
-                      : d === 'today'
-                      ? 'Today'
-                      : d === 'yesterday'
-                      ? 'Yesterday'
-                      : d === 'week'
-                      ? '7 Days'
-                      : '30 Days'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
           </View>
 
-          {/* Reason Category Pills */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.reasonPills}>
-            <TouchableOpacity
-              style={[styles.reasonPill, reasonFilter === 'all' && styles.reasonPillActive]}
-              onPress={() => setReasonFilter('all')}
-            >
-              <Text style={[styles.reasonPillText, reasonFilter === 'all' && styles.reasonPillTextActive]}>
-                All Reasons
-              </Text>
-            </TouchableOpacity>
-            {RETURN_REASONS.map((r) => (
-              <TouchableOpacity
-                key={r.id}
-                style={[styles.reasonPill, reasonFilter === r.id && { backgroundColor: r.color, borderColor: r.color }]}
-                onPress={() => setReasonFilter(r.id)}
-              >
-                <Text
-                  style={[
-                    styles.reasonPillText,
-                    reasonFilter === r.id && { color: '#FFFFFF', fontWeight: '700' },
-                  ]}
-                >
-                  {r.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          {/* Dual Dropdowns: Date Filter & Reason Category */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+            <View style={{ flex: 1, minWidth: 150 }}>
+              <RoyalDropdown
+                label="Filter by Period"
+                options={[
+                  { label: 'All Time', value: 'all', icon: 'calendar-outline' as const },
+                  { label: 'Today', value: 'today', icon: 'today-outline' as const },
+                  { label: 'Yesterday', value: 'yesterday', icon: 'time-outline' as const },
+                  { label: 'Past 7 Days', value: 'week', icon: 'calendar-clear-outline' as const },
+                  { label: 'Past 30 Days', value: 'month', icon: 'calendar-number-outline' as const },
+                ]}
+                value={dateFilter}
+                onSelect={(d) => setDateFilter(d as any)}
+                icon="calendar-outline"
+              />
+            </View>
+
+            <View style={{ flex: 1, minWidth: 180 }}>
+              <RoyalDropdown
+                label="Filter by Return Reason"
+                options={[
+                  { label: 'All Reasons', value: 'all' },
+                  ...RETURN_REASONS.map((r) => ({
+                    label: r.label,
+                    value: r.id,
+                    sublabel: r.urdu,
+                  })),
+                ]}
+                value={reasonFilter}
+                onSelect={(r) => setReasonFilter(r as any)}
+                icon="alert-circle-outline"
+                searchable
+              />
+            </View>
+          </View>
         </View>
 
         {/* Returns List */}
@@ -803,52 +791,25 @@ export default function SalesReturnsScreen({ userRole, backRoute = '/admin/dashb
 
             <ScrollView contentContainerStyle={{ padding: 18, gap: 16 }}>
               {/* Step 1: Select Invoice */}
-              <View style={styles.wizardSection}>
+              <View style={[styles.wizardSection, { zIndex: 20 }]}>
                 <Text style={styles.wizardSectionTitle}>1. Select Customer Bill / Invoice</Text>
-                <View style={styles.invoiceSearchBox}>
-                  <Ionicons name="search" size={18} color={BRAND.muted} />
-                  <TextInput
-                    style={styles.invoiceSearchInput}
-                    placeholder="Search by Invoice ID, Table, Customer..."
-                    placeholderTextColor={BRAND.muted}
-                    value={invoiceSearchQuery}
-                    onChangeText={setInvoiceSearchQuery}
-                  />
-                  {invoiceSearchQuery.length > 0 && (
-                    <TouchableOpacity onPress={() => setInvoiceSearchQuery('')}>
-                      <Ionicons name="close" size={18} color={BRAND.muted} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {/* Candidate Invoice Horizontal Chips */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.invoiceChips}>
-                  {candidateInvoices.map((inv) => {
-                    const isSelected = selectedInvoiceId === inv.id;
-                    return (
-                      <TouchableOpacity
-                        key={inv.id}
-                        style={[styles.invoiceChip, isSelected && styles.invoiceChipActive]}
-                        onPress={() => handleSelectInvoice(inv)}
-                        activeOpacity={0.8}
-                      >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Text style={[styles.invoiceChipId, isSelected && styles.invoiceChipIdActive]}>{inv.id}</Text>
-                          {inv.tableName && <Text style={styles.invoiceChipTable}>• {inv.tableName}</Text>}
-                        </View>
-                        <Text style={[styles.invoiceChipTotal, isSelected && styles.invoiceChipTotalActive]}>
-                          {money(inv.total)}
-                        </Text>
-                        <Text style={styles.invoiceChipMeta}>
-                          {new Date(inv.timeSettled || inv.timePlaced).toLocaleTimeString('en-PK', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
+                <RoyalDropdown
+                  placeholder="Choose invoice by #, table or amount..."
+                  options={candidateInvoices.map((inv) => ({
+                    label: `#${inv.id} • ${inv.tableName ? inv.tableName + ' • ' : ''}${money(inv.total)}`,
+                    value: inv.id,
+                    badge: `${money(inv.total)}`,
+                    sublabel: `${inv.items?.length || 0} items • ${new Date(inv.timeSettled || inv.timePlaced).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' })} • ${inv.status?.toUpperCase() || 'PLACED'}`,
+                  }))}
+                  value={selectedInvoiceId || ''}
+                  onSelect={(id) => {
+                    const inv = candidateInvoices.find((i) => i.id === id);
+                    if (inv) handleSelectInvoice(inv);
+                  }}
+                  icon="receipt-outline"
+                  searchable
+                  searchPlaceholder="Search invoice #, table, customer..."
+                />
               </View>
 
               {activeInvoice && (

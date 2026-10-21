@@ -30,13 +30,14 @@ const NAV_CONFIG = {
 };
 
 const BRAND = {
-  burgundy: '#D5A943', // Sultan gold for active state
-  gold: '#D5A943',
-  inactive: 'rgba(255, 255, 255, 0.45)',
-  bg: '#140306',
-  border: 'rgba(213, 169, 67, 0.18)',
-  activePill: 'rgba(213, 169, 67, 0.12)',
+  burgundy: '#52141C',
+  gold: '#F3D179',
+  inactive: 'rgba(255, 255, 255, 0.55)',
+  bg: '#24050A',
+  border: 'rgba(212, 175, 55, 0.28)',
+  activePill: 'rgba(212, 175, 55, 0.16)',
 };
+
 
 interface BottomNavProps {
   role: BottomNavRole;
@@ -107,9 +108,9 @@ export default function BottomNav({ role, onOpenDrawer, onLogout }: BottomNavPro
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: BRAND.bg,
-    borderTopWidth: 1,
-    borderTopColor: BRAND.border,
+    backgroundColor: '#1E0408',
+    borderTopWidth: 1.5,
+    borderTopColor: 'rgba(212, 175, 55, 0.28)',
     paddingTop: 8,
     flexShrink: 0,
     shadowColor: '#000',
@@ -120,11 +121,14 @@ const styles = StyleSheet.create({
     zIndex: 10,
     ...Platform.select({
       web: {
-        backdropFilter: 'blur(16px)',
-        backgroundColor: 'rgba(20, 3, 6, 0.94)',
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+        backgroundImage: 'linear-gradient(180deg, rgba(56, 10, 17, 0.95) 0%, rgba(26, 4, 8, 0.98) 100%)',
+        boxShadow: '0 -8px 28px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
       } as any,
     }),
   },
+
   tabContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -132,34 +136,48 @@ const styles = StyleSheet.create({
     maxWidth: 600,
     width: '100%',
     alignSelf: 'center',
+    paddingHorizontal: 8,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingVertical: 5,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   tabActive: {
-    backgroundColor: BRAND.activePill,
+    backgroundColor: 'rgba(212, 175, 55, 0.18)',
+    borderColor: 'rgba(212, 175, 55, 0.4)',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 2px 12px rgba(212, 175, 55, 0.25)',
+      } as any,
+    }),
   },
   icon: {
     marginBottom: 3,
   },
   label: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '600',
-    color: BRAND.inactive,
+    color: 'rgba(255, 255, 255, 0.55)',
   },
   labelActive: {
-    color: BRAND.gold,
-    fontWeight: '800',
+    color: '#F3D179',
+    fontWeight: '900',
   },
   activeDot: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: BRAND.gold,
+    backgroundColor: '#F3D179',
     marginTop: 2,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 0 6px rgba(243, 209, 121, 0.8)',
+      } as any,
+    }),
   },
 });

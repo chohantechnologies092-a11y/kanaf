@@ -766,13 +766,20 @@ export const INITIAL_SUPPLIER_PAYMENTS: SupplierPayment[] = [
 // ---------- Assets & Capital Purchases ----------
 
 export const ASSET_CATEGORIES = [
+  'Crockery (Plates & Bowls)',
+  'Glassware & Tumblers',
+  'Cutlery & Utensils',
+  'Clayware & Specialty Pots',
   'Kitchen Machinery & Heavy Line',
+  'Kitchen Equipment & Tools',
   'Refrigeration & Cold Storage',
+  'Dining Furniture & Decor',
   'Dining Furniture & Seating',
   'Crockery & Cutlery (Bulk Assets)',
   'HVAC, Electrical & Generators',
   'IT, POS & Surveillance Hardware',
   'Amusement & Playland Rides',
+  'Playland Assets & Rides',
   'Interior, Signage & Royal Decor',
   'Other Capital Assets',
 ] as const;
@@ -825,9 +832,15 @@ export const DAMAGE_CATEGORIES = [
   'Glassware & Tumblers',
   'Cutlery & Utensils',
   'Clayware & Specialty Pots',
+  'Kitchen Machinery & Heavy Line',
   'Kitchen Equipment & Tools',
+  'Refrigeration & Cold Storage',
   'Dining Furniture & Decor',
+  'Dining Furniture & Seating',
+  'HVAC, Electrical & Generators',
+  'IT, POS & Surveillance Hardware',
   'Playland Assets & Rides',
+  'Interior, Signage & Royal Decor',
   'Other Breakage',
 ] as const;
 
@@ -878,6 +891,8 @@ export type DamageRecord = {
   amountRecovered: number;
   netLoss: number;
   notes?: string;
+  assetId?: string;
+  assetCode?: string;
   createdAt: number;
   resolvedAt?: number;
 };
@@ -1126,6 +1141,8 @@ export const INITIAL_DAMAGES: DamageRecord[] = [
     amountRecovered: 0,
     netLoss: 1900,
     notes: 'Waiter slipped while busing large party table during busy evening dinner rush.',
+    assetId: 'ast-6',
+    assetCode: 'AST-CRK-01',
     createdAt: Date.now() - 3 * 86400000,
     resolvedAt: Date.now() - 3 * 86400000,
   },

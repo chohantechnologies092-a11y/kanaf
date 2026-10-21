@@ -575,18 +575,25 @@ export default function StaffManagementScreen() {
             {/* Search & Filters */}
             <View style={styles.filterSection}>
               <View style={styles.searchBar}>
-                <Ionicons name="search" size={18} color="#8E8E93" style={styles.searchIcon} />
+                <View style={styles.searchIconOrb}>
+                  <Ionicons name="search" size={15} color={BRAND.burgundy} />
+                </View>
                 <TextInput
                   style={styles.searchInput}
                   placeholder="Search employee name, role, floor, phone..."
-                  placeholderTextColor="#8E8E93"
+                  placeholderTextColor="#8A7A70"
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                 />
-                {Boolean(searchQuery.length > 0) && (
-                  <TouchableOpacity onPress={() => setSearchQuery('')}>
-                    <Ionicons name="close-circle" size={18} color="#8E8E93" />
+                {Boolean(searchQuery.length > 0) ? (
+                  <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={styles.searchClearBtn}>
+                    <Ionicons name="close-circle" size={18} color={BRAND.gold} />
                   </TouchableOpacity>
+                ) : (
+                  <View style={styles.searchShortcutBadge}>
+                    <Ionicons name="sparkles" size={10} color="#B45309" style={{ marginRight: 3 }} />
+                    <Text style={styles.searchShortcutText}>STAFF</Text>
+                  </View>
                 )}
               </View>
 
@@ -1890,20 +1897,63 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(212, 175, 55, 0.45)',
+    paddingHorizontal: 8,
+    paddingRight: 10,
+    height: 46,
+    gap: 8,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 4px 18px rgba(82, 20, 28, 0.06), 0 2px 6px rgba(212, 175, 55, 0.12), inset 0 1px 0 #FFFFFF',
+        transition: 'all 0.2s ease',
+      } as any,
+    }),
   },
-  searchIcon: {
-    marginRight: 8,
+  searchIconOrb: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(82, 20, 28, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchInput: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 13.5,
+    fontWeight: '600',
     color: '#0F172A',
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+        outlineWidth: 0,
+      } as any,
+    }),
+  },
+  searchClearBtn: {
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchShortcutBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(254, 243, 199, 0.85)',
+    borderRadius: 20,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+  },
+  searchShortcutText: {
+    color: '#92400E',
+    fontSize: 9.5,
+    fontWeight: '900',
+    letterSpacing: 0.8,
   },
   roleTabs: {
     flexDirection: 'row',

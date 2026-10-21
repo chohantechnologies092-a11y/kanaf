@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useDiscountStore } from '../store/discountStore';
 import { useRestaurantStore, MenuItem } from '../store/restaurantStore';
+import RoyalDropdown from '../components/RoyalDropdown';
 import { 
   EventDiscount, 
   CampaignFormData, 
@@ -1090,28 +1091,18 @@ export default function DiscountsScreen() {
                       </View>
                     </View>
 
-                    {/* Category Filter Pills */}
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 8 }}>
-                      {['All', ...categories].map((c) => (
-                        <TouchableOpacity
-                          key={c}
-                          style={[
-                            styles.catFilterPill,
-                            itemPickerCat === c && styles.catFilterPillActive,
-                          ]}
-                          onPress={() => setItemPickerCat(c)}
-                        >
-                          <Text
-                            style={[
-                              styles.catFilterPillText,
-                              itemPickerCat === c && styles.catFilterPillTextActive,
-                            ]}
-                          >
-                            {c}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
+                    {/* Category Filter Dropdown */}
+                    <View style={{ marginVertical: 8 }}>
+                      <RoyalDropdown
+                        label="Filter Dishes by Category"
+                        placeholder="All Categories"
+                        options={['All', ...categories]}
+                        value={itemPickerCat}
+                        onSelect={(c) => setItemPickerCat(c)}
+                        icon="restaurant-outline"
+                        searchable
+                      />
+                    </View>
 
                     {/* Dishes Grid */}
                     <View style={styles.dishesGrid}>

@@ -11,16 +11,24 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useRestaurantStore, Invoice } from '../../store/restaurantStore';
+import { useShiftStore } from '../../store/shiftStore';
+import { useOpsStore } from '../../store/opsStore';
 import { useRolePermissions } from '../../store/roleStore';
+import SultanLogo from '../../components/SultanLogo';
 
 const BRAND = {
   bg: '#F8FAFC',
   cardBg: '#FFFFFF',
   cardBorder: '#E2E8F0',
-  burgundy: '#701A26',
+  burgundy: '#52141C',
+  burgundyDark: '#24050A',
+  burgundyDeep: '#180306',
   burgundyLight: '#FDF2F4',
-  gold: '#B48214',
-  goldLight: '#FEF3C7',
+  gold: '#D4AF37',
+  goldLight: '#F3D179',
+  goldDark: '#B8860B',
+  goldSoft: 'rgba(212, 175, 55, 0.12)',
+  goldBorder: 'rgba(212, 175, 55, 0.28)',
   textPrimary: '#0F172A',
   textSecondary: '#475569',
   textMuted: '#94A3B8',
@@ -52,7 +60,13 @@ export default function AdminDashboard() {
   const tables = useRestaurantStore(state => state.tables);
   const customers = useRestaurantStore(state => state.customers);
 
-  const [timeFilter, setTimeFilter] = useState<'today' | 'shift' | 'week'>('today');
+  // Shift & Ops Store Integration (from Baithak home.php)
+  const shifts = useShiftStore(state => state.shifts);
+  const activeShift = useMemo(() => shifts.find(s => s.status === 'open') || null, [shifts]);
+  const inventory = useOpsStore(state => state.inventory);
+  const lowStockItems = useMemo(() => inventory.filter(it => it.stock <= it.threshold), [inventory]);
+
+  const [filterScope, setFilterScope] = useState<'active' | 'today' | 'all'>(activeShift ? 'active' : 'today');
   const [activeHourlyMetric, setActiveHourlyMetric] = useState<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -63,8 +77,8 @@ export default function AdminDashboard() {
     }, 600);
   };
 
-  const handleFilterChange = (filter: 'today' | 'shift' | 'week') => {
-    setTimeFilter(filter);
+  const handleFilterChange = (filter: 'active' | 'today' | 'all') => {
+    setFilterScope(filter);
     handleRefresh();
   };
 
@@ -84,10 +98,30 @@ export default function AdminDashboard() {
     });
   }, []);
 
-  // Filter settled invoices for today
+  // Filter settled invoices based on active shift / today / lifetime scope
   const todaysInvoices = useMemo(() => {
-    return invoices.filter(inv => inv.status !== 'voided' && (inv.timeSettled || inv.timePlaced) >= todayTimestamp);
-  }, [invoices, todayTimestamp]);
+    return invoices.filter(inv => {
+      if (inv.status === 'voided') return false;
+      const t = inv.timeSettled || inv.timePlaced;
+      if (filterScope === 'active' && activeShift) {
+        return t >= activeShift.openedAt;
+      }
+      if (filterScope === 'today') {
+        return t >= todayTimestamp;
+      }
+      return true;
+    });
+  }, [invoices, filterScope, activeShift, todayTimestamp]);
+
+  const scopeTitle = useMemo(() => {
+    if (filterScope === 'active' && activeShift) {
+      return `Active Shift #${activeShift.id.slice(-2)} (${activeShift.cashierName})`;
+    }
+    if (filterScope === 'today') {
+      return "Today's Full Day (All Shifts)";
+    }
+    return "All Lifetime Records";
+  }, [filterScope, activeShift]);
 
   // Key Totals
   const todaysSales = useMemo(() => {
@@ -460,19 +494,20 @@ export default function AdminDashboard() {
         `}</style>
       )}
 
-      {/* ================= 1. CLEAN EXECUTIVE HEADER ================= */}
+      {/* ================= 1. BAITHAK EXECUTIVE COMMAND HEADER ================= */}
       <View style={[styles.headerCard, isMobile && styles.headerCardMobile]}>
         <View style={styles.headerLeft}>
           <View style={styles.titleRow}>
-            <Text style={styles.headerTitle}>Executive Operations Dashboard</Text>
-            <View style={styles.livePulsePill}>
-              <View style={styles.pulseDot} {...({ dataSet: { beacon: 'pulse' } } as any)} />
-              <Text style={styles.livePulseText}>Live Stream</Text>
+            <View style={styles.headerLogoCapsule}>
+              <SultanLogo size="xs" variant="circle" />
+            </View>
+            <View>
+              <Text style={styles.headerTitle}>Executive Operations Dashboard</Text>
+              <Text style={styles.headerSubtitle}>
+                {formattedDate} • {scopeTitle}
+              </Text>
             </View>
           </View>
-          <Text style={styles.headerSubtitle}>
-            {formattedDate} • Real-time revenue analytics, rush distribution & kitchen velocity
-          </Text>
         </View>
 
         <View style={styles.headerRight}>
@@ -486,23 +521,30 @@ export default function AdminDashboard() {
             <Ionicons 
               name="sync-outline" 
               size={15} 
-              color={BRAND.burgundy} 
+              color={BRAND.goldDark} 
               {...(isRefreshing ? ({ dataSet: { spin: 'true' } } as any) : {})}
             />
-            <Text style={styles.refreshSyncBtnText}>{isRefreshing ? 'Refreshing...' : 'Live Sync'}</Text>
+            <Text style={styles.refreshSyncBtnText}>{isRefreshing ? 'Syncing...' : 'Live Sync'}</Text>
           </TouchableOpacity>
 
-          {/* Time Filter Pills */}
+          {/* Time Filter Pills (Active Shift, Today, Lifetime) */}
           <View style={styles.filterPillGroup}>
-            {(['today', 'shift', 'week'] as const).map(tab => (
+            {[
+              { id: 'active', label: 'Active Shift', hasDot: !!activeShift },
+              { id: 'today', label: 'Today (Full Day)', hasDot: false },
+              { id: 'all', label: 'All Records', hasDot: false },
+            ].map(tab => (
               <TouchableOpacity
-                key={tab}
-                style={[styles.filterBtn, timeFilter === tab && styles.filterBtnActive]}
-                onPress={() => handleFilterChange(tab)}
+                key={tab.id}
+                style={[styles.filterBtn, filterScope === tab.id && styles.filterBtnActive]}
+                onPress={() => handleFilterChange(tab.id as 'active' | 'today' | 'all')}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.filterBtnText, timeFilter === tab && styles.filterBtnTextActive]}>
-                  {tab === 'today' ? 'Today' : tab === 'shift' ? 'This Shift' : '7 Days'}
+                {tab.hasDot && (
+                  <View style={styles.shiftActivePulseDot} {...({ dataSet: { beacon: 'pulse' } } as any)} />
+                )}
+                <Text style={[styles.filterBtnText, filterScope === tab.id && styles.filterBtnTextActive]}>
+                  {tab.label}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -516,199 +558,326 @@ export default function AdminDashboard() {
               activeOpacity={0.8}
               {...({ dataSet: { btn: 'hover' } } as any)}
             >
-              <Ionicons name="calculator" size={16} color="#FFFFFF" />
-              <Text style={styles.actionPosBtnText}>Open POS</Text>
+              <Ionicons name="calculator" size={16} color="#24050A" />
+              <Text style={styles.actionPosBtnText}>Launch POS</Text>
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* ================= 2. CORE OPERATIONAL DATA BOXES (6 KPIs) ================= */}
+      {/* ================= 1.1 ACTIVE SHIFT STATUS CAPSULE (BAITHAK) ================= */}
+      {activeShift ? (
+        <View style={styles.shiftStatusCapsule}>
+          <View style={styles.shiftCapsuleLeft}>
+            <View style={styles.shiftLiveBadge}>
+              <View style={styles.pulseDot} {...({ dataSet: { beacon: 'pulse' } } as any)} />
+              <Text style={styles.shiftLiveText}>ACTIVE REGISTER SHIFT</Text>
+            </View>
+            <Text style={styles.shiftCapsuleHeading}>
+              Shift #{activeShift.id.slice(-4).toUpperCase()} • Cashier: <Text style={{ color: BRAND.gold }}>{activeShift.cashierName}</Text>
+            </Text>
+            <Text style={styles.shiftCapsuleDetails}>
+              Started at {new Date(activeShift.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • Opening Drawer Float: Rs. {activeShift.openingFloat.toLocaleString()}
+            </Text>
+          </View>
+          <View style={styles.shiftCapsuleActions}>
+            <TouchableOpacity 
+              style={styles.shiftActionBtn} 
+              onPress={() => router.push('/admin/shift')}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="cash-outline" size={15} color="#D4AF37" />
+              <Text style={styles.shiftActionBtnText}>Register Drawer</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.shiftActionBtn, styles.shiftActionBtnGold]} 
+              onPress={() => router.push('/admin/reports')}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="document-text-outline" size={15} color="#24050A" />
+              <Text style={[styles.shiftActionBtnText, { color: '#24050A', fontWeight: '800' }]}>Z-Report</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.shiftAlertBanner}>
+          <View style={styles.shiftAlertLeft}>
+            <Ionicons name="alert-circle" size={20} color="#F59E0B" />
+            <Text style={styles.shiftAlertText}>
+              No active register shift is open. Open a cashier shift to record cash floats, manage drawer settlements, and generate Z-reports.
+            </Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.shiftAlertBtn}
+            onPress={() => router.push('/admin/shift')}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.shiftAlertBtnText}>Open Shift Now →</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ================= 1.2 LOW STOCK INVENTORY ALERT (BAITHAK) ================= */}
+      {lowStockItems.length > 0 && (
+        <View style={styles.inventoryAlertBanner}>
+          <View style={styles.inventoryAlertLeft}>
+            <View style={styles.alertIconPill}>
+              <Ionicons name="warning" size={16} color="#DC2626" />
+            </View>
+            <Text style={styles.inventoryAlertText}>
+              <Text style={{ fontWeight: '800', color: '#991B1B' }}>INVENTORY REORDER WARNING:</Text> {lowStockItems.length} item{lowStockItems.length > 1 ? 's' : ''} below minimum stock threshold ({lowStockItems.slice(0, 3).map(i => i.name).join(', ')}{lowStockItems.length > 3 ? ` +${lowStockItems.length - 3} more` : ''})
+            </Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.inventoryAlertLink} 
+            onPress={() => router.push('/admin/inventory')}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.inventoryAlertLinkText}>Manage Inventory →</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ================= 2. CORE OPERATIONAL DATA BOXES (BAITHAK JEWEL GRADIENTS) ================= */}
       <View style={styles.kpiGrid}>
-        {/* KPI 1: Net Revenue */}
+        {/* KPI 1: Net Revenue (Royal Maroon) */}
         <View 
-          style={[styles.kpiCard, isMobile ? styles.kpiCardFull : isTablet ? styles.kpiCardHalf : styles.kpiCardThird]}
+          style={[
+            styles.kpiJewelCard, 
+            styles.kpiJewelMaroon,
+            isMobile ? styles.kpiCardFull : isTablet ? styles.kpiCardHalf : styles.kpiCardHalf
+          ]}
           {...({ dataSet: { card: 'interactive', stagger: '1' } } as any)}
         >
+          {/* Watermark Icon */}
+          <View style={styles.watermarkIconBox} pointerEvents="none">
+            <Ionicons name="cash" size={110} color="rgba(255, 255, 255, 0.05)" />
+          </View>
+
           <View style={styles.kpiTopRow}>
-            <Text style={styles.kpiLabel}>{"TODAY'S NET REVENUE"}</Text>
-            <View 
-              style={[styles.kpiIconBox, { backgroundColor: BRAND.emeraldLight }]}
-              {...({ dataSet: { icon: 'box' } } as any)}
-            >
-              <Ionicons name="cash-outline" size={20} color={BRAND.emeraldDark} />
+            <View style={styles.kpiTitleGroup}>
+              <Text style={styles.kpiJewelLabel}>NET REVENUE (PAID)</Text>
+              <View style={styles.jewelPillGold}>
+                <Text style={styles.jewelPillGoldText}>SETTLED</Text>
+              </View>
+            </View>
+            <View style={[styles.kpiIconBoxJewel, { backgroundColor: 'rgba(212, 175, 55, 0.18)' }]}>
+              <Ionicons name="wallet-outline" size={20} color="#F3D179" />
             </View>
           </View>
+
           {isRefreshing ? (
-            <View style={styles.skeletonValue} {...({ dataSet: { skeleton: 'box' } } as any)} />
+            <View style={styles.skeletonValueDark} {...({ dataSet: { skeleton: 'box' } } as any)} />
           ) : canViewRevenue ? (
-            <Text style={styles.kpiMainValue}>Rs. {todaysSales.toLocaleString()}</Text>
+            <Text style={styles.kpiMainValueJewel}>Rs. {todaysSales.toLocaleString()}</Text>
           ) : (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginVertical: 3 }}>
-              <Text style={[styles.kpiMainValue, { letterSpacing: 2, color: BRAND.textMuted }]}>••••••</Text>
-              <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                <Text style={{ fontSize: 9, fontWeight: '800', color: '#991B1B' }}>RESTRICTED</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginVertical: 4 }}>
+              <Text style={[styles.kpiMainValueJewel, { letterSpacing: 2, color: 'rgba(255,255,255,0.4)' }]}>••••••</Text>
+              <View style={{ backgroundColor: 'rgba(239, 68, 68, 0.25)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                <Text style={{ fontSize: 9, fontWeight: '800', color: '#FCA5A5' }}>RESTRICTED</Text>
               </View>
             </View>
           )}
-          <View style={styles.kpiFooter}>
-            <View style={[styles.trendBadge, { backgroundColor: BRAND.emeraldLight }]}>
-              <Ionicons name="trending-up" size={13} color={BRAND.emeraldDark} />
-              <Text style={[styles.trendBadgeText, { color: BRAND.emeraldDark }]}>+14.2%</Text>
+
+          {/* Frosted Chips: Cash / Card / Online */}
+          <View style={styles.frostedChipRow}>
+            <View style={styles.frostedChip}>
+              <Ionicons name="cash-outline" size={11} color="#F3D179" />
+              <Text style={styles.frostedChipText}>Cash: Rs. {paymentMetrics.cash.amount.toLocaleString()} ({paymentMetrics.cash.pct}%)</Text>
             </View>
-            <Text style={styles.kpiSubtext}>
-              {canViewRevenue ? `${todaysInvoices.length} settled orders` : 'Revenue masked by role policy'}
+            <View style={styles.frostedChip}>
+              <Ionicons name="card-outline" size={11} color="#93C5FD" />
+              <Text style={styles.frostedChipText}>Card: Rs. {paymentMetrics.card.amount.toLocaleString()} ({paymentMetrics.card.pct}%)</Text>
+            </View>
+            {paymentMetrics.online.amount > 0 && (
+              <View style={styles.frostedChip}>
+                <Ionicons name="globe-outline" size={11} color="#A7F3D0" />
+                <Text style={styles.frostedChipText}>Online: Rs. {paymentMetrics.online.amount.toLocaleString()}</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.kpiFooterJewel}>
+            <Text style={styles.kpiSubtextJewel}>
+              {canViewRevenue ? `${todaysInvoices.length} settled tickets • ${scopeTitle}` : 'Revenue masked by role policy'}
             </Text>
+            <TouchableOpacity onPress={() => router.push('/admin/invoices')}>
+              <Text style={styles.kpiLinkGold}>View Invoices →</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* KPI 2: Average Order Value (AOV) */}
+        {/* KPI 2: Order Volume & Channels (Deep Amber) */}
         <View 
-          style={[styles.kpiCard, isMobile ? styles.kpiCardFull : isTablet ? styles.kpiCardHalf : styles.kpiCardThird]}
+          style={[
+            styles.kpiJewelCard, 
+            styles.kpiJewelAmber,
+            isMobile ? styles.kpiCardFull : isTablet ? styles.kpiCardHalf : styles.kpiCardHalf
+          ]}
           {...({ dataSet: { card: 'interactive', stagger: '2' } } as any)}
         >
+          {/* Watermark Icon */}
+          <View style={styles.watermarkIconBox} pointerEvents="none">
+            <Ionicons name="receipt" size={110} color="rgba(255, 255, 255, 0.05)" />
+          </View>
+
           <View style={styles.kpiTopRow}>
-            <Text style={styles.kpiLabel}>AVERAGE TICKET (AOV)</Text>
-            <View 
-              style={[styles.kpiIconBox, { backgroundColor: BRAND.indigoLight }]}
-              {...({ dataSet: { icon: 'box' } } as any)}
-            >
-              <Ionicons name="receipt-outline" size={20} color={BRAND.indigo} />
+            <View style={styles.kpiTitleGroup}>
+              <Text style={styles.kpiJewelLabel}>ORDER TRAFFIC & CHANNELS</Text>
+              <View style={styles.jewelPillAmber}>
+                <Text style={styles.jewelPillAmberText}>AOV: Rs. {aov.toLocaleString()}</Text>
+              </View>
+            </View>
+            <View style={[styles.kpiIconBoxJewel, { backgroundColor: 'rgba(245, 158, 11, 0.2)' }]}>
+              <Ionicons name="cart-outline" size={20} color="#FBBF24" />
             </View>
           </View>
+
           {isRefreshing ? (
-            <View style={styles.skeletonValue} {...({ dataSet: { skeleton: 'box' } } as any)} />
-          ) : canViewRevenue ? (
-            <Text style={styles.kpiMainValue}>Rs. {aov.toLocaleString()}</Text>
+            <View style={styles.skeletonValueDark} {...({ dataSet: { skeleton: 'box' } } as any)} />
           ) : (
-            <Text style={[styles.kpiMainValue, { letterSpacing: 2, color: BRAND.textMuted }]}>••••••</Text>
+            <Text style={styles.kpiMainValueJewel}>{todaysInvoices.length} <Text style={{ fontSize: 18, fontWeight: '600', color: '#FCD34D' }}>Orders</Text></Text>
           )}
-          <View style={styles.kpiFooter}>
-            <View style={[styles.trendBadge, { backgroundColor: BRAND.indigoLight }]}>
-              <Ionicons name="stats-chart" size={12} color={BRAND.indigo} />
-              <Text style={[styles.trendBadgeText, { color: BRAND.indigo }]}>Prime Yield</Text>
+
+          {/* Frosted Chips: Dine-in / Takeaway / Delivery */}
+          <View style={styles.frostedChipRow}>
+            <View style={styles.frostedChip}>
+              <Ionicons name="restaurant-outline" size={11} color="#FBBF24" />
+              <Text style={styles.frostedChipText}>Dine-in: {channelMetrics.dineIn.count} ({channelMetrics.dineIn.pct}%)</Text>
             </View>
-            <Text style={styles.kpiSubtext}>Per table bill average</Text>
+            <View style={styles.frostedChip}>
+              <Ionicons name="bag-handle-outline" size={11} color="#FCD34D" />
+              <Text style={styles.frostedChipText}>Takeaway: {channelMetrics.takeaway.count} ({channelMetrics.takeaway.pct}%)</Text>
+            </View>
+            <View style={styles.frostedChip}>
+              <Ionicons name="bicycle-outline" size={11} color="#FDE68A" />
+              <Text style={styles.frostedChipText}>Delivery: {channelMetrics.delivery.count} ({channelMetrics.delivery.pct}%)</Text>
+            </View>
+          </View>
+
+          <View style={styles.kpiFooterJewel}>
+            <Text style={styles.kpiSubtextJewel}>Average check Rs. {aov.toLocaleString()} per table</Text>
+            <TouchableOpacity onPress={() => router.push('/admin/pos')}>
+              <Text style={styles.kpiLinkGold}>Open POS Terminal →</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* KPI 3: Dine-In Occupancy */}
+        {/* KPI 3: Floor Seating & Live Occupancy (Deep Emerald/Teal) */}
         <View 
-          style={[styles.kpiCard, isMobile ? styles.kpiCardFull : isTablet ? styles.kpiCardHalf : styles.kpiCardThird]}
+          style={[
+            styles.kpiJewelCard, 
+            styles.kpiJewelTeal,
+            isMobile ? styles.kpiCardFull : isTablet ? styles.kpiCardHalf : styles.kpiCardHalf
+          ]}
           {...({ dataSet: { card: 'interactive', stagger: '3' } } as any)}
         >
-          <View style={styles.kpiTopRow}>
-            <Text style={styles.kpiLabel}>DINE-IN OCCUPANCY</Text>
-            <View 
-              style={[styles.kpiIconBox, { backgroundColor: BRAND.skyLight }]}
-              {...({ dataSet: { icon: 'box' } } as any)}
-            >
-              <Ionicons name="restaurant-outline" size={20} color={BRAND.sky} />
-            </View>
-          </View>
-          {isRefreshing ? (
-            <View style={styles.skeletonValue} {...({ dataSet: { skeleton: 'box' } } as any)} />
-          ) : (
-            <Text style={styles.kpiMainValue}>{occupiedTables} / {tables.length} <Text style={styles.kpiValueSub}>({occupancyRate}%)</Text></Text>
-          )}
-          
-          {/* Mini Progress Bar */}
-          <View style={styles.miniProgressTrack}>
-            <View style={[styles.miniProgressFill, { width: `${occupancyRate}%`, backgroundColor: BRAND.sky }]} />
+          {/* Watermark Icon */}
+          <View style={styles.watermarkIconBox} pointerEvents="none">
+            <Ionicons name="restaurant" size={110} color="rgba(255, 255, 255, 0.05)" />
           </View>
 
-          <View style={styles.kpiFooter}>
-            <Text style={styles.kpiSubtext}>{freeTables} tables available</Text>
-            <TouchableOpacity onPress={() => router.push('/admin/tables')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={styles.kpiLink}>View Floor</Text>
+          <View style={styles.kpiTopRow}>
+            <View style={styles.kpiTitleGroup}>
+              <Text style={styles.kpiJewelLabel}>LIVE SEATING OCCUPANCY</Text>
+              <View style={styles.jewelPillTeal}>
+                <Text style={styles.jewelPillTealText}>{occupancyRate}% OCCUPIED</Text>
+              </View>
+            </View>
+            <View style={[styles.kpiIconBoxJewel, { backgroundColor: 'rgba(16, 185, 129, 0.2)' }]}>
+              <Ionicons name="grid-outline" size={20} color="#34D399" />
+            </View>
+          </View>
+
+          {isRefreshing ? (
+            <View style={styles.skeletonValueDark} {...({ dataSet: { skeleton: 'box' } } as any)} />
+          ) : (
+            <Text style={styles.kpiMainValueJewel}>
+              {occupiedTables} / {tables.length} <Text style={{ fontSize: 18, fontWeight: '600', color: '#6EE7B7' }}>Tables</Text>
+            </Text>
+          )}
+
+          {/* Frosted Chips: Available / Occupied / Capacity */}
+          <View style={styles.frostedChipRow}>
+            <View style={styles.frostedChip}>
+              <Ionicons name="checkmark-circle-outline" size={11} color="#6EE7B7" />
+              <Text style={styles.frostedChipText}>{freeTables} Available</Text>
+            </View>
+            <View style={styles.frostedChip}>
+              <Ionicons name="time-outline" size={11} color="#FBBF24" />
+              <Text style={styles.frostedChipText}>{occupiedTables} In-Service</Text>
+            </View>
+            <View style={styles.frostedChip}>
+              <Ionicons name="people-outline" size={11} color="#93C5FD" />
+              <Text style={styles.frostedChipText}>{tables.reduce((sum, t) => sum + (t.seats || 4), 0)} Seats Total</Text>
+            </View>
+          </View>
+
+          <View style={styles.kpiFooterJewel}>
+            <Text style={styles.kpiSubtextJewel}>{freeTables} vacant tables ready for guests</Text>
+            <TouchableOpacity onPress={() => router.push('/admin/tables')}>
+              <Text style={styles.kpiLinkGold}>Live Floor Layout →</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* KPI 4: Kitchen KDS Load */}
+        {/* KPI 4: Kitchen KDS Velocity & Prep Queue (Amethyst Purple) */}
         <View 
-          style={[styles.kpiCard, isMobile ? styles.kpiCardFull : isTablet ? styles.kpiCardHalf : styles.kpiCardThird]}
+          style={[
+            styles.kpiJewelCard, 
+            styles.kpiJewelAmethyst,
+            isMobile ? styles.kpiCardFull : isTablet ? styles.kpiCardHalf : styles.kpiCardHalf
+          ]}
           {...({ dataSet: { card: 'interactive', stagger: '4' } } as any)}
         >
+          {/* Watermark Icon */}
+          <View style={styles.watermarkIconBox} pointerEvents="none">
+            <Ionicons name="flame" size={110} color="rgba(255, 255, 255, 0.05)" />
+          </View>
+
           <View style={styles.kpiTopRow}>
-            <Text style={styles.kpiLabel}>KITCHEN PREP QUEUE</Text>
-            <View 
-              style={[styles.kpiIconBox, { backgroundColor: BRAND.amberLight }]}
-              {...({ dataSet: { icon: 'box' } } as any)}
-            >
-              <Ionicons name="flame-outline" size={20} color={BRAND.amber} />
+            <View style={styles.kpiTitleGroup}>
+              <Text style={styles.kpiJewelLabel}>KITCHEN KDS & VELOCITY</Text>
+              <View style={styles.jewelPillPurple}>
+                <Text style={styles.jewelPillPurpleText}>{activeOrders > 3 ? 'RUSH LOAD' : 'OPTIMAL FLOW'}</Text>
+              </View>
+            </View>
+            <View style={[styles.kpiIconBoxJewel, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
+              <Ionicons name="flame-outline" size={20} color="#C084FC" />
             </View>
           </View>
+
           {isRefreshing ? (
-            <View style={styles.skeletonValue} {...({ dataSet: { skeleton: 'box' } } as any)} />
+            <View style={styles.skeletonValueDark} {...({ dataSet: { skeleton: 'box' } } as any)} />
           ) : (
-            <Text style={styles.kpiMainValue}>{activeOrders} Active <Text style={styles.kpiValueSub}>Tickets</Text></Text>
+            <Text style={styles.kpiMainValueJewel}>
+              {activeOrders} <Text style={{ fontSize: 18, fontWeight: '600', color: '#D8B4FE' }}>Active Tickets</Text>
+            </Text>
           )}
-          <View style={styles.kpiFooter}>
-            <View style={[styles.trendBadge, { backgroundColor: activeOrders > 3 ? '#FEE2E2' : BRAND.amberLight }]}>
-              <Ionicons name="timer-outline" size={13} color={activeOrders > 3 ? BRAND.rose : BRAND.amber} />
-              <Text style={[styles.trendBadgeText, { color: activeOrders > 3 ? BRAND.rose : BRAND.amber }]}>
-                {activeOrders > 3 ? 'High Rush' : 'Avg 13 min'}
-              </Text>
+
+          {/* Frosted Chips: Prep Queue / Speed / CRM Diners */}
+          <View style={styles.frostedChipRow}>
+            <View style={styles.frostedChip}>
+              <Ionicons name="timer-outline" size={11} color="#C084FC" />
+              <Text style={styles.frostedChipText}>{activeOrders} Orders In Prep</Text>
             </View>
+            <View style={styles.frostedChip}>
+              <Ionicons name="speedometer-outline" size={11} color="#A7F3D0" />
+              <Text style={styles.frostedChipText}>~12-14 Min Lead</Text>
+            </View>
+            <View style={styles.frostedChip}>
+              <Ionicons name="people-outline" size={11} color="#F3D179" />
+              <Text style={styles.frostedChipText}>{customers.length} Diners CRM</Text>
+            </View>
+          </View>
+
+          <View style={styles.kpiFooterJewel}>
+            <Text style={styles.kpiSubtextJewel}>
+              {activeOrders > 3 ? 'High kitchen queue pressure' : 'Kitchen operating within velocity targets'}
+            </Text>
             <TouchableOpacity onPress={() => router.push('/kitchen/kds')}>
-              <Text style={styles.kpiLink}>KDS Screen</Text>
+              <Text style={styles.kpiLinkGold}>Open KDS Screen →</Text>
             </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* KPI 5: Registered VIP Diners */}
-        <View 
-          style={[styles.kpiCard, isMobile ? styles.kpiCardFull : isTablet ? styles.kpiCardHalf : styles.kpiCardThird]}
-          {...({ dataSet: { card: 'interactive', stagger: '5' } } as any)}
-        >
-          <View style={styles.kpiTopRow}>
-            <Text style={styles.kpiLabel}>CUSTOMER PROFILES</Text>
-            <View 
-              style={[styles.kpiIconBox, { backgroundColor: BRAND.purpleLight }]}
-              {...({ dataSet: { icon: 'box' } } as any)}
-            >
-              <Ionicons name="people-outline" size={20} color={BRAND.purple} />
-            </View>
-          </View>
-          {isRefreshing ? (
-            <View style={styles.skeletonValue} {...({ dataSet: { skeleton: 'box' } } as any)} />
-          ) : (
-            <Text style={styles.kpiMainValue}>{customers.length} Diners</Text>
-          )}
-          <View style={styles.kpiFooter}>
-            <View style={[styles.trendBadge, { backgroundColor: BRAND.purpleLight }]}>
-              <Ionicons name="heart" size={11} color={BRAND.purple} />
-              <Text style={[styles.trendBadgeText, { color: BRAND.purple }]}>CRM Active</Text>
-            </View>
-            <Text style={styles.kpiSubtext}>Repeat guests logged</Text>
-          </View>
-        </View>
-
-        {/* KPI 6: Tax & Discounts Collected */}
-        <View 
-          style={[styles.kpiCard, isMobile ? styles.kpiCardFull : isTablet ? styles.kpiCardHalf : styles.kpiCardThird]}
-          {...({ dataSet: { card: 'interactive', stagger: '6' } } as any)}
-        >
-          <View style={styles.kpiTopRow}>
-            <Text style={styles.kpiLabel}>TAX & CONCESSIONS</Text>
-            <View 
-              style={[styles.kpiIconBox, { backgroundColor: BRAND.roseLight }]}
-              {...({ dataSet: { icon: 'box' } } as any)}
-            >
-              <Ionicons name="pricetag-outline" size={20} color={BRAND.rose} />
-            </View>
-          </View>
-          {isRefreshing ? (
-            <View style={styles.skeletonValue} {...({ dataSet: { skeleton: 'box' } } as any)} />
-          ) : (
-            <Text style={styles.kpiMainValue}>Rs. {totalTax.toLocaleString()}</Text>
-          )}
-          <View style={styles.kpiFooter}>
-            <Text style={styles.kpiSubtext}>Rs. {totalDiscount.toLocaleString()} promo discount</Text>
-            <View style={[styles.trendBadge, { backgroundColor: '#F1F5F9' }]}>
-              <Text style={[styles.trendBadgeText, { color: '#64748B' }]}>FBR Audit</Text>
-            </View>
           </View>
         </View>
       </View>
@@ -1078,20 +1247,23 @@ const styles = StyleSheet.create({
 
   // 1. Executive Header
   headerCard: {
-    backgroundColor: BRAND.cardBg,
-    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    borderRadius: 18,
     padding: 20,
-    borderWidth: 1,
-    borderColor: BRAND.cardBorder,
+    borderWidth: 1.5,
+    borderColor: 'rgba(212, 175, 55, 0.28)',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        boxShadow: '0 12px 32px rgba(82, 20, 28, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.95)',
+      } as any,
+    }),
+    elevation: 3,
   },
   headerCardMobile: {
     flexDirection: 'column',
@@ -1105,14 +1277,28 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     flexWrap: 'wrap',
+  },
+  headerLogoCapsule: {
+    padding: 6,
+    borderRadius: 10,
+    backgroundColor: 'rgba(82, 20, 28, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.25)',
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: '900',
     color: BRAND.textPrimary,
     letterSpacing: -0.3,
+  },
+  shiftActivePulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#10B981',
+    marginRight: 6,
   },
   livePulsePill: {
     flexDirection: 'row',
@@ -1153,18 +1339,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: BRAND.burgundyLight,
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(112, 26, 38, 0.2)',
+    borderColor: 'rgba(212, 175, 55, 0.35)',
     paddingHorizontal: 11,
     paddingVertical: 7,
     borderRadius: 8,
   },
   refreshSyncBtnActive: {
-    backgroundColor: '#FDE8EB',
+    backgroundColor: 'rgba(212, 175, 55, 0.22)',
   },
   refreshSyncBtnText: {
-    color: BRAND.burgundy,
+    color: BRAND.goldDark,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -1173,8 +1359,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     borderRadius: 10,
     padding: 3,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   filterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -1194,34 +1384,430 @@ const styles = StyleSheet.create({
   },
   filterBtnTextActive: {
     color: BRAND.burgundy,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   actionPosBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: BRAND.burgundy,
+    backgroundColor: '#D4AF37',
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 10,
-    shadowColor: BRAND.burgundy,
+    shadowColor: '#D4AF37',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 3,
   },
   actionPosBtnText: {
-    color: '#FFFFFF',
+    color: '#24050A',
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '900',
+    letterSpacing: 0.3,
   },
 
-  // 2. Core KPI Cards Grid
+  // 1.1 Shift Status Capsule & Alert Banner (from Baithak home.php)
+  shiftStatusCapsule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginBottom: 20,
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, #380A11 0%, #200408 100%)',
+      },
+      default: {
+        backgroundColor: '#24050A',
+      },
+    }),
+    borderWidth: 1.5,
+    borderColor: 'rgba(212, 175, 55, 0.38)',
+    shadowColor: '#24050A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  shiftCapsuleLeft: {
+    flex: 1,
+    minWidth: 280,
+  },
+  shiftLiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  shiftLiveText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#34D399',
+    letterSpacing: 0.8,
+  },
+  shiftCapsuleHeading: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
+  },
+  shiftCapsuleDetails: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.72)',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  shiftCapsuleActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  shiftActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: 'rgba(212, 175, 55, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.35)',
+  },
+  shiftActionBtnGold: {
+    backgroundColor: '#D4AF37',
+    borderColor: '#F3D179',
+  },
+  shiftActionBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#F3D179',
+  },
+  shiftAlertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginBottom: 20,
+    backgroundColor: 'rgba(254, 243, 199, 0.88)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(245, 158, 11, 0.48)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        boxShadow: '0 8px 24px rgba(245, 158, 11, 0.15)',
+      } as any,
+    }),
+  },
+  shiftAlertLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    minWidth: 260,
+  },
+  shiftAlertText: {
+    fontSize: 13,
+    color: '#78350F',
+    fontWeight: '600',
+    flex: 1,
+    lineHeight: 18,
+  },
+  shiftAlertBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 9,
+    backgroundColor: '#D97706',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+        boxShadow: '0 4px 14px rgba(217, 119, 6, 0.35)',
+        cursor: 'pointer',
+      } as any,
+    }),
+  },
+  shiftAlertBtnText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+
+  // 1.2 Inventory Alert Banner
+  inventoryAlertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 14,
+    marginBottom: 20,
+    backgroundColor: 'rgba(254, 226, 226, 0.9)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(239, 68, 68, 0.45)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        boxShadow: '0 8px 24px rgba(239, 68, 68, 0.14)',
+      } as any,
+    }),
+  },
+  inventoryAlertLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    minWidth: 260,
+  },
+  alertIconPill: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(239, 68, 68, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inventoryAlertText: {
+    fontSize: 12.5,
+    color: '#7F1D1D',
+    fontWeight: '600',
+    flex: 1,
+    lineHeight: 18,
+  },
+  inventoryAlertLink: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#DC2626',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+        boxShadow: '0 4px 14px rgba(220, 38, 38, 0.35)',
+        cursor: 'pointer',
+      } as any,
+    }),
+  },
+  inventoryAlertLinkText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+
+  // 2. Core KPI Cards Grid & Baithak Jewel Gradients
   kpiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 16,
     marginBottom: 24,
+  },
+  kpiJewelCard: {
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 4,
+    position: 'relative',
+    overflow: 'hidden',
+    justifyContent: 'space-between',
+    minHeight: 180,
+  },
+  kpiJewelMaroon: {
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, #4D101A 0%, #200408 100%)',
+      },
+      default: {
+        backgroundColor: '#380A11',
+      },
+    }),
+    borderColor: 'rgba(212, 175, 55, 0.38)',
+  },
+  kpiJewelAmber: {
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, #4A1E08 0%, #1D0A02 100%)',
+      },
+      default: {
+        backgroundColor: '#2E1A0D',
+      },
+    }),
+    borderColor: 'rgba(245, 158, 11, 0.38)',
+  },
+  kpiJewelTeal: {
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, #093322 0%, #03140C 100%)',
+      },
+      default: {
+        backgroundColor: '#0E3324',
+      },
+    }),
+    borderColor: 'rgba(16, 185, 129, 0.38)',
+  },
+  kpiJewelAmethyst: {
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, #2B1343 0%, #11051D 100%)',
+      },
+      default: {
+        backgroundColor: '#261738',
+      },
+    }),
+    borderColor: 'rgba(168, 85, 247, 0.38)',
+  },
+  watermarkIconBox: {
+    position: 'absolute',
+    right: -10,
+    bottom: -15,
+    opacity: 0.9,
+  },
+  kpiTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  kpiJewelLabel: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: 'rgba(255, 255, 255, 0.78)',
+    letterSpacing: 0.9,
+  },
+  jewelPillGold: {
+    backgroundColor: 'rgba(212, 175, 55, 0.22)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.35)',
+  },
+  jewelPillGoldText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#F3D179',
+    letterSpacing: 0.5,
+  },
+  jewelPillAmber: {
+    backgroundColor: 'rgba(245, 158, 11, 0.22)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+  },
+  jewelPillAmberText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FCD34D',
+  },
+  jewelPillTeal: {
+    backgroundColor: 'rgba(16, 185, 129, 0.22)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.35)',
+  },
+  jewelPillTealText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#6EE7B7',
+  },
+  jewelPillPurple: {
+    backgroundColor: 'rgba(168, 85, 247, 0.22)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.35)',
+  },
+  jewelPillPurpleText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#D8B4FE',
+  },
+  kpiIconBoxJewel: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  kpiMainValueJewel: {
+    fontSize: 27,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+    marginVertical: 4,
+  },
+  skeletonValueDark: {
+    height: 30,
+    width: '65%',
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    marginVertical: 4,
+  },
+  frostedChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginVertical: 6,
+  },
+  frostedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  frostedChipText: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '600',
+  },
+  kpiFooterJewel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    paddingTop: 10,
+    marginTop: 6,
+  },
+  kpiSubtextJewel: {
+    fontSize: 11.5,
+    color: 'rgba(255, 255, 255, 0.72)',
+    fontWeight: '500',
+  },
+  kpiLinkGold: {
+    fontSize: 12,
+    color: '#F3D179',
+    fontWeight: '800',
   },
   kpiCard: {
     backgroundColor: BRAND.cardBg,
@@ -1329,16 +1915,19 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   chartCard: {
-    backgroundColor: BRAND.cardBg,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: BRAND.cardBorder,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    borderRadius: 18,
+    padding: 22,
+    borderWidth: 1.5,
+    borderColor: 'rgba(212, 175, 55, 0.24)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        boxShadow: '0 12px 32px rgba(82, 20, 28, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.95)',
+      } as any,
+    }),
+    elevation: 3,
   },
   chartCardFull: {
     width: '100%',

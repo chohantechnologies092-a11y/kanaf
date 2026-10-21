@@ -24,6 +24,7 @@ import {
   ASSET_CATEGORIES,
 } from '../store';
 import { money, formatDay } from '../utils/format';
+import RoyalDropdown from '../components/RoyalDropdown';
 
 const LIGHT = {
   bg: '#F8F9FA',
@@ -86,6 +87,7 @@ export default function AssetsScreen({
 
   const user = useAuthStore((s) => s.user);
   const assets = useOpsStore((s) => s.assets || []);
+  const damageRecords = useOpsStore((s) => s.damageRecords || []);
   const addAsset = useOpsStore((s) => s.addAsset);
   const updateAsset = useOpsStore((s) => s.updateAsset);
   const deleteAsset = useOpsStore((s) => s.deleteAsset);
@@ -440,60 +442,40 @@ export default function AssetsScreen({
             )}
           </View>
 
-          {/* Category Horizontal Pills */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-            <TouchableOpacity
-              style={[
-                styles.categoryChip,
-                selectedCategory === 'All' && styles.categoryChipActive,
+          {/* Category & Status Dropdown Filters */}
+          <View style={[styles.filterDropdownRow, isMobile && { flexDirection: 'column' }]}>
+            <RoyalDropdown
+              style={{ flex: 1 }}
+              label="Filter by Asset Category"
+              icon="funnel-outline"
+              placeholder="All Categories"
+              options={[
+                { label: `All Categories (${assets.length})`, value: 'All' },
+                ...ASSET_CATEGORIES.map((cat) => ({
+                  label: `${cat} (${assets.filter((a) => a.category === cat).length})`,
+                  value: cat,
+                })),
               ]}
-              onPress={() => setSelectedCategory('All')}
-            >
-              <Text
-                style={[
-                  styles.categoryChipText,
-                  selectedCategory === 'All' && styles.categoryChipTextActive,
-                ]}
-              >
-                All Categories ({assets.length})
-              </Text>
-            </TouchableOpacity>
-
-            {ASSET_CATEGORIES.map((cat) => {
-              const count = assets.filter((a) => a.category === cat).length;
-              const isActive = selectedCategory === cat;
-              return (
-                <TouchableOpacity
-                  key={cat}
-                  style={[styles.categoryChip, isActive && styles.categoryChipActive]}
-                  onPress={() => setSelectedCategory(cat)}
-                >
-                  <Text style={[styles.categoryChipText, isActive && styles.categoryChipTextActive]}>
-                    {cat} ({count})
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* Status Filters */}
-        <View style={styles.statusFiltersRow}>
-          <Text style={styles.filterLeadText}>Filter Status:</Text>
-          {['All', 'active', 'in_maintenance', 'retired'].map((st) => {
-            const isSel = selectedStatus === st;
-            return (
-              <TouchableOpacity
-                key={st}
-                style={[styles.statusFilterBtn, isSel && styles.statusFilterBtnActive]}
-                onPress={() => setSelectedStatus(st)}
-              >
-                <Text style={[styles.statusFilterText, isSel && styles.statusFilterTextActive]}>
-                  {st === 'All' ? 'All Status' : st.replace('_', ' ').toUpperCase()}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+              value={selectedCategory}
+              onSelect={(val) => setSelectedCategory(val)}
+              searchable
+            />
+            <RoyalDropdown
+              style={{ flex: isMobile ? 1 : 0.6 }}
+              label="Filter by Operational Status"
+              icon="shield-checkmark-outline"
+              placeholder="All Statuses"
+              options={[
+                { label: `All Statuses (${assets.length})`, value: 'All' },
+                ...STATUSES.map((s) => ({
+                  label: `${s.label} (${assets.filter((a) => a.status === s.key).length})`,
+                  value: s.key,
+                })),
+              ]}
+              value={selectedStatus}
+              onSelect={(val) => setSelectedStatus(val)}
+            />
+          </View>
         </View>
 
         {/* Asset Cards List */}
@@ -511,6 +493,11 @@ export default function AssetsScreen({
               const cond = CONDITIONS.find((c) => c.key === ast.condition) || CONDITIONS[1];
               const stat = STATUSES.find((s) => s.key === ast.status) || STATUSES[0];
               const maintTotal = (ast.maintenanceLogs || []).reduce((acc, l) => acc + (l.cost || 0), 0);
+              const linkedDamages = damageRecords.filter(
+                (d) => d.assetId === ast.id || d.assetCode === ast.assetCode
+              );
+              const damageLoss = linkedDamages.reduce((sum, d) => sum + (d.totalLoss || 0), 0);
+              const damageUnits = linkedDamages.reduce((sum, d) => sum + (d.quantity || 1), 0);
 
               return (
                 <View key={ast.id} style={styles.assetCard}>
@@ -591,6 +578,26 @@ export default function AssetsScreen({
                     </View>
                   )}
 
+                  {/* Breakage / Damage Footnote if any */}
+                  {linkedDamages.length > 0 && (
+                    <TouchableOpacity
+                      style={styles.damageBanner}
+                      onPress={() => router.push(role === 'admin' ? '/admin/damages' : '/manager/damages')}
+                      activeOpacity={0.8}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                        <Ionicons name="alert-circle" size={14} color={LIGHT.rose} />
+                        <Text style={styles.damageBannerText}>
+                          {linkedDamages.length} Breakage Incident{linkedDamages.length > 1 ? 's' : ''} ({damageUnits} pcs broken) • Total Loss: {money(damageLoss)}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                        <Text style={styles.damageBannerLink}>Damage Control</Text>
+                        <Ionicons name="chevron-forward" size={13} color={LIGHT.rose} />
+                      </View>
+                    </TouchableOpacity>
+                  )}
+
                   {/* Action Buttons */}
                   <View style={styles.cardActions}>
                     <TouchableOpacity
@@ -608,6 +615,18 @@ export default function AssetsScreen({
                       <Ionicons name="build-outline" size={14} color={LIGHT.amber} />
                       <Text style={[styles.actionBtnOutlineText, { color: LIGHT.amber }]}>Log Service</Text>
                     </TouchableOpacity>
+
+                    {linkedDamages.length > 0 && (
+                      <TouchableOpacity
+                        style={[styles.actionBtnOutline, { borderColor: '#FECDD3' }]}
+                        onPress={() => router.push(role === 'admin' ? '/admin/damages' : '/manager/damages')}
+                      >
+                        <Ionicons name="warning-outline" size={14} color={LIGHT.rose} />
+                        <Text style={[styles.actionBtnOutlineText, { color: LIGHT.rose }]}>
+                          Damages ({linkedDamages.length})
+                        </Text>
+                      </TouchableOpacity>
+                    )}
 
                     <TouchableOpacity
                       style={styles.actionBtnOutline}
@@ -672,28 +691,17 @@ export default function AssetsScreen({
                 />
               </View>
 
-              {/* Category */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Asset Category *</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row', gap: 8 }}>
-                  {ASSET_CATEGORIES.map((cat) => (
-                    <TouchableOpacity
-                      key={cat}
-                      style={[styles.modalChip, formCategory === cat && styles.modalChipActive]}
-                      onPress={() => setFormCategory(cat)}
-                    >
-                      <Text
-                        style={[
-                          styles.modalChipText,
-                          formCategory === cat && styles.modalChipTextActive,
-                        ]}
-                      >
-                        {cat}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
+              {/* Category Dropdown */}
+              <RoyalDropdown
+                label="Asset Category"
+                required
+                icon="pricetag-outline"
+                placeholder="Select asset category..."
+                options={ASSET_CATEGORIES}
+                value={formCategory}
+                onSelect={(cat) => setFormCategory(cat as AssetCategory)}
+                searchable
+              />
 
               {/* Cost & Qty */}
               <View style={styles.twoCol}>
@@ -772,50 +780,28 @@ export default function AssetsScreen({
                 </View>
               </View>
 
-              {/* Condition & Status */}
+              {/* Condition & Status Dropdowns */}
               <View style={styles.twoCol}>
                 <View style={[styles.inputGroup, { flex: 1 }]}>
-                  <Text style={styles.inputLabel}>Physical Condition</Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                    {CONDITIONS.map((c) => (
-                      <TouchableOpacity
-                        key={c.key}
-                        style={[styles.smallChip, formCondition === c.key && styles.smallChipActive]}
-                        onPress={() => setFormCondition(c.key)}
-                      >
-                        <Text
-                          style={[
-                            styles.smallChipText,
-                            formCondition === c.key && styles.smallChipTextActive,
-                          ]}
-                        >
-                          {c.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                  <RoyalDropdown
+                    label="Physical Condition"
+                    required
+                    icon="sparkles-outline"
+                    options={CONDITIONS.map((c) => ({ label: c.label, value: c.key }))}
+                    value={formCondition}
+                    onSelect={(c) => setFormCondition(c as AssetCondition)}
+                  />
                 </View>
 
                 <View style={[styles.inputGroup, { flex: 1 }]}>
-                  <Text style={styles.inputLabel}>Operational Status</Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                    {STATUSES.map((s) => (
-                      <TouchableOpacity
-                        key={s.key}
-                        style={[styles.smallChip, formStatus === s.key && styles.smallChipActive]}
-                        onPress={() => setFormStatus(s.key)}
-                      >
-                        <Text
-                          style={[
-                            styles.smallChipText,
-                            formStatus === s.key && styles.smallChipTextActive,
-                          ]}
-                        >
-                          {s.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                  <RoyalDropdown
+                    label="Operational Status"
+                    required
+                    icon="shield-checkmark-outline"
+                    options={STATUSES.map((s) => ({ label: s.label, value: s.key }))}
+                    value={formStatus}
+                    onSelect={(s) => setFormStatus(s as AssetStatus)}
+                  />
                 </View>
               </View>
 
@@ -1097,6 +1083,36 @@ export default function AssetsScreen({
                       ))
                     )}
                   </View>
+
+                  {/* Breakage & Damage Incidents Section */}
+                  <View style={{ marginTop: 16 }}>
+                    <Text style={[styles.sheetDocTitle, { textAlign: 'left', marginBottom: 8, color: '#BE123C' }]}>
+                      BREAKAGE & DAMAGE RECORD ({damageRecords.filter((d) => d.assetId === viewAsset.id || d.assetCode === viewAsset.assetCode).length})
+                    </Text>
+                    {damageRecords.filter((d) => d.assetId === viewAsset.id || d.assetCode === viewAsset.assetCode).length === 0 ? (
+                      <Text style={{ fontSize: 12, color: '#666', fontStyle: 'italic' }}>
+                        Zero breakage incidents logged for this asset.
+                      </Text>
+                    ) : (
+                      damageRecords
+                        .filter((d) => d.assetId === viewAsset.id || d.assetCode === viewAsset.assetCode)
+                        .map((dmg) => (
+                          <View key={dmg.id} style={[styles.sheetMaintItem, { borderColor: '#FECDD3', backgroundColor: '#FFF5F5' }]}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                              <Text style={{ fontWeight: '700', fontSize: 13, color: '#111827' }}>
+                                {formatDay(dmg.incidentDate)} • {dmg.quantity}x broken ({dmg.reason})
+                              </Text>
+                              <Text style={{ fontWeight: '700', fontSize: 13, color: '#BE123C' }}>
+                                -{money(dmg.totalLoss)}
+                              </Text>
+                            </View>
+                            <Text style={{ fontSize: 12, color: '#4B5563', marginTop: 2 }}>
+                              Settlement: {dmg.actionTaken} • Location: {dmg.location} • Status: {dmg.status.toUpperCase()}
+                            </Text>
+                          </View>
+                        ))
+                    )}
+                  </View>
                 </View>
               </ScrollView>
             )}
@@ -1292,60 +1308,11 @@ const styles = StyleSheet.create({
   categoryScroll: {
     flexDirection: 'row',
   },
-  categoryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginRight: 8,
-  },
-  categoryChipActive: {
-    backgroundColor: LIGHT.burgundySoft,
-    borderColor: LIGHT.burgundy,
-  },
-  categoryChipText: {
-    fontSize: 12,
-    color: LIGHT.textSecondary,
-    fontWeight: '600',
-  },
-  categoryChipTextActive: {
-    color: LIGHT.burgundy,
-    fontWeight: '800',
-  },
-  statusFiltersRow: {
+  filterDropdownRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 18,
-    flexWrap: 'wrap',
-  },
-  filterLeadText: {
-    fontSize: 12,
-    color: LIGHT.textMuted,
-    fontWeight: '600',
-  },
-  statusFilterBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  statusFilterBtnActive: {
-    backgroundColor: LIGHT.burgundy,
-    borderColor: LIGHT.burgundy,
-  },
-  statusFilterText: {
-    fontSize: 11,
-    color: LIGHT.textSecondary,
-    fontWeight: '600',
-  },
-  statusFilterTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '800',
+    gap: 12,
+    marginTop: 8,
+    marginBottom: 16,
   },
   assetList: {
     gap: 14,
@@ -1762,5 +1729,27 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+  },
+  damageBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF1F2',
+    borderWidth: 1,
+    borderColor: '#FECDD3',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    marginTop: 8,
+  },
+  damageBannerText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#BE123C',
+  },
+  damageBannerLink: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#BE123C',
   },
 });

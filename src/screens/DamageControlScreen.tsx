@@ -26,10 +26,12 @@ import {
   DAMAGE_CATEGORIES,
   DAMAGE_REASONS,
   DAMAGE_ACTIONS,
+  Asset,
 } from '../store';
 import { money, formatDay, formatTime, startOfDay } from '../utils/format';
 import { useRolePermissions } from '../store/roleStore';
 import PermissionDeniedScreen from '../components/PermissionDeniedScreen';
+import RoyalDropdown from '../components/RoyalDropdown';
 
 const LIGHT = {
   bg: '#F8F9FA',
@@ -115,6 +117,7 @@ export default function DamageControlScreen({
     );
   }
   const damageRecords = useOpsStore((s) => s.damageRecords || []);
+  const assets = useOpsStore((s) => s.assets || []);
   const logDamageIncident = useOpsStore((s) => s.logDamageIncident);
   const updateDamageRecord = useOpsStore((s) => s.updateDamageRecord);
   const deleteDamageRecord = useOpsStore((s) => s.deleteDamageRecord);
@@ -130,6 +133,13 @@ export default function DamageControlScreen({
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [resolvingRecord, setResolvingRecord] = useState<DamageRecord | null>(null);
   const [viewRecord, setViewRecord] = useState<DamageRecord | null>(null);
+
+  // Asset Dropdown & Source Selection State (Unified with Capital Assets)
+  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
+  const [selectedAssetCode, setSelectedAssetCode] = useState<string | null>(null);
+  const [entryMode, setEntryMode] = useState<'asset' | 'manual'>('asset');
+  const [isAssetDropdownOpen, setIsAssetDropdownOpen] = useState(false);
+  const [assetSearchQuery, setAssetSearchQuery] = useState('');
 
   // Form State
   const [formItemName, setFormItemName] = useState('');
@@ -149,6 +159,48 @@ export default function DamageControlScreen({
   const [settleStatus, setSettleStatus] = useState<DamageStatus>('approved_writeoff');
   const [settleAmount, setSettleAmount] = useState('0');
   const [settleNotes, setSettleNotes] = useState('');
+
+  // Selected Asset Details & Filtered List for Dropdown
+  const selectedAsset = useMemo(() => {
+    return assets.find((a) => a.id === selectedAssetId) || null;
+  }, [assets, selectedAssetId]);
+
+  const filteredAssets = useMemo(() => {
+    if (!assetSearchQuery.trim()) return assets;
+    const q = assetSearchQuery.toLowerCase();
+    return assets.filter(
+      (a) =>
+        a.name.toLowerCase().includes(q) ||
+        a.assetCode.toLowerCase().includes(q) ||
+        a.category.toLowerCase().includes(q) ||
+        (a.location && a.location.toLowerCase().includes(q))
+    );
+  }, [assets, assetSearchQuery]);
+
+  const handleSelectAsset = (asset: Asset) => {
+    setSelectedAssetId(asset.id);
+    setSelectedAssetCode(asset.assetCode);
+    setFormItemName(asset.name);
+    // Auto-select category if matching
+    if (DAMAGE_CATEGORIES.includes(asset.category as any)) {
+      setFormCategory(asset.category as DamageCategory);
+    }
+    const unitPrice =
+      asset.cost ||
+      (asset.totalCost && asset.quantity ? Math.round(asset.totalCost / asset.quantity) : 0);
+    setFormUnitCost(String(unitPrice || 0));
+    if (asset.location) {
+      setFormLocation(asset.location);
+    }
+    setIsAssetDropdownOpen(false);
+  };
+
+  const handleClearAssetLink = () => {
+    setSelectedAssetId(null);
+    setSelectedAssetCode(null);
+    setFormItemName('');
+    setFormUnitCost('');
+  };
 
   // Analytics & KPIs
   const stats = useMemo(() => {
@@ -223,6 +275,11 @@ export default function DamageControlScreen({
   }, [damageRecords, selectedCategory, selectedStatus, periodFilter, search]);
 
   const openReportModal = (preset?: typeof QUICK_PRESETS[0]) => {
+    setSelectedAssetId(null);
+    setSelectedAssetCode(null);
+    setEntryMode('asset');
+    setIsAssetDropdownOpen(false);
+    setAssetSearchQuery('');
     if (preset) {
       setFormItemName(preset.name);
       setFormCategory(preset.cat);
@@ -246,7 +303,7 @@ export default function DamageControlScreen({
 
   const handleSaveReport = () => {
     if (!formItemName.trim()) {
-      alertMsg('Missing Information', 'Please enter the damaged item name.');
+      alertMsg('Missing Information', 'Please select or enter the damaged item name.');
       return;
     }
     const unitCost = parseFloat(formUnitCost);
@@ -264,6 +321,8 @@ export default function DamageControlScreen({
 
     logDamageIncident({
       incidentCode: `DMG-${Date.now().toString().slice(-4)}`,
+      assetId: selectedAssetId || undefined,
+      assetCode: selectedAssetCode || undefined,
       itemName: formItemName.trim(),
       category: formCategory,
       quantity: qty,
@@ -345,6 +404,7 @@ export default function DamageControlScreen({
         <View style={styles.headerLeft}>
           <TouchableOpacity
             style={styles.backBtn}
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-btn' } as any) : {})}
             onPress={() => router.push(backRoute as any)}
             activeOpacity={0.7}
           >
@@ -364,7 +424,12 @@ export default function DamageControlScreen({
           </View>
         </View>
 
-        <TouchableOpacity style={styles.reportBtn} onPress={() => openReportModal()} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={styles.reportBtn}
+          {...(Platform.OS === 'web' ? ({ className: 'interactive-btn' } as any) : {})}
+          onPress={() => openReportModal()}
+          activeOpacity={0.85}
+        >
           <Ionicons name="alert-circle" size={18} color="#FFFFFF" />
           <Text style={styles.reportBtnText}>+ Report Breakage</Text>
         </TouchableOpacity>
@@ -374,84 +439,114 @@ export default function DamageControlScreen({
         {/* Light KPI Deck */}
         <View style={styles.kpiGrid}>
           {/* Total Loss */}
-          <View style={[styles.kpiCard, { borderColor: LIGHT.roseBorder }]}>
+          <View
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
+            style={[
+              styles.kpiCard,
+              {
+                backgroundColor: 'rgba(254, 242, 242, 0.95)',
+                borderColor: 'rgba(244, 63, 94, 0.45)',
+              },
+            ]}
+          >
             <View style={styles.kpiHeader}>
-              <Text style={styles.kpiLabel}>TOTAL BREAKAGE LOSS</Text>
-              <View style={[styles.kpiIconBox, { backgroundColor: LIGHT.roseSoft }]}>
-                <Ionicons name="trash-bin-outline" size={18} color={LIGHT.rose} />
+              <Text style={[styles.kpiLabel, { color: '#BE123C' }]}>TOTAL BREAKAGE LOSS</Text>
+              <View style={[styles.kpiIconBox, { backgroundColor: '#FEE2E2' }]}>
+                <Ionicons name="trash-bin-outline" size={18} color="#E11D48" />
               </View>
             </View>
-            <Text style={[styles.kpiValue, { color: LIGHT.rose }]}>{money(stats.totalLoss)}</Text>
-            <Text style={styles.kpiHint}>{stats.totalIncidents} total incidents recorded</Text>
+            <Text style={[styles.kpiValue, { color: '#BE123C' }]}>{money(stats.totalLoss)}</Text>
+            <Text style={[styles.kpiHint, { color: '#9F1239' }]}>{stats.totalIncidents} total incidents recorded</Text>
           </View>
 
           {/* Today's Breakage */}
-          <View style={[styles.kpiCard, { borderColor: LIGHT.amberBorder }]}>
+          <View
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
+            style={[
+              styles.kpiCard,
+              {
+                backgroundColor: 'rgba(254, 243, 199, 0.95)',
+                borderColor: 'rgba(245, 158, 11, 0.45)',
+              },
+            ]}
+          >
             <View style={styles.kpiHeader}>
-              <Text style={styles.kpiLabel}>TODAY'S LOSS</Text>
-              <View style={[styles.kpiIconBox, { backgroundColor: LIGHT.amberSoft }]}>
-                <Ionicons name="today-outline" size={18} color={LIGHT.amber} />
+              <Text style={[styles.kpiLabel, { color: '#B45309' }]}>TODAY'S LOSS</Text>
+              <View style={[styles.kpiIconBox, { backgroundColor: '#FDE68A' }]}>
+                <Ionicons name="today-outline" size={18} color="#D97706" />
               </View>
             </View>
-            <Text style={[styles.kpiValue, { color: LIGHT.amber }]}>{money(stats.todayLoss)}</Text>
-            <Text style={styles.kpiHint}>
+            <Text style={[styles.kpiValue, { color: '#B45309' }]}>{money(stats.todayLoss)}</Text>
+            <Text style={[styles.kpiHint, { color: '#92400E' }]}>
               {stats.todayItems} item{stats.todayItems === 1 ? '' : 's'} broken today
             </Text>
           </View>
 
           {/* Net Unrecovered Loss */}
-          <View style={[styles.kpiCard, { borderColor: LIGHT.goldBorder }]}>
+          <View
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
+            style={[
+              styles.kpiCard,
+              {
+                backgroundColor: 'rgba(254, 252, 232, 0.95)',
+                borderColor: 'rgba(212, 175, 55, 0.55)',
+              },
+            ]}
+          >
             <View style={styles.kpiHeader}>
-              <Text style={styles.kpiLabel}>NET RESTAURANT LOSS</Text>
-              <View style={[styles.kpiIconBox, { backgroundColor: LIGHT.goldSoft }]}>
-                <Ionicons name="wallet-outline" size={18} color={LIGHT.gold} />
+              <Text style={[styles.kpiLabel, { color: '#92400E' }]}>NET RESTAURANT LOSS</Text>
+              <View style={[styles.kpiIconBox, { backgroundColor: '#FEF08A' }]}>
+                <Ionicons name="wallet-outline" size={18} color="#B48214" />
               </View>
             </View>
-            <Text style={[styles.kpiValue, { color: LIGHT.gold }]}>{money(stats.netLoss)}</Text>
-            <Text style={styles.kpiHint}>Recovered: {money(stats.totalRecovered)}</Text>
+            <Text style={[styles.kpiValue, { color: '#92400E' }]}>{money(stats.netLoss)}</Text>
+            <Text style={[styles.kpiHint, { color: '#78350F' }]}>Recovered: {money(stats.totalRecovered)}</Text>
           </View>
 
           {/* Most Fragile Category */}
-          <View style={[styles.kpiCard, { borderColor: LIGHT.purpleBorder }]}>
+          <View
+            {...(Platform.OS === 'web' ? ({ className: 'interactive-card' } as any) : {})}
+            style={[
+              styles.kpiCard,
+              {
+                backgroundColor: 'rgba(250, 245, 255, 0.95)',
+                borderColor: 'rgba(168, 85, 247, 0.45)',
+              },
+            ]}
+          >
             <View style={styles.kpiHeader}>
-              <Text style={styles.kpiLabel}>TOP BREAKAGE HOTSPOT</Text>
-              <View style={[styles.kpiIconBox, { backgroundColor: LIGHT.purpleSoft }]}>
-                <Ionicons name="wine-outline" size={18} color={LIGHT.purple} />
+              <Text style={[styles.kpiLabel, { color: '#6B21A8' }]}>TOP BREAKAGE HOTSPOT</Text>
+              <View style={[styles.kpiIconBox, { backgroundColor: '#EDE9FE' }]}>
+                <Ionicons name="wine-outline" size={18} color="#7C3AED" />
               </View>
             </View>
-            <Text style={[styles.kpiValue, { color: LIGHT.purple, fontSize: 16 }]} numberOfLines={1}>
+            <Text style={[styles.kpiValue, { color: '#6B21A8', fontSize: 16 }]} numberOfLines={1}>
               {stats.topCategory}
             </Text>
-            <Text style={styles.kpiHint}>Highest financial loss volume</Text>
+            <Text style={[styles.kpiHint, { color: '#581C87' }]}>Highest financial loss volume</Text>
           </View>
         </View>
 
         {/* Quick Presets Section */}
         <View style={styles.quickPresetSection}>
-          <View style={styles.quickPresetHeader}>
-            <Ionicons name="flash-outline" size={15} color={LIGHT.rose} />
-            <Text style={styles.quickPresetTitle}>QUICK 1-TAP BREAKAGE REPORTING</Text>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.presetScroll}>
-            {QUICK_PRESETS.map((p, idx) => (
-              <TouchableOpacity
-                key={idx}
-                style={styles.presetCard}
-                onPress={() => openReportModal(p)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.presetIconBox}>
-                  <Ionicons name={p.icon as any} size={16} color={LIGHT.rose} />
-                </View>
-                <View>
-                  <Text style={styles.presetName} numberOfLines={1}>
-                    {p.name}
-                  </Text>
-                  <Text style={styles.presetCost}>{money(p.cost)} per item</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <RoyalDropdown
+            label="Quick 1-Tap Breakage Reporting (Auto-fills incident form)"
+            placeholder="Select common breakage preset (e.g. Water Glass, Karahi Bowl, Dinner Plate)..."
+            options={QUICK_PRESETS.map((p) => ({
+              label: `${p.name} (${money(p.cost)} / unit)`,
+              value: p.name,
+              icon: p.icon as any,
+              badge: money(p.cost),
+              sublabel: p.cat,
+            }))}
+            value=""
+            onSelect={(name) => {
+              const found = QUICK_PRESETS.find((p) => p.name === name);
+              if (found) openReportModal(found);
+            }}
+            icon="flash-outline"
+            searchable
+          />
         </View>
 
         {/* Search & Filters */}
@@ -491,41 +586,40 @@ export default function DamageControlScreen({
             })}
           </View>
 
-          {/* Category Horizontal Scroll */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-            <TouchableOpacity
-              style={[
-                styles.categoryChip,
-                selectedCategory === 'All' && styles.categoryChipActive,
+          {/* Category & Status Dropdown Filters */}
+          <View style={[styles.filterDropdownRow, isMobile && { flexDirection: 'column' }]}>
+            <RoyalDropdown
+              style={{ flex: 1 }}
+              label="Filter by Breakage Category"
+              icon="funnel-outline"
+              placeholder="All Categories"
+              options={[
+                { label: `All Categories (${damageRecords.length})`, value: 'All' },
+                ...DAMAGE_CATEGORIES.map((cat) => ({
+                  label: `${cat} (${damageRecords.filter((d) => d.category === cat).length})`,
+                  value: cat,
+                })),
               ]}
-              onPress={() => setSelectedCategory('All')}
-            >
-              <Text
-                style={[
-                  styles.categoryChipText,
-                  selectedCategory === 'All' && styles.categoryChipTextActive,
-                ]}
-              >
-                All Items ({damageRecords.length})
-              </Text>
-            </TouchableOpacity>
-
-            {DAMAGE_CATEGORIES.map((cat) => {
-              const count = damageRecords.filter((d) => d.category === cat).length;
-              const isActive = selectedCategory === cat;
-              return (
-                <TouchableOpacity
-                  key={cat}
-                  style={[styles.categoryChip, isActive && styles.categoryChipActive]}
-                  onPress={() => setSelectedCategory(cat)}
-                >
-                  <Text style={[styles.categoryChipText, isActive && styles.categoryChipTextActive]}>
-                    {cat} ({count})
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+              value={selectedCategory}
+              onSelect={(val) => setSelectedCategory(val)}
+              searchable
+            />
+            <RoyalDropdown
+              style={{ flex: isMobile ? 1 : 0.6 }}
+              label="Filter by Status"
+              icon="shield-checkmark-outline"
+              placeholder="All Statuses"
+              options={[
+                { label: `All Statuses (${damageRecords.length})`, value: 'All' },
+                ...Object.entries(STATUS_PILLS).map(([key, pill]) => ({
+                  label: `${pill.label} (${damageRecords.filter((d) => d.status === key).length})`,
+                  value: key,
+                })),
+              ]}
+              value={selectedStatus}
+              onSelect={(val) => setSelectedStatus(val)}
+            />
+          </View>
         </View>
 
         {/* Damage Records List */}
@@ -551,6 +645,14 @@ export default function DamageControlScreen({
                       <View style={styles.codeTag}>
                         <Text style={styles.codeTagText}>{rec.incidentCode}</Text>
                       </View>
+                      {rec.assetCode ? (
+                        <View style={[styles.codeTag, { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' }]}>
+                          <Ionicons name="cube-outline" size={11} color="#B45309" style={{ marginRight: 3 }} />
+                          <Text style={[styles.codeTagText, { color: '#B45309', fontWeight: '800' }]}>
+                            {rec.assetCode}
+                          </Text>
+                        </View>
+                      ) : null}
                       <View style={styles.categoryBadge}>
                         <Text style={styles.categoryBadgeText}>{rec.category}</Text>
                       </View>
@@ -681,9 +783,228 @@ export default function DamageControlScreen({
             </View>
 
             <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              {/* Mode Switcher: Choose from Registered Assets vs Custom Item */}
+              <View style={styles.entryModeContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.entryModeTab,
+                    entryMode === 'asset' && styles.entryModeTabActive,
+                  ]}
+                  onPress={() => {
+                    setEntryMode('asset');
+                    setIsAssetDropdownOpen(true);
+                  }}
+                >
+                  <Ionicons
+                    name="cube"
+                    size={15}
+                    color={entryMode === 'asset' ? LIGHT.burgundy : LIGHT.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.entryModeTabText,
+                      entryMode === 'asset' && styles.entryModeTabTextActive,
+                    ]}
+                  >
+                    Select Capital Asset
+                  </Text>
+                  <View style={styles.recommendedBadge}>
+                    <Text style={styles.recommendedBadgeText}>Synced</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.entryModeTab,
+                    entryMode === 'manual' && styles.entryModeTabActive,
+                  ]}
+                  onPress={() => {
+                    setEntryMode('manual');
+                    handleClearAssetLink();
+                  }}
+                >
+                  <Ionicons
+                    name="create-outline"
+                    size={15}
+                    color={entryMode === 'manual' ? LIGHT.burgundy : LIGHT.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.entryModeTabText,
+                      entryMode === 'manual' && styles.entryModeTabTextActive,
+                    ]}
+                  >
+                    Custom / Floor Item
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Asset Dropdown Selector */}
+              {entryMode === 'asset' && (
+                <View style={styles.assetSelectorWrapper}>
+                  <Text style={styles.inputLabel}>
+                    Choose Damaged Asset from Capex Inventory *
+                  </Text>
+
+                  {/* Selected Asset Banner */}
+                  {selectedAsset ? (
+                    <View style={styles.selectedAssetBanner}>
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                          <View style={styles.selectedAssetCodeChip}>
+                            <Ionicons name="cube-outline" size={11} color="#B45309" />
+                            <Text style={styles.selectedAssetCodeText}>{selectedAsset.assetCode}</Text>
+                          </View>
+                          <Text style={styles.selectedAssetCategoryText}>• {selectedAsset.category}</Text>
+                        </View>
+                        <Text style={styles.selectedAssetNameText}>{selectedAsset.name}</Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+                          <Text style={styles.selectedAssetMetaText}>
+                            Stock: <Text style={{ fontWeight: '700', color: LIGHT.ink }}>{selectedAsset.quantity || 1} units</Text>
+                          </Text>
+                          <Text style={styles.selectedAssetMetaText}>
+                            Unit Cost: <Text style={{ fontWeight: '700', color: LIGHT.ink }}>{money(selectedAsset.cost)}</Text>
+                          </Text>
+                          {selectedAsset.location ? (
+                            <Text style={styles.selectedAssetMetaText}>
+                              Location: <Text style={{ fontWeight: '700', color: LIGHT.ink }}>{selectedAsset.location}</Text>
+                            </Text>
+                          ) : null}
+                        </View>
+                      </View>
+
+                      <View style={{ gap: 6 }}>
+                        <TouchableOpacity
+                          style={styles.changeAssetBtn}
+                          onPress={() => setIsAssetDropdownOpen(!isAssetDropdownOpen)}
+                        >
+                          <Ionicons name="swap-horizontal" size={12} color={LIGHT.burgundy} />
+                          <Text style={styles.changeAssetBtnText}>Change</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.clearAssetBtn}
+                          onPress={handleClearAssetLink}
+                        >
+                          <Ionicons name="close" size={12} color={LIGHT.rose} />
+                          <Text style={styles.clearAssetBtnText}>Clear</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.assetDropdownTrigger}
+                      onPress={() => setIsAssetDropdownOpen(!isAssetDropdownOpen)}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                        <View style={styles.assetDropdownIconBox}>
+                          <Ionicons name="cube-outline" size={16} color={LIGHT.burgundy} />
+                        </View>
+                        <Text style={styles.assetDropdownTriggerPlaceholder} numberOfLines={1}>
+                          Tap to select registered asset (Crockery, Glassware, Machinery, etc.)...
+                        </Text>
+                      </View>
+                      <Ionicons
+                        name={isAssetDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                        size={18}
+                        color={LIGHT.textSecondary}
+                      />
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Dropdown Popover List */}
+                  {isAssetDropdownOpen && (
+                    <View style={styles.assetDropdownListCard}>
+                      <View style={styles.assetDropdownSearchRow}>
+                        <Ionicons name="search" size={15} color={LIGHT.textMuted} />
+                        <TextInput
+                          style={styles.assetDropdownSearchInput}
+                          placeholder="Search assets by code, name, category, location..."
+                          placeholderTextColor={LIGHT.textDim}
+                          value={assetSearchQuery}
+                          onChangeText={setAssetSearchQuery}
+                          autoFocus
+                        />
+                        {assetSearchQuery.length > 0 && (
+                          <TouchableOpacity onPress={() => setAssetSearchQuery('')}>
+                            <Ionicons name="close-circle" size={16} color={LIGHT.textMuted} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      <ScrollView
+                        style={styles.assetDropdownScroll}
+                        nestedScrollEnabled
+                        keyboardShouldPersistTaps="handled"
+                      >
+                        {filteredAssets.length === 0 ? (
+                          <View style={styles.assetDropdownEmpty}>
+                            <Ionicons name="alert-circle-outline" size={24} color={LIGHT.textDim} />
+                            <Text style={styles.assetDropdownEmptyText}>No matching assets found.</Text>
+                          </View>
+                        ) : (
+                          filteredAssets.map((asset) => {
+                            const isSelected = selectedAssetId === asset.id;
+                            const unitPrice =
+                              asset.cost ||
+                              (asset.totalCost && asset.quantity
+                                ? Math.round(asset.totalCost / asset.quantity)
+                                : 0);
+
+                            return (
+                              <TouchableOpacity
+                                key={asset.id}
+                                style={[
+                                  styles.assetDropDownItem,
+                                  isSelected && styles.assetDropDownItemActive,
+                                ]}
+                                onPress={() => handleSelectAsset(asset)}
+                              >
+                                <View style={{ flex: 1 }}>
+                                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                    <View style={styles.codeTagSmall}>
+                                      <Text style={styles.codeTagSmallText}>{asset.assetCode}</Text>
+                                    </View>
+                                    <Text style={styles.assetItemCategory}>{asset.category}</Text>
+                                  </View>
+                                  <Text style={styles.assetItemName} numberOfLines={1}>
+                                    {asset.name}
+                                  </Text>
+                                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 2 }}>
+                                    <Text style={styles.assetItemSub}>
+                                      Cost: <Text style={{ fontWeight: '700', color: LIGHT.ink }}>{money(unitPrice)}</Text>
+                                    </Text>
+                                    <Text style={styles.assetItemSub}>
+                                      Stock: <Text style={{ fontWeight: '700', color: LIGHT.emerald }}>{asset.quantity || 1} pcs</Text>
+                                    </Text>
+                                    {asset.location ? (
+                                      <Text style={styles.assetItemSub} numberOfLines={1}>
+                                        Loc: {asset.location}
+                                      </Text>
+                                    ) : null}
+                                  </View>
+                                </View>
+                                <View style={styles.selectAssetIconBox}>
+                                  <Ionicons
+                                    name={isSelected ? 'checkmark-circle' : 'add-circle-outline'}
+                                    size={20}
+                                    color={isSelected ? LIGHT.emerald : LIGHT.gold}
+                                  />
+                                </View>
+                              </TouchableOpacity>
+                            );
+                          })
+                        )}
+                      </ScrollView>
+                    </View>
+                  )}
+                </View>
+              )}
+
               {/* Item Name */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Broken Item Name *</Text>
+                <Text style={styles.inputLabel}>
+                  {entryMode === 'asset' ? 'Item Name (Auto-filled from Asset)' : 'Broken Item Name *'}
+                </Text>
                 <TextInput
                   style={styles.input}
                   placeholder="e.g. Sultan Royal Gold Rim Dinner Plate 11 inch"
@@ -693,28 +1014,17 @@ export default function DamageControlScreen({
                 />
               </View>
 
-              {/* Category Selector */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Item Category *</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row', gap: 8 }}>
-                  {DAMAGE_CATEGORIES.map((cat) => (
-                    <TouchableOpacity
-                      key={cat}
-                      style={[styles.modalChip, formCategory === cat && styles.modalChipActive]}
-                      onPress={() => setFormCategory(cat)}
-                    >
-                      <Text
-                        style={[
-                          styles.modalChipText,
-                          formCategory === cat && styles.modalChipTextActive,
-                        ]}
-                      >
-                        {cat}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
+              {/* Category Dropdown Selector */}
+              <RoyalDropdown
+                label="Item Category"
+                required
+                icon="pricetag-outline"
+                placeholder="Select breakage category..."
+                options={DAMAGE_CATEGORIES}
+                value={formCategory}
+                onSelect={(cat) => setFormCategory(cat as DamageCategory)}
+                searchable
+              />
 
               {/* Qty & Unit Cost */}
               <View style={styles.twoCol}>
@@ -757,53 +1067,33 @@ export default function DamageControlScreen({
                 </View>
 
                 <View style={[styles.inputGroup, { flex: 1 }]}>
-                  <Text style={styles.inputLabel}>Primary Reason *</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {DAMAGE_REASONS.slice(0, 4).map((r) => (
-                      <TouchableOpacity
-                        key={r}
-                        style={[styles.smallChip, formReason === r && styles.smallChipActive]}
-                        onPress={() => setFormReason(r)}
-                      >
-                        <Text
-                          style={[
-                            styles.smallChipText,
-                            formReason === r && styles.smallChipTextActive,
-                          ]}
-                        >
-                          {r}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                  <RoyalDropdown
+                    label="Primary Reason"
+                    required
+                    icon="help-circle-outline"
+                    placeholder="Select primary reason..."
+                    options={DAMAGE_REASONS}
+                    value={formReason}
+                    onSelect={(r) => setFormReason(r as DamageReason)}
+                    searchable
+                  />
                 </View>
               </View>
 
               {/* Responsibility */}
               <View style={styles.twoCol}>
                 <View style={[styles.inputGroup, { flex: 1 }]}>
-                  <Text style={styles.inputLabel}>Attributed Responsibility</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row', gap: 6 }}>
-                    {RESPONSIBILITIES.map((resp) => (
-                      <TouchableOpacity
-                        key={resp.key}
-                        style={[
-                          styles.smallChip,
-                          formResponsibleParty === resp.key && styles.smallChipActive,
-                        ]}
-                        onPress={() => setFormResponsibleParty(resp.key)}
-                      >
-                        <Text
-                          style={[
-                            styles.smallChipText,
-                            formResponsibleParty === resp.key && styles.smallChipTextActive,
-                          ]}
-                        >
-                          {resp.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                  <RoyalDropdown
+                    label="Attributed Responsibility"
+                    icon="person-outline"
+                    placeholder="Select responsibility..."
+                    options={RESPONSIBILITIES.map((resp) => ({
+                      label: resp.label,
+                      value: resp.key,
+                    }))}
+                    value={formResponsibleParty}
+                    onSelect={(party) => setFormResponsibleParty(party as DamageResponsibility)}
+                  />
                 </View>
 
                 <View style={[styles.inputGroup, { flex: 1 }]}>
@@ -821,25 +1111,14 @@ export default function DamageControlScreen({
               {/* Action Taken & Amount Recovered */}
               <View style={styles.twoCol}>
                 <View style={[styles.inputGroup, { flex: 1 }]}>
-                  <Text style={styles.inputLabel}>Initial Settlement Action</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {DAMAGE_ACTIONS.map((act) => (
-                      <TouchableOpacity
-                        key={act}
-                        style={[styles.smallChip, formActionTaken === act && styles.smallChipActive]}
-                        onPress={() => setFormActionTaken(act)}
-                      >
-                        <Text
-                          style={[
-                            styles.smallChipText,
-                            formActionTaken === act && styles.smallChipTextActive,
-                          ]}
-                        >
-                          {act}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                  <RoyalDropdown
+                    label="Initial Settlement Action"
+                    icon="receipt-outline"
+                    placeholder="Select action..."
+                    options={DAMAGE_ACTIONS}
+                    value={formActionTaken}
+                    onSelect={(act) => setFormActionTaken(act as DamageAction)}
+                  />
                 </View>
 
                 <View style={[styles.inputGroup, { flex: 1 }]}>
@@ -911,27 +1190,15 @@ export default function DamageControlScreen({
                 (Total Loss: {money(resolvingRecord?.totalLoss || 0)}).
               </Text>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Resolution Action</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                  {DAMAGE_ACTIONS.map((act) => (
-                    <TouchableOpacity
-                      key={act}
-                      style={[styles.smallChip, settleAction === act && styles.smallChipActive]}
-                      onPress={() => setSettleAction(act)}
-                    >
-                      <Text
-                        style={[
-                          styles.smallChipText,
-                          settleAction === act && styles.smallChipTextActive,
-                        ]}
-                      >
-                        {act}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
+              <RoyalDropdown
+                label="Resolution Action"
+                required
+                icon="receipt-outline"
+                placeholder="Select resolution action..."
+                options={DAMAGE_ACTIONS}
+                value={settleAction}
+                onSelect={(act) => setSettleAction(act as DamageAction)}
+              />
 
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Amount Recovered (PKR)</Text>
@@ -1011,6 +1278,18 @@ export default function DamageControlScreen({
                     <Text style={styles.sheetKey}>Damaged Item:</Text>
                     <Text style={styles.sheetValBold}>{viewRecord.itemName}</Text>
                   </View>
+
+                  {viewRecord.assetCode ? (
+                    <View style={styles.sheetRow}>
+                      <Text style={styles.sheetKey}>Linked Asset Code:</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Ionicons name="cube-outline" size={13} color="#B45309" />
+                        <Text style={[styles.sheetValBold, { color: '#B45309' }]}>
+                          {viewRecord.assetCode} (Capital Capex Asset)
+                        </Text>
+                      </View>
+                    </View>
+                  ) : null}
 
                   <View style={styles.sheetRow}>
                     <Text style={styles.sheetKey}>Category:</Text>
@@ -1371,30 +1650,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '800',
   },
-  categoryScroll: {
+  filterDropdownRow: {
     flexDirection: 'row',
-  },
-  categoryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginRight: 8,
-  },
-  categoryChipActive: {
-    backgroundColor: LIGHT.roseSoft,
-    borderColor: LIGHT.rose,
-  },
-  categoryChipText: {
-    fontSize: 12,
-    color: LIGHT.textSecondary,
-    fontWeight: '600',
-  },
-  categoryChipTextActive: {
-    color: LIGHT.rose,
-    fontWeight: '800',
+    gap: 12,
+    marginTop: 8,
   },
   recordList: {
     gap: 14,
@@ -1793,5 +2052,237 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#111827',
     fontWeight: '800',
+  },
+  // Asset Dropdown & Dual Entry Mode
+  entryModeContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: '#F1F5F9',
+    padding: 4,
+    borderRadius: 8,
+    marginBottom: 14,
+  },
+  entryModeTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+  },
+  entryModeTabActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  entryModeTabText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: LIGHT.textMuted,
+  },
+  entryModeTabTextActive: {
+    color: LIGHT.burgundy,
+    fontWeight: '800',
+  },
+  recommendedBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  recommendedBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#B45309',
+  },
+  assetSelectorWrapper: {
+    marginBottom: 14,
+  },
+  selectedAssetBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(180, 130, 20, 0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(180, 130, 20, 0.4)',
+    borderRadius: 8,
+    padding: 12,
+  },
+  selectedAssetCodeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+  },
+  selectedAssetCodeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#B45309',
+  },
+  selectedAssetCategoryText: {
+    fontSize: 11,
+    color: LIGHT.textSecondary,
+    fontWeight: '600',
+  },
+  selectedAssetNameText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: LIGHT.ink,
+  },
+  selectedAssetMetaText: {
+    fontSize: 11,
+    color: LIGHT.textMuted,
+  },
+  changeAssetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: LIGHT.cardBorder,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  changeAssetBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: LIGHT.burgundy,
+  },
+  clearAssetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFF1F2',
+    borderWidth: 1,
+    borderColor: '#FECDD3',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  clearAssetBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: LIGHT.rose,
+  },
+  assetDropdownTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: LIGHT.goldBorder,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  assetDropdownIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: 'rgba(180, 130, 20, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  assetDropdownTriggerPlaceholder: {
+    fontSize: 12,
+    color: LIGHT.textSecondary,
+    fontWeight: '600',
+    flex: 1,
+  },
+  assetDropdownListCard: {
+    marginTop: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: LIGHT.cardBorder,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  assetDropdownSearchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F8F9FA',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  assetDropdownSearchInput: {
+    flex: 1,
+    fontSize: 12,
+    color: LIGHT.ink,
+    paddingVertical: 2,
+  },
+  assetDropdownScroll: {
+    maxHeight: 220,
+  },
+  assetDropdownEmpty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 6,
+  },
+  assetDropdownEmptyText: {
+    fontSize: 12,
+    color: LIGHT.textDim,
+  },
+  assetDropDownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  assetDropDownItemActive: {
+    backgroundColor: '#FEF3C7',
+  },
+  codeTagSmall: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  codeTagSmallText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: LIGHT.ink,
+  },
+  assetItemCategory: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: LIGHT.textMuted,
+  },
+  assetItemName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: LIGHT.ink,
+    marginTop: 2,
+  },
+  assetItemSub: {
+    fontSize: 10,
+    color: LIGHT.textSecondary,
+  },
+  selectAssetIconBox: {
+    marginLeft: 10,
   },
 });
