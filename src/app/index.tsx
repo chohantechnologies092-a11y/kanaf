@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useRouter } from 'expo-router';
-import { useAuthStore, ROLE_HOME } from '../store';
+import { useAuthStore, ROLE_HOME, getRoleHome } from '../store';
 import IslamicBackground from '../components/IslamicBackground';
 import SultanLogo from '../components/SultanLogo';
 import { Ionicons } from '@expo/vector-icons';
@@ -376,7 +376,7 @@ export default function WelcomeScreen() {
                     <TouchableOpacity
                       style={styles.resumeDashboardBtn}
                       onPress={() => {
-                        const target = ROLE_HOME[user.role as keyof typeof ROLE_HOME] || '/admin/dashboard';
+                        const target = getRoleHome(user.role, user.customRoleId);
                         router.replace(target as any);
                       }}
                     >

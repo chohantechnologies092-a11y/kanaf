@@ -644,6 +644,7 @@ const INITIAL_STAFF: StaffMember[] = [
   { id: 'st4', name: 'Sara Ahmed', phone: '+92 303 5556677', role: 'Waiter', pin: '4455', status: 'Active', shift: 'Evening', joinedDate: '2025-04-05', assignedZone: 'Ground Floor', assignedZones: ['Ground Floor'] },
   { id: 'st5', name: 'Hamza Malik', phone: '+92 304 4443322', role: 'Waiter', pin: '5566', status: 'On Leave', shift: 'Night', joinedDate: '2025-05-12', assignedZone: '1st Floor', assignedZones: ['1st Floor'] },
   { id: 'st6', name: 'Ali Raza', phone: '+92 305 9988776', role: 'Playland', pin: '1234', status: 'Active', shift: 'Evening', joinedDate: '2025-06-01' },
+  { id: 'st7', name: 'Tariq Juice Master', phone: '+92 306 1122334', role: 'JuiceBar', pin: '1234', status: 'Active', shift: 'Morning', joinedDate: '2025-06-15' },
 ];
 
 /**

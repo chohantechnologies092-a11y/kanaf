@@ -163,12 +163,17 @@ function buildHistory(
   let revenue = 0;
   let cost = 0;
   let dishes = 0;
-  for (const c of consumption) {
-    if (!ids.has(c.sessionId)) continue;
-    revenue += c.revenue;
-    cost += c.cost;
-    dishes += c.qty;
-    c.usage.forEach((u) => usage.set(u.itemId, (usage.get(u.itemId) || 0) + u.qty));
+  for (const c of (consumption || [])) {
+    if (!c || !ids.has(c.sessionId)) continue;
+    revenue += Number(c.revenue) || 0;
+    cost += Number(c.cost) || 0;
+    dishes += Number(c.qty) || 0;
+    const usageList = Array.isArray(c.usage) ? c.usage : [];
+    usageList.forEach((u) => {
+      if (u && u.itemId) {
+        usage.set(u.itemId, (usage.get(u.itemId) || 0) + (Number(u.qty) || 0));
+      }
+    });
   }
   const usageRate = new Map<string, number>();
   usage.forEach((v, k) => usageRate.set(k, v / hours));

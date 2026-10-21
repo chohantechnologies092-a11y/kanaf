@@ -260,20 +260,35 @@ export function computeLiveLines(
   consumption: ConsumptionEntry[],
   manual: ManualUsage[]
 ): LiveLine[] {
+  if (!session || !Array.isArray(session.lines)) return [];
+  const safeConsumption = Array.isArray(consumption) ? consumption : [];
+  const safeManual = Array.isArray(manual) ? manual : [];
+
   const theo = new Map<string, number>();
-  consumption
-    .filter((c) => c.sessionId === session.id)
-    .forEach((c) => c.usage.forEach((u) => theo.set(u.itemId, (theo.get(u.itemId) || 0) + u.qty)));
+  safeConsumption
+    .filter((c) => c && c.sessionId === session.id)
+    .forEach((c) => {
+      const usageList = Array.isArray(c?.usage) ? c.usage : [];
+      usageList.forEach((u) => {
+        if (u && u.itemId) {
+          theo.set(u.itemId, (theo.get(u.itemId) || 0) + (Number(u.qty) || 0));
+        }
+      });
+    });
 
   const man = new Map<string, number>();
-  manual
-    .filter((m) => m.sessionId === session.id)
-    .forEach((m) => man.set(m.itemId, (man.get(m.itemId) || 0) + m.delta));
+  safeManual
+    .filter((m) => m && m.sessionId === session.id)
+    .forEach((m) => {
+      if (m && m.itemId) {
+        man.set(m.itemId, (man.get(m.itemId) || 0) + (Number(m.delta) || 0));
+      }
+    });
 
   return session.lines.map((l) => {
     const theoreticalUsed = theo.get(l.itemId) || 0;
     const manualUsed = man.get(l.itemId) || 0;
-    const totalIn = l.issued + l.topUp + l.localPurchased;
+    const totalIn = (Number(l.issued) || 0) + (Number(l.topUp) || 0) + (Number(l.localPurchased) || 0);
     const expectedOnHand = totalIn - theoreticalUsed - manualUsed;
     const ratio = totalIn > 0 ? expectedOnHand / totalIn : 0;
     return {
@@ -290,7 +305,11 @@ export function computeLiveLines(
 /** Items that appear in at least one recipe (so requisition can focus on cooking ingredients). */
 export function recipeItemIds(recipes: Recipe[]): Set<string> {
   const s = new Set<string>();
-  recipes.forEach((r) => r.ingredients.forEach((i) => s.add(i.inventoryItemId)));
+  (recipes || []).forEach((r) => {
+    (r?.ingredients || []).forEach((i) => {
+      if (i?.inventoryItemId) s.add(i.inventoryItemId);
+    });
+  });
   return s;
 }
 
@@ -300,16 +319,26 @@ export function averageDailyUsage(
   consumption: ConsumptionEntry[],
   days = 3
 ): Map<string, number> {
-  const closed = sessions
-    .filter((s) => s.status === 'closed')
+  const safeSessions = Array.isArray(sessions) ? sessions : [];
+  const safeConsumption = Array.isArray(consumption) ? consumption : [];
+
+  const closed = safeSessions
+    .filter((s) => s && s.status === 'closed')
     .sort((a, b) => (b.approvedAt || 0) - (a.approvedAt || 0))
     .slice(0, days);
   const out = new Map<string, number>();
   if (closed.length === 0) return out;
   const ids = new Set(closed.map((s) => s.id));
-  consumption
-    .filter((c) => ids.has(c.sessionId))
-    .forEach((c) => c.usage.forEach((u) => out.set(u.itemId, (out.get(u.itemId) || 0) + u.qty)));
+  safeConsumption
+    .filter((c) => c && ids.has(c.sessionId))
+    .forEach((c) => {
+      const usageList = Array.isArray(c?.usage) ? c.usage : [];
+      usageList.forEach((u) => {
+        if (u && u.itemId) {
+          out.set(u.itemId, (out.get(u.itemId) || 0) + (Number(u.qty) || 0));
+        }
+      });
+    });
   out.forEach((v, k) => out.set(k, v / closed.length));
   return out;
 }

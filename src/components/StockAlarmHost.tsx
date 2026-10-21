@@ -124,10 +124,15 @@ export default function StockAlarmHost() {
   }, []);
 
   const alerts = useMemo(
-    () =>
-      enabled
-        ? buildAlerts({ sessions, consumption, manual, recipes, inventory, settings, now })
-        : [],
+    () => {
+      try {
+        return enabled
+          ? buildAlerts({ sessions, consumption, manual, recipes, inventory, settings, now })
+          : [];
+      } catch (e) {
+        return [];
+      }
+    },
     [enabled, sessions, consumption, manual, recipes, inventory, settings, now]
   );
 

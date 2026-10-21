@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, type Href } from 'expo-router';
-import { useAuthStore, Role, ROLE_HOME, useRestaurantStore, StaffMember } from '../store';
+import { useAuthStore, Role, ROLE_HOME, getRoleHome, useRestaurantStore, StaffMember } from '../store';
 import { useRoleStore, CustomRole } from '../store/roleStore';
 import SultanLogo from '../components/SultanLogo';
 import IslamicBackground from '../components/IslamicBackground';
@@ -152,7 +152,8 @@ export default function LoginScreen() {
   // Already signed in? Go straight to role's home.
   useEffect(() => {
     if (hasHydrated && user?.role) {
-      router.replace(ROLE_HOME[user.role] as Href);
+      const dest = getRoleHome(user.role, user.customRoleId);
+      router.replace(dest as Href);
     }
   }, [hasHydrated, user, router]);
 
@@ -253,14 +254,16 @@ export default function LoginScreen() {
       return;
     }
 
+    const dest = getRoleHome(selectedRole, selectedCustomRole?.baseRole);
     setErrorMessage('');
-    login(name.trim(), selectedRole, {
+    login(name.trim(), (selectedRole || '').toLowerCase(), {
       staffId: matchedMember?.id,
       customRoleId: selectedCustomRole?.id || matchedMember?.customRoleId,
       assignedZone: matchedMember?.assignedZone,
       assignedZones: matchedMember?.assignedZones,
     });
-    router.replace(ROLE_HOME[selectedRole] as Href);
+    closeModal();
+    router.replace(dest as Href);
   };
 
   const selectedRoleObj = roles.find((r) => r.value === selectedRole);

@@ -74,11 +74,30 @@ export const useAuthStore = create<AuthState>()(
 );
 
 /** Where each role lands after login. */
-export const ROLE_HOME: Record<Exclude<Role, null>, string> = {
+export const ROLE_HOME: Record<string, string> = {
   admin: '/admin/dashboard',
+  Admin: '/admin/dashboard',
   manager: '/manager/dashboard',
+  Manager: '/manager/dashboard',
   waiter: '/waiter',
+  Waiter: '/waiter',
   kitchen: '/kitchen/kds',
+  Kitchen: '/kitchen/kds',
   juicebar: '/juicebar/kds',
+  JuiceBar: '/juicebar/kds',
+  Juicebar: '/juicebar/kds',
   playland: '/playland',
+  Playland: '/playland',
 };
+
+export function getRoleHome(role?: Role | null, baseRole?: string | null): string {
+  if (!role) return '/login';
+  const r = (baseRole || role).toLowerCase().replace(/[\s_-]/g, '');
+  if (r.includes('admin')) return '/admin/dashboard';
+  if (r.includes('manager')) return '/manager/dashboard';
+  if (r.includes('waiter') || r.includes('ordertaker')) return '/waiter';
+  if (r.includes('kitchen') || r.includes('kds') || r.includes('chef') || r.includes('cook')) return '/kitchen/kds';
+  if (r.includes('juice') || r.includes('bar') || r.includes('beverage')) return '/juicebar/kds';
+  if (r.includes('playland') || r.includes('ride')) return '/playland';
+  return ROLE_HOME[role] || (baseRole ? ROLE_HOME[baseRole] : '') || '/manager/dashboard';
+}
