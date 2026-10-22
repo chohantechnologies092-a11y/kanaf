@@ -643,7 +643,7 @@ export default function DiscountsScreen() {
                   <View style={styles.cardBody}>
                     {/* Description */}
                     <Text style={styles.cardDesc} numberOfLines={2}>
-                      {camp.description || 'Promotional deal for Sultan Restaurant guests.'}
+                      {camp.description || 'Promotional deal for Kanaf Cafe & Bakery guests.'}
                     </Text>
 
                     {/* Target Scope Tags */}

@@ -976,7 +976,7 @@ export default function AssetsScreen({
                 {/* Print Sheet Simulation */}
                 <View style={styles.sheetPaper}>
                   <View style={styles.sheetHeader}>
-                    <Text style={styles.sheetRestName}>SULTAN RESTAURANT & RESORT</Text>
+                    <Text style={styles.sheetRestName}>KANAF CAFE & BAKERY</Text>
                     <Text style={styles.sheetDocTitle}>CAPITAL ASSET REGISTER & AUDIT CERTIFICATE</Text>
                     <Text style={styles.sheetCode}>TAG: {viewAsset.assetCode}</Text>
                   </View>

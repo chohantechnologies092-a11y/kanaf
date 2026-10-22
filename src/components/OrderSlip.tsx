@@ -30,7 +30,7 @@ export function printOrderSlip(ticket: Ticket) {
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Kitchen Ticket #${ticket.id} - Sultan Restaurant</title>
+      <title>Kitchen Ticket #${ticket.id} - Kanaf Cafe & Bakery</title>
       <style>
         @page {
           size: 80mm auto;
@@ -114,7 +114,7 @@ export function printOrderSlip(ticket: Ticket) {
     </head>
     <body>
       <div class="header">
-        <img src="${SULTAN_LOGO_BASE64}" alt="Sultan Logo" class="logo-img" />
+        <img src="${SULTAN_LOGO_BASE64}" alt="Kanaf Logo" class="logo-img" />
         <h2 class="logo-title">KITCHEN SLIP</h2>
         <div class="logo-sub">${ticket.isAddOn ? 'ADD-ON ORDER' : 'NEW ORDER'}</div>
       </div>

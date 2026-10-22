@@ -272,9 +272,9 @@ export default function InvoicesScreen({ userRole, targetRoleOverride, backRoute
 
     let text = '';
     text += '================================\n';
-    text += '       SULTAN RESTAURANT        \n';
-    text += '   Luxury Dining & Culinary Art \n';
-    text += '     Food Street, Lahore, PK    \n';
+    text += '      KANAF CAFE & BAKERY       \n';
+    text += '  Artisan Bakes & Craft Coffee  \n';
+    text += '  Culinary District, Lahore, PK \n';
     text += '       Phone: 0300-1234567      \n';
     text += '================================\n';
     text += `Invoice #: ${inv.id}\n`;
@@ -341,7 +341,7 @@ export default function InvoicesScreen({ userRole, targetRoleOverride, backRoute
       try {
         await Share.share({
           message: receiptText,
-          title: `Invoice #${inv.id} - Sultan Restaurant`,
+          title: `Invoice #${inv.id} - Kanaf Cafe & Bakery`,
         });
       } catch {
         Alert.alert('Invoice', receiptText);
@@ -1092,9 +1092,9 @@ export default function InvoicesScreen({ userRole, targetRoleOverride, backRoute
                       <View nativeID="thermal-printable-receipt" style={[styles.thermalPaper, isSmallMobile && styles.thermalPaperSmallMobile]}>
                         <View style={styles.thermalHeader}>
                           <SultanLogo size="md" variant="bare" width={80} height={74} style={{ alignSelf: 'center', marginBottom: 6 }} />
-                          <Text style={[styles.thermalBrandTitle, isSmallMobile && { fontSize: 18, letterSpacing: 1.5 }]}>SULTAN RESTAURANT</Text>
-                          <Text style={styles.thermalBrandSub}>LUXURY DINING & BANQUET</Text>
-                          <Text style={styles.thermalContactText}>Food Street, Culinary District, Lahore</Text>
+                          <Text style={[styles.thermalBrandTitle, isSmallMobile && { fontSize: 18, letterSpacing: 1.5 }]}>KANAF CAFE & BAKERY</Text>
+                          <Text style={styles.thermalBrandSub}>ARTISAN BAKERY & SPECIALTY COFFEE</Text>
+                          <Text style={styles.thermalContactText}>Culinary District, Main Boulevard, Lahore</Text>
                           <Text style={styles.thermalContactText}>Tel: 0300-1234567 • NTN: 8943120-4</Text>
                         </View>
 

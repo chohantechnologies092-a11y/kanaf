@@ -178,9 +178,9 @@ export default function IslamicBackground({
   const isBurgundy = theme === 'burgundy';
   const isLight = theme === 'light';
 
-  const bgColor = isBurgundy ? '#451014' : isLight ? '#FAF7F2' : '#1A080A';
-  const goldStroke = isLight ? '#9E721D' : '#D5A943';
-  const cornerOpacity = isBurgundy ? 0.85 : isLight ? 0.45 : 0.7;
+  const bgColor = isBurgundy ? '#440112' : isLight ? '#FDF9F5' : '#190107';
+  const goldStroke = isLight ? '#9E721D' : '#FFE0CB';
+  const cornerOpacity = isBurgundy ? 0.75 : isLight ? 0.45 : 0.7;
 
   return (
     <View style={[styles.container, { backgroundColor: bgColor }, style]}>

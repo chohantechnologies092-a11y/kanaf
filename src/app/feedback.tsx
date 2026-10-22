@@ -176,12 +176,12 @@ export default function CustomerFeedbackScreen() {
   };
 
   const handleShareVoucher = () => {
-    const text = `🎉 Sultan Restaurant 10% Royal Reward Voucher: ${voucherCode}\nThank you for dining with us! Present this code for 10% off your next meal.`;
+    const text = `🎉 Kanaf Cafe & Bakery 10% Reward Voucher: ${voucherCode}\nThank you for visiting us! Present this code for 10% off your next order.`;
     if (Platform.OS === 'web') {
       const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
       Linking.openURL(url);
     } else {
-      Share.share({ message: text, title: 'Sultan Voucher' });
+      Share.share({ message: text, title: 'Kanaf Voucher' });
     }
   };
 
@@ -235,8 +235,8 @@ export default function CustomerFeedbackScreen() {
         {/* Top Luxury Sultan Header */}
         <View style={styles.topBanner}>
           <SultanLogo size="md" variant="bare" width={70} height={64} style={{ alignSelf: 'center' }} />
-          <Text style={styles.bannerTitle}>SULTAN RESTAURANT</Text>
-          <Text style={styles.bannerSubtitle}>ROYAL DINING EXPERIENCE & TASTE REVIEW</Text>
+          <Text style={styles.bannerTitle}>KANAF CAFE & BAKERY</Text>
+          <Text style={styles.bannerSubtitle}>ARTISAN BAKERY & SPECIALTY COFFEE EXPERIENCE</Text>
         </View>
 
         <ScrollView

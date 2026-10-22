@@ -366,11 +366,11 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
 
   const handleResetDefaults = () => {
     confirmAction(
-      'Reset Sultan Default Vendors',
-      'This will restore standard pre-configured Sultan Restaurant suppliers (Poultry, Meat, Fresh Produce, Spices, Dairy, LPG, Packaging). Continue?',
+      'Reset Kanaf Default Vendors',
+      'This will restore standard pre-configured Kanaf Cafe & Bakery suppliers (Bakery Flour, Coffee Beans, Dairy, Fresh Produce, Packaging). Continue?',
       () => {
         populateDefaultSuppliers();
-        showAlert('Restored', 'Default Sultan Restaurant vendors restored.');
+        showAlert('Restored', 'Default Kanaf Cafe & Bakery vendors restored.');
       }
     );
   };
@@ -706,7 +706,7 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
     const curBal = supplier.currentBalance || 0;
 
     let text = `==============================\n`;
-    text += `🏛️ SULTAN RESTAURANT & BBQ\n`;
+    text += `☕ KANAF CAFE & BAKERY\n`;
     text += `VENDOR ACCOUNT STATEMENT\n`;
     text += `==============================\n`;
     text += `Supplier: ${supplier.name}\n`;
@@ -745,7 +745,7 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
 
   const handleSharePaymentVoucher = (pay: SupplierPayment) => {
     let text = `==============================\n`;
-    text += `🏛️ SULTAN RESTAURANT & BBQ\n`;
+    text += `☕ KANAF CAFE & BAKERY\n`;
     text += `OFFICIAL PAYMENT SETTLEMENT VOUCHER\n`;
     text += `==============================\n`;
     text += `Voucher #: VCH-${pay.id.toUpperCase()}\n`;
@@ -781,7 +781,7 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
 
     const itemsText = supplier.suppliedItems?.slice(0, 4).join(', ') || 'supplies';
     const message = encodeURIComponent(
-      `Assalam-o-Alaikum ${supplier.contactPerson || supplier.name},\nThis is Sultan Restaurant management. We would like to place an order for: ${itemsText}.\nPlease confirm current stock and dispatch time.`
+      `Assalam-o-Alaikum ${supplier.contactPerson || supplier.name},\nThis is Kanaf Cafe & Bakery management. We would like to place an order for: ${itemsText}.\nPlease confirm current stock and dispatch time.`
     );
     Linking.openURL(`https://wa.me/${phone}?text=${message}`);
   };
@@ -2902,7 +2902,7 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
             <View style={styles.modalHeader}>
               <View>
                 <Text style={styles.modalTitle}>Official Payment Settlement Voucher</Text>
-                <Text style={styles.modalSub}>Sultan Restaurant Accounts Disbursement Record</Text>
+                <Text style={styles.modalSub}>Kanaf Cafe & Bakery Accounts Disbursement Record</Text>
               </View>
               <TouchableOpacity onPress={() => setIsVoucherModalOpen(false)}>
                 <Ionicons name="close" size={24} color={BRAND.ink} />
@@ -2917,7 +2917,7 @@ export default function SuppliersScreen({ backRoute = '/admin/dashboard' }: { ba
                   <View style={styles.voucherHeaderBox}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Ionicons name="restaurant" size={20} color={BRAND.burgundy} />
-                      <Text style={styles.voucherBrandTitle}>SULTAN RESTAURANT & BBQ</Text>
+                      <Text style={styles.voucherBrandTitle}>KANAF CAFE & BAKERY</Text>
                     </View>
                     <Text style={styles.voucherBrandSub}>Procurement & Vendor Payment Settlement</Text>
                     <View style={styles.voucherNoPill}>

@@ -267,7 +267,7 @@ export default function UniversalPortalNav({
             <SultanLogo size="sm" width={26} height={26} />
             <View style={{ marginLeft: 8 }}>
               <Text style={styles.brandTitle}>
-                {isMobile ? 'Sultan' : 'Sultan Restaurant'}
+                {isMobile ? 'Kanaf' : 'Kanaf Cafe & Bakery'}
               </Text>
               <View style={styles.portalBadge}>
                 <Text style={styles.portalBadgeText}>
@@ -417,8 +417,8 @@ export default function UniversalPortalNav({
               <View style={styles.sidebarBrandRow}>
                 <SultanLogo size="sm" width={32} height={32} />
                 <View style={{ marginLeft: 10, flex: 1 }}>
-                  <Text style={styles.sidebarTitle}>Sultan Restaurant</Text>
-                  <Text style={styles.sidebarSubtitle}>Royal Operations System</Text>
+                  <Text style={styles.sidebarTitle}>Kanaf Cafe & Bakery</Text>
+                  <Text style={styles.sidebarSubtitle}>Artisan Operations System</Text>
                 </View>
                 <TouchableOpacity
                   style={styles.sidebarCloseBtn}

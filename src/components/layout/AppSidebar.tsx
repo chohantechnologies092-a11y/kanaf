@@ -273,20 +273,20 @@ export default function AppSidebar({
         )}
 
         {/* 1. BRAND HEADER (Liquid Glass Glow Header) */}
-        <View style={[styles.brandHeader, !showExpanded && styles.brandHeaderCollapsed]}>
-          <TouchableOpacity 
-            style={styles.brandRow} 
-            activeOpacity={0.8}
-            onPress={() => handleNavigate(role === 'admin' ? '/admin/dashboard' : '/manager/dashboard')}
-          >
-            <View style={styles.logoGlassOrb}>
-              <SultanLogo size={showExpanded ? 'sm' : 'xs'} width={showExpanded ? 34 : 26} height={showExpanded ? 34 : 26} />
-              <View style={styles.orbGlowOverlay} />
-            </View>
-            {showExpanded && (
+        {showExpanded ? (
+          <View style={styles.brandHeader}>
+            <TouchableOpacity 
+              style={styles.brandRow} 
+              activeOpacity={0.8}
+              onPress={() => handleNavigate(role === 'admin' ? '/admin/dashboard' : '/manager/dashboard')}
+            >
+              <View style={styles.logoGlassOrb}>
+                <SultanLogo size="sm" width={32} height={32} />
+                <View style={styles.orbGlowOverlay} />
+              </View>
               <View style={styles.brandTextCol}>
                 <View style={styles.brandTitleRow}>
-                  <Text style={styles.brandTitle}>SULTAN</Text>
+                  <Text style={styles.brandTitle}>KANAF</Text>
                   <View
                     style={[
                       styles.roleTagGlass,
@@ -306,30 +306,46 @@ export default function AppSidebar({
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.brandSubtitle}>Restaurant Operations</Text>
+                <Text style={styles.brandSubtitle}>Cafe & Bakery Operations</Text>
               </View>
-            )}
-          </TouchableOpacity>
-
-          {/* Action icon: Close for Mobile Drawer, Collapse/Expand for Desktop */}
-          {isMobileDrawer ? (
-            <TouchableOpacity onPress={onCloseMobile} style={styles.glassCircleBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close" size={20} color="#F3D179" />
             </TouchableOpacity>
-          ) : (
+
+            {/* Action icon: Close for Mobile Drawer, Collapse for Desktop */}
+            {isMobileDrawer ? (
+              <TouchableOpacity onPress={onCloseMobile} style={styles.glassCircleBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close" size={20} color="#FFE0CB" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity 
+                onPress={toggle} 
+                style={styles.glassCircleBtn}
+                activeOpacity={0.7}
+              >
+                <Ionicons 
+                  name="chevron-back" 
+                  size={16} 
+                  color="#FFE0CB" 
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          <View style={[styles.brandHeader, styles.brandHeaderCollapsed]}>
             <TouchableOpacity 
               onPress={toggle} 
-              style={styles.glassCircleBtn}
+              style={styles.collapsedBrandToggle}
               activeOpacity={0.7}
+              {...(Platform.OS === 'web' ? ({ title: 'Expand Sidebar' } as any) : {})}
             >
-              <Ionicons 
-                name={showExpanded ? 'chevron-back' : 'chevron-forward'} 
-                size={16} 
-                color="#F3D179" 
-              />
+              <View style={styles.logoGlassOrbCollapsed}>
+                <SultanLogo size="xs" width={28} height={28} />
+                <View style={styles.collapsedExpandBadge}>
+                  <Ionicons name="chevron-forward" size={10} color="#440112" />
+                </View>
+              </View>
             </TouchableOpacity>
-          )}
-        </View>
+          </View>
+        )}
 
         {/* 2. USER PROFILE LIQUID CAPSULE */}
         {showExpanded ? (
@@ -702,18 +718,53 @@ const styles = StyleSheet.create({
 
   // 1. Brand Header
   brandHeader: {
+    height: 64,
     paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(212, 175, 55, 0.16)',
+    borderBottomWidth: 1.5,
+    borderBottomColor: 'rgba(255, 224, 203, 0.22)',
     backgroundColor: 'rgba(255, 255, 255, 0.02)',
   },
   brandHeaderCollapsed: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  collapsedBrandToggle: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoGlassOrbCollapsed: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 224, 203, 0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 224, 203, 0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 0 16px rgba(255, 224, 203, 0.25)',
+      } as any,
+    }),
+  },
+  collapsedExpandBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#FFE0CB',
+    borderWidth: 1.5,
+    borderColor: '#440112',
+    alignItems: 'center',
     justifyContent: 'center',
   },
   brandRow: {
@@ -725,16 +776,16 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(212, 175, 55, 0.12)',
+    backgroundColor: 'rgba(255, 224, 203, 0.12)',
     borderWidth: 1.5,
-    borderColor: 'rgba(212, 175, 55, 0.45)',
+    borderColor: 'rgba(255, 224, 203, 0.45)',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
     overflow: 'hidden',
     ...Platform.select({
       web: {
-        boxShadow: '0 0 16px rgba(212, 175, 55, 0.35)',
+        boxShadow: '0 0 16px rgba(255, 224, 203, 0.3)',
       } as any,
     }),
   },
@@ -745,7 +796,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(243, 209, 121, 0.25)',
+    backgroundColor: 'rgba(255, 224, 203, 0.2)',
   },
   brandTextCol: {
     marginLeft: 11,
@@ -757,27 +808,27 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   brandTitle: {
-    color: '#F3D179',
+    color: '#FFE0CB',
     fontSize: 16,
     fontWeight: '900',
     letterSpacing: 1.4,
   },
   roleTagGlass: {
-    backgroundColor: 'rgba(212, 175, 55, 0.16)',
+    backgroundColor: 'rgba(255, 224, 203, 0.16)',
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.4)',
+    borderColor: 'rgba(255, 224, 203, 0.4)',
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 1.5,
   },
   roleTagText: {
-    color: '#F3D179',
+    color: '#FFE0CB',
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0.6,
   },
   brandSubtitle: {
-    color: 'rgba(243, 209, 121, 0.65)',
+    color: 'rgba(255, 224, 203, 0.7)',
     fontSize: 11,
     fontWeight: '600',
     marginTop: 2,
@@ -788,7 +839,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.25)',
+    borderColor: 'rgba(255, 224, 203, 0.3)',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -13,14 +13,17 @@ export default function CustomerMenuScreen() {
   const categories = useRestaurantStore(state => state.categories);
   const [activeCat, setActiveCat] = useState('All');
   
-  // Adding random images for visual appeal if not provided in store
+  // Adding high quality fallback images for visual appeal
   const getFallbackImage = (category: string) => {
     switch (category) {
-      case 'Mains': return 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=500&q=80';
-      case 'Appetizers': return 'https://images.unsplash.com/photo-1577906096429-f73c2c312435?w=500&q=80';
-      case 'Desserts': return 'https://images.unsplash.com/photo-1608836561226-d621b10a26e8?w=500&q=80';
-      case 'Drinks': return 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=500&q=80';
-      default: return 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=500&q=80';
+      case 'Coffee & Espresso': return 'https://images.unsplash.com/photo-1541167760496-1628856ab772?w=500&q=80';
+      case 'Bakery & Croissants': return 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=500&q=80';
+      case 'Cakes & Patisserie': return 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500&q=80';
+      case 'Kunafa & Sweets': return 'https://images.unsplash.com/photo-1608836561226-d621b10a26e8?w=500&q=80';
+      case 'Cafe Brunch & Paninis': return 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=500&q=80';
+      case 'Beverages & Shakes': return 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=500&q=80';
+      case 'Deals & Combos': return 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=500&q=80';
+      default: return 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=500&q=80';
     }
   };
 
@@ -30,9 +33,9 @@ export default function CustomerMenuScreen() {
 
   return (
     <SafeAreaView style={styles.safeContainer} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#4a121a" />
+      <StatusBar barStyle="light-content" backgroundColor="#440112" />
       <UniversalPortalNav
-        portalName="Sultan Digital Menu"
+        portalName="Kanaf Digital Menu"
         portalRole="Customer Menu"
         showTabs={false}
       />
@@ -51,8 +54,8 @@ export default function CustomerMenuScreen() {
             </TouchableOpacity>
             <View style={styles.heroTextContainer}>
               <SultanLogo size="lg" width={60} height={55} style={{ marginBottom: 4 }} />
-              <Text style={styles.heroTitle}>Sultan Restaurant</Text>
-              <Text style={styles.heroSubtitle}>A Royal Culinary Experience</Text>
+              <Text style={styles.heroTitle}>Kanaf Cafe & Bakery</Text>
+              <Text style={styles.heroSubtitle}>Artisan Bakes & Specialty Coffee</Text>
             </View>
           </View>
         </View>
@@ -145,7 +148,7 @@ const styles = StyleSheet.create({
   },
   heroOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(74, 18, 26, 0.6)', // Sultan Burgundy Overlay
+    backgroundColor: 'rgba(68, 1, 18, 0.70)', // Kanaf Wine Burgundy Overlay
     justifyContent: 'space-between',
     padding: 20,
     paddingTop: Platform.OS === 'ios' ? 50 : 20,
@@ -164,7 +167,7 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 42,
     fontWeight: '900',
-    color: '#D5A943', // Sultan Gold
+    color: '#FFE0CB', // Kanaf Cream
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
@@ -200,8 +203,8 @@ const styles = StyleSheet.create({
     borderColor: '#E5E5EA',
   },
   catBadgeActive: {
-    backgroundColor: '#4a121a',
-    borderColor: '#4a121a',
+    backgroundColor: '#440112',
+    borderColor: '#440112',
   },
   catText: {
     fontSize: 15,
@@ -209,7 +212,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   catTextActive: {
-    color: '#D5A943',
+    color: '#FFE0CB',
   },
   menuContainer: {
     padding: 20,
@@ -269,7 +272,7 @@ const styles = StyleSheet.create({
   itemPrice: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#4a121a',
+    color: '#440112',
   },
   itemDesc: {
     fontSize: 13,

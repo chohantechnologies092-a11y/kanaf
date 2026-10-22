@@ -875,7 +875,7 @@ export default function StaffManagementScreen() {
                     </View>
 
                     <Text style={styles.roleMatrixDesc} numberOfLines={2}>
-                      {roleItem.description || 'Custom staff role at Sultan Restaurant.'}
+                      {roleItem.description || 'Custom staff role at Kanaf Cafe & Bakery.'}
                     </Text>
 
                     {/* Quick Access & Visibility Controls */}

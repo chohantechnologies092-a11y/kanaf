@@ -1117,10 +1117,10 @@ export default function ShiftManagementScreen() {
       <Modal visible={showReportModal} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={[styles.receiptBox, isMobile && styles.receiptBoxMobile]}>
-            {/* Sultan Restaurant Branding */}
+            {/* Kanaf Cafe & Bakery Branding */}
             <View style={styles.receiptHeader}>
-              <Text style={styles.receiptBrand}>SULTAN RESTAURANT</Text>
-              <Text style={styles.receiptTagline}>LUXURY DINING & ROYAL BANQUET</Text>
+              <Text style={styles.receiptBrand}>KANAF CAFE & BAKERY</Text>
+              <Text style={styles.receiptTagline}>ARTISAN BAKERY & SPECIALTY COFFEE</Text>
               <View style={styles.reportTypeBadge}>
                 <Text style={styles.reportTypeBadgeText}>
                   {reportModalType === 'X-Report'

@@ -251,9 +251,17 @@ export default function StockAlarmHost() {
       </Animated.View>
 
       {/* Alert panel */}
-      <Modal visible={panelOpen} animationType="slide" transparent onRequestClose={() => setPanelOpen(false)}>
-        <View style={styles.overlay}>
-          <View style={styles.panel}>
+      <Modal visible={panelOpen} animationType="fade" transparent onRequestClose={() => setPanelOpen(false)}>
+        <TouchableOpacity 
+          style={styles.overlay} 
+          activeOpacity={1} 
+          onPress={() => setPanelOpen(false)}
+        >
+          <TouchableOpacity 
+            style={styles.panel} 
+            activeOpacity={1} 
+            onPress={(e) => e.stopPropagation()}
+          >
             <View style={styles.panelHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.panelTitle}>Stock & Kitchen Alarms</Text>
@@ -261,8 +269,12 @@ export default function StockAlarmHost() {
                   {criticalCount} urgent • {visible.length} active
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setPanelOpen(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="close-circle" size={28} color={BRAND.muted} />
+              <TouchableOpacity 
+                onPress={() => setPanelOpen(false)} 
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={styles.closeBtn}
+              >
+                <Ionicons name="close" size={24} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
 
@@ -277,10 +289,29 @@ export default function StockAlarmHost() {
                   thumbColor="#FFFFFF"
                 />
               </View>
-              <TouchableOpacity style={styles.snoozeAllBtn} onPress={snoozeAll} activeOpacity={0.85}>
-                <Ionicons name="alarm-outline" size={16} color="#FFFFFF" />
-                <Text style={styles.snoozeAllText}>Snooze all {SNOOZE_MIN} min</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity 
+                  style={[styles.snoozeAllBtn, { flex: 1, backgroundColor: '#E2E8F0' }]} 
+                  onPress={snoozeAll} 
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="alarm-outline" size={16} color={BRAND.ink} />
+                  <Text style={[styles.snoozeAllText, { color: BRAND.ink }]}>Snooze {SNOOZE_MIN}m</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.snoozeAllBtn, { flex: 1 }]} 
+                  onPress={() => {
+                    snooze(visible.map((a) => a.id), 24 * 60);
+                    setPanelOpen(false);
+                    setToast(null);
+                  }} 
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="checkmark-done-circle-outline" size={17} color="#FFFFFF" />
+                  <Text style={styles.snoozeAllText}>Dismiss All</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ padding: 14, gap: 10 }}>
@@ -316,8 +347,8 @@ export default function StockAlarmHost() {
                 );
               })}
             </ScrollView>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </>
   );
@@ -374,24 +405,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   fabBadgeText: { fontSize: 11, fontWeight: '900', color: BRAND.burgundy },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end', alignItems: 'center' },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
   panel: {
     width: '100%',
-    maxWidth: 640,
-    maxHeight: '88%',
+    maxWidth: 620,
+    maxHeight: '85%',
     backgroundColor: '#FDFBF7',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderRadius: 16,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 24,
   },
   panelHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
     backgroundColor: BRAND.burgundy,
   },
   panelTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '900' },
   panelSub: { color: BRAND.gold, fontSize: 12, fontWeight: '700', marginTop: 2 },
+  closeBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   panelToolbar: {
     paddingHorizontal: 14,
     paddingVertical: 10,

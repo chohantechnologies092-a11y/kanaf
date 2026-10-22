@@ -184,7 +184,7 @@ export default function AdminLayout() {
               {/* Baithak Brand Capsule */}
               <View style={styles.topLogoCapsule}>
                 <SultanLogo size="xs" width={24} height={24} style={{ marginRight: 8 }} />
-                <Text style={styles.topBrandName}>SULTAN RESTAURANT</Text>
+                <Text style={styles.topBrandName}>KANAF CAFE & BAKERY</Text>
               </View>
 
               <View style={styles.breadcrumbBadge}>
@@ -342,18 +342,18 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   desktopTopBar: {
-    backgroundColor: '#24050A',
+    height: 64,
+    backgroundColor: '#28010B',
     paddingHorizontal: 22,
-    paddingVertical: 11,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1.5,
-    borderBottomColor: 'rgba(212, 175, 55, 0.28)',
+    borderBottomColor: 'rgba(255, 224, 203, 0.22)',
     zIndex: 10,
     ...Platform.select({
       web: {
-        backgroundImage: 'linear-gradient(135deg, rgba(56, 10, 17, 0.9) 0%, rgba(30, 4, 8, 0.96) 100%)',
+        backgroundImage: 'linear-gradient(135deg, rgba(68, 1, 18, 0.95) 0%, rgba(40, 1, 11, 0.98) 100%)',
         backdropFilter: 'blur(24px) saturate(180%)',
         WebkitBackdropFilter: 'blur(24px) saturate(180%)',
         boxShadow: '0 4px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
@@ -368,23 +368,23 @@ const styles = StyleSheet.create({
   topLogoCapsule: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(212, 175, 55, 0.12)',
+    backgroundColor: 'rgba(255, 224, 203, 0.12)',
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 30,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.38)',
+    borderColor: 'rgba(255, 224, 203, 0.35)',
     marginRight: 4,
     ...Platform.select({
       web: {
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
-        boxShadow: '0 2px 10px rgba(212, 175, 55, 0.18)',
+        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.2)',
       } as any,
     }),
   },
   topBrandName: {
-    color: '#F3D179',
+    color: '#FFE0CB',
     fontSize: 13,
     fontWeight: '900',
     letterSpacing: 1.2,

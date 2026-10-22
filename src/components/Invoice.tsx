@@ -30,9 +30,9 @@ export async function printInvoiceReceipt(invoice: Invoice, precomputedQrCode?: 
     const cashierName = invoice.cashier || (invoice.server?.toLowerCase().includes('pos') ? invoice.server : 'Manager');
     
     let text = `================================\n`;
-    text += `       SULTAN RESTAURANT       \n`;
-    text += `    LUXURY DINING & BANQUET    \n`;
-    text += `Food Street, Culinary District, Lahore\n`;
+    text += `      KANAF CAFE & BAKERY      \n`;
+    text += `ARTISAN BAKERY & SPECIALTY COFFEE\n`;
+    text += `Culinary District, Main Boulevard, Lahore\n`;
     text += ` Tel: 0300-1234567 • NTN: 8943120-4\n`;
     text += `--------------------------------\n`;
     text += `INV #: ${invoice.id}\n`;
@@ -101,7 +101,7 @@ export async function printInvoiceReceipt(invoice: Invoice, precomputedQrCode?: 
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Receipt #${invoice.id} - Sultan Restaurant</title>
+      <title>Receipt #${invoice.id} - Kanaf Cafe & Bakery</title>
       <style>
         * {
           box-sizing: border-box;
@@ -390,10 +390,10 @@ export async function printInvoiceReceipt(invoice: Invoice, precomputedQrCode?: 
     </head>
     <body>
       <div class="header">
-        <img src="${SULTAN_LOGO_BASE64}" alt="Sultan Logo" class="logo-img" />
-        <h1 class="brand-title">SULTAN RESTAURANT</h1>
-        <div class="brand-sub">LUXURY DINING & BANQUET</div>
-        <div class="contact">Food Street, Culinary District, Lahore</div>
+        <img src="${SULTAN_LOGO_BASE64}" alt="Kanaf Logo" class="logo-img" />
+        <h1 class="brand-title">KANAF CAFE & BAKERY</h1>
+        <div class="brand-sub">ARTISAN BAKERY & SPECIALTY COFFEE</div>
+        <div class="contact">Culinary District, Main Boulevard, Lahore</div>
         <div class="contact">Tel: 0300-1234567 • NTN: 8943120-4</div>
       </div>
 
@@ -597,9 +597,9 @@ export default function InvoiceComponent({ invoice }: InvoiceProps) {
         {/* Header with Big Logo */}
         <View style={styles.header}>
           <SultanLogo size="md" variant="bare" width={86} height={80} style={{ alignSelf: 'center', marginBottom: 6 }} />
-          <Text style={[styles.brandTitle, isSmall && { fontSize: 17 }]}>SULTAN RESTAURANT</Text>
-          <Text style={styles.brandSub}>LUXURY DINING & BANQUET</Text>
-          <Text style={styles.contactText}>Food Street, Culinary District, Lahore</Text>
+          <Text style={[styles.brandTitle, isSmall && { fontSize: 17 }]}>KANAF CAFE & BAKERY</Text>
+          <Text style={styles.brandSub}>ARTISAN BAKERY & SPECIALTY COFFEE</Text>
+          <Text style={styles.contactText}>Culinary District, Main Boulevard, Lahore</Text>
           <Text style={styles.contactText}>Tel: 0300-1234567 • NTN: 8943120-4</Text>
         </View>
 

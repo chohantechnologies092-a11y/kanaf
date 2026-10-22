@@ -1,32 +1,32 @@
-/** Sultan Restaurant brand palette and design tokens inspired by Baithak system. */
+/** Kanaf Cafe & Bakery brand palette and design tokens aligned with official logo. */
 export const BRAND = {
-  // Royal Sultan Primary Palette
-  burgundy: '#52141C',
-  burgundyDark: '#24050A',
-  burgundyDeep: '#180306',
-  burgundySoft: 'rgba(82, 20, 28, 0.08)',
+  // Kanaf Cafe & Bakery Primary Palette (#440112 Wine & #FFE0CB Warm Cream)
+  burgundy: '#440112',
+  burgundyDark: '#28010B',
+  burgundyDeep: '#180006',
+  burgundySoft: 'rgba(68, 1, 18, 0.08)',
   
-  // Royal Sultan Gold Palette
-  gold: '#D4AF37',
+  // Warm Cafe Wheat & Golden Caramel Palette
+  gold: '#D89F67',
   goldLight: '#F3D179',
-  goldDark: '#B8860B',
+  goldDark: '#B57C42',
   goldMuted: '#C49A45',
-  goldSoft: 'rgba(212, 175, 55, 0.12)',
-  goldGlow: 'rgba(212, 175, 55, 0.35)',
-  goldBorder: 'rgba(212, 175, 55, 0.28)',
-  goldBorderLight: 'rgba(212, 175, 55, 0.45)',
+  goldSoft: 'rgba(216, 159, 103, 0.14)',
+  goldGlow: 'rgba(216, 159, 103, 0.35)',
+  goldBorder: 'rgba(216, 159, 103, 0.28)',
+  goldBorderLight: 'rgba(216, 159, 103, 0.45)',
 
-  // Backgrounds & Surfaces
-  cream: '#FAF6F0',
-  creamDark: '#EEDFD3',
-  bg: '#F8FAFC',
+  // Backgrounds & Warm Bakery Cream Surfaces
+  cream: '#FFE0CB',
+  creamDark: '#F0CCA8',
+  bg: '#FDF9F5',
   surface: '#FFFFFF',
-  surfaceDark: '#120205',
+  surfaceDark: '#190107',
   ink: '#1C1C1E',
-  text: '#24050A',
-  textMuted: '#6B4046',
+  text: '#28010B',
+  textMuted: '#6B3840',
   muted: '#8E8E93',
-  border: '#E5E5EA',
+  border: '#E8D5C8',
 
   // Semantic Status Colors
   success: '#10B981',
@@ -43,13 +43,13 @@ export const BRAND = {
   purple: '#8B5CF6',
   purpleSoft: '#F5F3FF',
 
-  // Jewel-Toned Executive Card Gradients (from Baithak Home)
+  // Jewel-Toned Executive Card Gradients
   cards: {
     maroon: {
-      from: '#4D101A',
-      to: '#24050A',
-      border: 'rgba(212, 175, 55, 0.35)',
-      accent: '#F3D179',
+      from: '#54061A',
+      to: '#28010B',
+      border: 'rgba(255, 224, 203, 0.35)',
+      accent: '#FFE0CB',
     },
     amberDark: {
       from: '#2E1A0D',
@@ -84,35 +84,35 @@ export const BRAND = {
   },
   cardBg: '#FFFFFF',
 
-  // Liquid Glass Design Tokens (Glassmorphism + Royal Sultan Aesthetics)
+  // Liquid Glass Design Tokens (Glassmorphism + Kanaf Luxury Aesthetics)
   liquidGlass: {
     dark: {
-      bg: 'rgba(32, 5, 9, 0.82)',
-      bgDeep: 'rgba(20, 3, 6, 0.88)',
-      bgWeb: 'linear-gradient(135deg, rgba(56, 10, 17, 0.82) 0%, rgba(32, 5, 9, 0.9) 100%)',
-      border: 'rgba(212, 175, 55, 0.25)',
-      borderLight: 'rgba(243, 209, 121, 0.45)',
-      innerHighlight: 'rgba(255, 255, 255, 0.12)',
-      shadow: '0 16px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12)',
+      bg: 'rgba(68, 1, 18, 0.86)',
+      bgDeep: 'rgba(40, 1, 11, 0.92)',
+      bgWeb: 'linear-gradient(135deg, rgba(84, 6, 26, 0.86) 0%, rgba(40, 1, 11, 0.92) 100%)',
+      border: 'rgba(255, 224, 203, 0.22)',
+      borderLight: 'rgba(255, 224, 203, 0.38)',
+      innerHighlight: 'rgba(255, 224, 203, 0.12)',
+      shadow: '0 16px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 224, 203, 0.12)',
       blur: 'blur(24px)',
     },
     light: {
-      bg: 'rgba(255, 255, 255, 0.86)',
-      bgWeb: 'linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(250, 246, 240, 0.84) 100%)',
-      border: 'rgba(212, 175, 55, 0.24)',
+      bg: 'rgba(255, 255, 255, 0.88)',
+      bgWeb: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(253, 249, 245, 0.85) 100%)',
+      border: 'rgba(216, 159, 103, 0.24)',
       innerHighlight: 'rgba(255, 255, 255, 0.95)',
-      shadow: '0 10px 32px rgba(82, 20, 28, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.95)',
+      shadow: '0 10px 32px rgba(68, 1, 18, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.95)',
       blur: 'blur(20px)',
     },
     gold: {
-      bg: 'rgba(212, 175, 55, 0.14)',
-      border: 'rgba(212, 175, 55, 0.38)',
+      bg: 'rgba(216, 159, 103, 0.14)',
+      border: 'rgba(216, 159, 103, 0.38)',
       borderHover: 'rgba(243, 209, 121, 0.65)',
-      glow: '0 0 24px rgba(212, 175, 55, 0.32)',
+      glow: '0 0 24px rgba(216, 159, 103, 0.32)',
     },
     pill: {
-      web: 'linear-gradient(135deg, #F3D179 0%, #D4AF37 55%, #B8860B 100%)',
-      glow: '0 4px 18px rgba(212, 175, 55, 0.45)',
+      web: 'linear-gradient(135deg, #FFE0CB 0%, #D89F67 55%, #B57C42 100%)',
+      glow: '0 4px 18px rgba(216, 159, 103, 0.45)',
     },
   },
 } as const;

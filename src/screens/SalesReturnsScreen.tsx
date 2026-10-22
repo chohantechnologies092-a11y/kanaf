@@ -387,7 +387,7 @@ export default function SalesReturnsScreen({ userRole, backRoute = '/admin/dashb
 
     let t = '';
     t += '================================\n';
-    t += '       SULTAN RESTAURANT        \n';
+    t += '      KANAF CAFE & BAKERY       \n';
     t += '  REFUND VOUCHER & CREDIT NOTE  \n';
     t += '================================\n';
     t += `Return Slip #: ${ret.id}\n`;
@@ -439,7 +439,7 @@ export default function SalesReturnsScreen({ userRole, backRoute = '/admin/dashb
       } else {
         await Share.share({
           message: text,
-          title: `Refund Slip #${ret.id} - Sultan Restaurant`,
+          title: `Refund Slip #${ret.id} - Kanaf Cafe & Bakery`,
         });
       }
     } catch {

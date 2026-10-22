@@ -726,81 +726,256 @@
   "menuItems": [
     {
       "id": "m1",
-      "name": "Sultan Kebab",
-      "price": 1450,
-      "category": "Mains"
+      "name": "Kanaf Spanish Latte",
+      "price": 680,
+      "costPrice": 210,
+      "category": "Coffee & Espresso",
+      "imageUri": "https://images.unsplash.com/photo-1541167760496-1628856ab772?w=600&q=80",
+      "description": "Signature double espresso shot blended with textured condensed milk and velvety microfoam.",
+      "badge": "Bestseller",
+      "station": "juice",
+      "variants": [
+        { "name": "Hot (Single Origin)", "price": 650 },
+        { "name": "Iced Spanish Latte", "price": 680 },
+        { "name": "Spanish Frappe Supreme", "price": 750 }
+      ]
     },
     {
       "id": "m2",
-      "name": "Chicken Karahi",
-      "price": 1850,
-      "category": "Mains"
+      "name": "Artisan Cappuccino",
+      "price": 550,
+      "costPrice": 160,
+      "category": "Coffee & Espresso",
+      "imageUri": "https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=600&q=80",
+      "description": "Rich dark roast espresso topped with thick steamed milk foam and Belgian cocoa dusting.",
+      "badge": "Classic",
+      "station": "juice"
     },
     {
       "id": "m3",
-      "name": "Hummus & Pita",
-      "price": 650,
-      "category": "Appetizers"
+      "name": "Caramel Macchiato",
+      "price": 640,
+      "costPrice": 190,
+      "category": "Coffee & Espresso",
+      "imageUri": "https://images.unsplash.com/photo-1485808191679-5f86510681a2?w=600&q=80",
+      "description": "Freshly steamed vanilla-infused milk marked with rich espresso and finished with buttery caramel drizzle.",
+      "badge": "Popular",
+      "station": "juice"
     },
     {
       "id": "m4",
-      "name": "Kunafa",
-      "price": 850,
-      "category": "Desserts"
+      "name": "Cold Brew Iced Americano",
+      "price": 490,
+      "costPrice": 120,
+      "category": "Coffee & Espresso",
+      "imageUri": "https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=600&q=80",
+      "description": "18-hour slow-steeped Arabica coffee served over crystal artisanal ice cubes.",
+      "badge": "Chilled",
+      "station": "juice"
     },
     {
       "id": "m5",
-      "name": "Mint Margarita",
-      "price": 450,
-      "category": "Drinks"
+      "name": "Butter Croissant (Artisan Flaky)",
+      "price": 420,
+      "costPrice": 140,
+      "category": "Bakery & Croissants",
+      "imageUri": "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=600&q=80",
+      "description": "Authentic French golden croissant baked fresh with 100% pure unsalted Normandy butter.",
+      "badge": "Freshly Baked",
+      "station": "main"
     },
     {
-      "name": "Beef Karahii",
-      "price": 1400,
-      "category": "Desi",
-      "id": "m1791107573660"
+      "id": "m6",
+      "name": "Almond Frangipane Croissant",
+      "price": 580,
+      "costPrice": 190,
+      "category": "Bakery & Croissants",
+      "imageUri": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&q=80",
+      "description": "Double-baked flaky croissant filled with almond frangipane cream and toasted almond flakes.",
+      "badge": "Chef Special",
+      "station": "main"
     },
     {
-      "name": "Chicken Fajita",
-      "price": 150,
-      "category": "Pizzas",
-      "id": "m1791112001222"
+      "id": "m7",
+      "name": "Pain au Chocolat (Dark Chocolate)",
+      "price": 520,
+      "costPrice": 170,
+      "category": "Bakery & Croissants",
+      "imageUri": "https://images.unsplash.com/photo-1608198093002-ad4e005484ec?w=600&q=80",
+      "description": "Crisp buttery laminated pastry loaded with two bars of premium Belgian 60% dark chocolate.",
+      "badge": "Popular",
+      "station": "main"
     },
     {
-      "name": "Chicken Cheese",
-      "price": 0,
-      "category": "Pizzas",
+      "id": "m8",
+      "name": "Blueberry Cream Cheese Danish",
+      "price": 490,
+      "costPrice": 160,
+      "category": "Bakery & Croissants",
+      "imageUri": "https://images.unsplash.com/photo-1509365465985-25d11c17e812?w=600&q=80",
+      "description": "Sweet flaky Danish pastry centered with whipped vanilla cream cheese and wild blueberry compote.",
+      "badge": "Fresh",
+      "station": "main"
+    },
+    {
+      "id": "m9",
+      "name": "Kanaf Royal Cheese Kunafa",
+      "price": 950,
+      "costPrice": 340,
+      "category": "Kunafa & Sweets",
+      "imageUri": "https://images.unsplash.com/photo-1608836561226-d621b10a26e8?w=600&q=80",
+      "description": "Crunchy golden kataifi shredded pastry filled with stretchy sweet Akkawi cheese, rose syrup & Turkish pistachios.",
+      "badge": "Signature",
+      "station": "main",
       "variants": [
-        {
-          "name": "Small",
-          "price": 850
-        },
-        {
-          "name": "Medium",
-          "price": 1200
-        },
-        {
-          "name": "Large",
-          "price": 1800
-        }
-      ],
-      "id": "m1791112898285"
+        { "name": "Single Portion", "price": 950 },
+        { "name": "Family Platter (Sharing)", "price": 1850 }
+      ]
     },
     {
-      "name": "mangoo shake",
-      "price": 200,
-      "category": "Drinks",
-      "station": "juice",
-      "id": "m1791115451707"
+      "id": "m10",
+      "name": "Nutella Pistachio Kunafa",
+      "price": 1100,
+      "costPrice": 420,
+      "category": "Kunafa & Sweets",
+      "imageUri": "https://images.unsplash.com/photo-1579954115545-a95591f28bfc?w=600&q=80",
+      "description": "Crisp golden kataifi baked fresh and smothered with hot melted Nutella ganache and crushed roasted Turkish pistachios.",
+      "badge": "Indulgent",
+      "station": "main"
+    },
+    {
+      "id": "m11",
+      "name": "Lotus Biscoff Cheesecake Slice",
+      "price": 720,
+      "costPrice": 260,
+      "category": "Cakes & Patisserie",
+      "imageUri": "https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=600&q=80",
+      "description": "Silky smooth baked New York cheesecake on a spiced Speculoos biscuit crust, topped with warm molten Lotus spread.",
+      "badge": "Bestseller",
+      "station": "main"
+    },
+    {
+      "id": "m12",
+      "name": "Belgian Chocolate Fudge Cake",
+      "price": 680,
+      "costPrice": 230,
+      "category": "Cakes & Patisserie",
+      "imageUri": "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=600&q=80",
+      "description": "Moist dark chocolate sponge layered with rich Belgian fudge cream and chocolate ganache curls.",
+      "badge": "Signature",
+      "station": "main"
+    },
+    {
+      "id": "m13",
+      "name": "Classic Italian Tiramisu Cup",
+      "price": 650,
+      "costPrice": 210,
+      "category": "Cakes & Patisserie",
+      "imageUri": "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=600&q=80",
+      "description": "Traditional espresso-soaked Italian savoiardi biscuits layered with light mascarpone sabayon and dusted with dark cocoa.",
+      "badge": "Chef Special",
+      "station": "main"
+    },
+    {
+      "id": "m14",
+      "name": "Smoked Chicken & Cheddar Croissant",
+      "price": 850,
+      "costPrice": 310,
+      "category": "Cafe Brunch & Paninis",
+      "imageUri": "https://images.unsplash.com/photo-1525059696034-4967a8e1dca2?w=600&q=80",
+      "description": "Flaky butter croissant filled with sliced smoked herb chicken, sharp cheddar cheese, crisp lettuce & honey mustard.",
+      "badge": "Chef Special",
+      "station": "main"
+    },
+    {
+      "id": "m15",
+      "name": "Kanaf Club Sandwich & Fries",
+      "price": 950,
+      "costPrice": 340,
+      "category": "Cafe Brunch & Paninis",
+      "imageUri": "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=600&q=80",
+      "description": "Triple-decker toasted artisan bread with grilled chicken, fried egg, cheddar, cucumber, tomatoes & golden salted fries.",
+      "badge": "Popular",
+      "station": "main"
+    },
+    {
+      "id": "m16",
+      "name": "Grilled Mozzarella & Pesto Panini",
+      "price": 790,
+      "costPrice": 280,
+      "category": "Cafe Brunch & Paninis",
+      "imageUri": "https://images.unsplash.com/photo-1550547660-d9450f859349?w=600&q=80",
+      "description": "Pressed ciabatta bread stuffed with fresh mozzarella, basil pesto, sundried tomatoes & balsamic glaze.",
+      "badge": "Vegetarian",
+      "station": "main"
+    },
+    {
+      "id": "m17",
+      "name": "Lotus Biscoff Frappe",
+      "price": 620,
+      "costPrice": 190,
+      "category": "Beverages & Shakes",
+      "imageUri": "https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=600&q=80",
+      "description": "Creamy iced frappe blended with Lotus Biscoff butter, whole milk, espresso shot, whipped cream & biscuit crumble.",
+      "badge": "Chilled",
+      "station": "juice"
+    },
+    {
+      "id": "m18",
+      "name": "Fresh Mint Peach Lemonade",
+      "price": 460,
+      "costPrice": 110,
+      "category": "Beverages & Shakes",
+      "imageUri": "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=600&q=80",
+      "description": "Fizzy refreshing cooler with fresh crushed mint leaves, peach puree, fresh lemon and sparkling soda.",
+      "badge": "Refreshing",
+      "station": "juice"
+    },
+    {
+      "id": "deal1",
+      "name": "Barista Morning Combo (Coffee + Croissant)",
+      "price": 890,
+      "costPrice": 320,
+      "category": "Deals & Combos",
+      "imageUri": "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=600&q=80",
+      "description": "1x Specialty Coffee (Spanish Latte or Cappuccino) + 1x Freshly Baked Butter Croissant.",
+      "badge": "Breakfast Deal",
+      "isDeal": true,
+      "dealOriginalPrice": 1100,
+      "dealItems": [
+        { "menuItemId": "m1", "name": "Kanaf Spanish Latte", "qty": 1, "price": 680 },
+        { "menuItemId": "m5", "name": "Butter Croissant (Artisan Flaky)", "qty": 1, "price": 420 }
+      ],
+      "station": "main"
+    },
+    {
+      "id": "deal2",
+      "name": "Baker's High Tea Platter (2-3 Persons)",
+      "price": 2650,
+      "costPrice": 980,
+      "category": "Deals & Combos",
+      "imageUri": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&q=80",
+      "description": "2x Specialty Coffees + 2x Smoked Chicken Croissant Sandwiches + 1x Lotus Biscoff Cheesecake + 1x Kanaf Royal Cheese Kunafa.",
+      "badge": "Best Value",
+      "isDeal": true,
+      "dealOriginalPrice": 3370,
+      "dealItems": [
+        { "menuItemId": "m1", "name": "Kanaf Spanish Latte", "qty": 2, "price": 680 },
+        { "menuItemId": "m14", "name": "Smoked Chicken & Cheddar Croissant", "qty": 2, "price": 850 },
+        { "menuItemId": "m11", "name": "Lotus Biscoff Cheesecake Slice", "qty": 1, "price": 720 },
+        { "menuItemId": "m9", "name": "Kanaf Royal Cheese Kunafa", "qty": 1, "price": 950 }
+      ],
+      "station": "main"
     }
   ],
   "categories": [
-    "Appetizers",
-    "Mains",
-    "Desserts",
-    "Drinks",
-    "Desi",
-    "Pizzas"
+    "Coffee & Espresso",
+    "Bakery & Croissants",
+    "Cakes & Patisserie",
+    "Kunafa & Sweets",
+    "Cafe Brunch & Paninis",
+    "Beverages & Shakes",
+    "Deals & Combos"
   ],
   "zones": [
     "Main Hall",

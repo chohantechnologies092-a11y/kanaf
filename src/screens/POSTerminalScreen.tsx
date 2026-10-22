@@ -645,7 +645,7 @@ export default function POSTerminalScreen({
 
           <View style={styles.brandBox}>
             <SultanLogo size="xs" width={22} height={22} style={{ marginRight: 6 }} />
-            <Text style={styles.brandTitle}>SULTAN RESTAURANT</Text>
+            <Text style={styles.brandTitle}>KANAF CAFE & BAKERY</Text>
           </View>
 
           <Text style={styles.clockText}>{currentTime}</Text>
@@ -814,7 +814,7 @@ export default function POSTerminalScreen({
             {/* Catalog Top Subheader Bar */}
             <View style={styles.catalogSubheader}>
               <View style={styles.catalogTitleRow}>
-                <Text style={styles.catalogTitle}>SULTAN RESTAURANT Menu</Text>
+                <Text style={styles.catalogTitle}>KANAF CAFE & BAKERY Menu</Text>
 
                 {/* Running Orders Pill */}
                 <TouchableOpacity 

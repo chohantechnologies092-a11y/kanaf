@@ -63,7 +63,7 @@ export function SvgDonutChart({
   return (
     <View style={styles.donutContainer}>
       <View style={{ width: size, height: size, position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
-        <Svg width={size} height={size}>
+        <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
           {total === 0 ? (
             <Circle
               cx={center}
@@ -74,7 +74,7 @@ export function SvgDonutChart({
               fill="transparent"
             />
           ) : (
-            <G rotation="-90" origin={`${center}, ${center}`}>
+            <G>
               {data.map((item, idx) => {
                 if (item.value <= 0) return null;
                 const percent = item.value / total;

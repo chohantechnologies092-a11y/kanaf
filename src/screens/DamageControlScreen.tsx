@@ -1260,7 +1260,7 @@ export default function DamageControlScreen({
               <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
                 <View style={styles.sheetPaper}>
                   <View style={styles.sheetHeader}>
-                    <Text style={styles.sheetRestName}>SULTAN RESTAURANT</Text>
+                    <Text style={styles.sheetRestName}>KANAF CAFE & BAKERY</Text>
                     <Text style={styles.sheetDocTitle}>BREAKAGE & DAMAGE INCIDENT REPORT</Text>
                     <Text style={styles.sheetCode}>INCIDENT ID: {viewRecord.incidentCode}</Text>
                   </View>

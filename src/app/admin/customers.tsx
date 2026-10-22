@@ -289,16 +289,16 @@ export default function AdminCustomers() {
 
     switch (templateKey) {
       case 'loyalty':
-        return `Assalam-o-Alaikum ${cust.name}! 🌟\n\nThank you for dining with Sultan Restaurant. Your VIP status is *${tier}* with *${points} Sultan Loyalty Points*.\n\nWe hope you enjoyed our royal cuisine and look forward to welcoming you back soon!\n\n👑 *Sultan Restaurant* - Luxury Dining & Banquet`;
+        return `Assalam-o-Alaikum ${cust.name}! 🌟\n\nThank you for visiting Kanaf Cafe & Bakery. Your VIP status is *${tier}* with *${points} Kanaf Loyalty Points*.\n\nWe hope you enjoyed our artisan bakes & specialty coffee, and look forward to welcoming you back soon!\n\n☕ *Kanaf Cafe & Bakery* - Artisan Bakes & Coffee`;
 
       case 'voucher':
-        return `Assalam-o-Alaikum ${cust.name}! 🎁\n\nAs a valued Sultan guest, we are thrilled to offer you an exclusive *10% Royal Discount* on your next visit!\n\n🎟️ Use Voucher Code: *SULTAN-VIP10*\nShow this code when placing your dine-in or takeaway order. Valid this week.\n\n👑 *Sultan Restaurant*`;
+        return `Assalam-o-Alaikum ${cust.name}! 🎁\n\nAs a valued Kanaf guest, we are thrilled to offer you an exclusive *10% Special Discount* on your next visit!\n\n🎟️ Use Voucher Code: *KANAF-VIP10*\nShow this code when placing your dine-in or takeaway order. Valid this week.\n\n☕ *Kanaf Cafe & Bakery*`;
 
       case 'feedback':
-        return `Assalam-o-Alaikum ${cust.name}! ⭐\n\nWe value your opinion! Please take a quick moment to rate each dish from your recent visit:\n👉 ${feedbackUrl}\n\nGiving feedback automatically credits *+50 Loyalty Points* to your account!\n\n👑 *Sultan Restaurant*`;
+        return `Assalam-o-Alaikum ${cust.name}! ⭐\n\nWe value your opinion! Please take a quick moment to rate each dish & beverage from your recent visit:\n👉 ${feedbackUrl}\n\nGiving feedback automatically credits *+50 Loyalty Points* to your account!\n\n☕ *Kanaf Cafe & Bakery*`;
 
       case 'missyou':
-        return `Assalam-o-Alaikum ${cust.name}! 🍽️\n\nWe haven't seen you at Sultan Restaurant recently and miss serving you! Your favorite dishes are waiting for you.\n\nVisit us this weekend and enjoy a complimentary dessert on bills over Rs. 3,000.\n\n👑 *Sultan Restaurant* - Food Street, Lahore`;
+        return `Assalam-o-Alaikum ${cust.name}! 🍽️\n\nWe haven't seen you at Kanaf Cafe & Bakery recently and miss serving you! Your favorite treats are waiting for you.\n\nVisit us this weekend and enjoy a complimentary mini dessert on bills over Rs. 3,000.\n\n☕ *Kanaf Cafe & Bakery* - Main Boulevard, Lahore`;
 
       case 'custom':
       default:

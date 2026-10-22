@@ -1,20 +1,20 @@
 {
   "expo": {
-    "name": "Sultan Waiter",
-    "slug": "sultan-waiter",
+    "name": "Kanaf Cafe & Bakery",
+    "slug": "kanaf-cafe-bakery",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "sultanwaiter",
+    "scheme": "kanafcafe",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
     },
     "android": {
-      "package": "com.sultan.waiter",
+      "package": "com.kanaf.cafebakery",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#52171B",
+        "backgroundColor": "#440112",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -30,7 +30,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#52171B",
+          "backgroundColor": "#440112",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }

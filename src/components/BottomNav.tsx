@@ -30,12 +30,12 @@ const NAV_CONFIG = {
 };
 
 const BRAND = {
-  burgundy: '#52141C',
-  gold: '#F3D179',
+  burgundy: '#440112',
+  gold: '#FFE0CB',
   inactive: 'rgba(255, 255, 255, 0.55)',
-  bg: '#24050A',
-  border: 'rgba(212, 175, 55, 0.28)',
-  activePill: 'rgba(212, 175, 55, 0.16)',
+  bg: '#25010A',
+  border: 'rgba(255, 224, 203, 0.28)',
+  activePill: 'rgba(255, 224, 203, 0.16)',
 };
 
 

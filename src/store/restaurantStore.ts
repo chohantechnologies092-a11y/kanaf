@@ -241,6 +241,7 @@ type RestaurantState = {
   updateMenuItem: (id: string, item: Partial<Omit<MenuItem, 'id'>>) => void;
   deleteMenuItem: (id: string) => void;
   adjustMenuItemStock: (id: string, deltaOrQuantity: number, mode?: 'set' | 'add') => void;
+  resetMenuToBakeryDefaults: () => void;
   addCategory: (categoryName: string) => void;
   deleteCategory: (categoryName: string) => void;
   addTable: (table: Omit<Table, 'id' | 'status'> & { status?: Table['status'] }) => void;
@@ -379,7 +380,7 @@ const INITIAL_CUSTOMERS: Customer[] = [
     loyaltyPoints: 380,
     firstVisit: Date.now() - 45 * 86400000,
     lastVisit: Date.now() - 2 * 86400000,
-    favoriteDishes: ['Chicken Karahi', 'Sultan Kebab']
+    favoriteDishes: ['Kanaf Spanish Latte', 'Butter Croissant (Artisan Flaky)']
   },
   { 
     id: 'c2', 
@@ -388,14 +389,14 @@ const INITIAL_CUSTOMERS: Customer[] = [
     email: 'fatima.noor@outlook.com',
     address: 'Gulberg III, Lahore', 
     tier: 'Gold',
-    notes: 'Regular weekend diner. Enjoys fresh mint margaritas.',
-    tags: ['Gold', 'Weekend Regular'],
+    notes: 'Regular weekend brunch diner. Loves Spanish Latte and Kunafa.',
+    tags: ['Gold', 'Weekend Regular', 'Brunch'],
     totalOrders: 6, 
     totalSpent: 16200,
     loyaltyPoints: 160,
     firstVisit: Date.now() - 30 * 86400000,
     lastVisit: Date.now() - 5 * 86400000,
-    favoriteDishes: ['Mint Margarita', 'Kunafa']
+    favoriteDishes: ['Kanaf Royal Cheese Kunafa', 'Lotus Biscoff Cheesecake Slice']
   },
   { 
     id: 'c3', 
@@ -404,14 +405,14 @@ const INITIAL_CUSTOMERS: Customer[] = [
     email: 'bilal.s@yahoo.com',
     address: 'Model Town, Block C', 
     tier: 'Silver',
-    notes: 'Corporate lunches on weekdays.',
-    tags: ['Silver', 'Corporate'],
+    notes: 'Corporate coffee meetings on weekdays.',
+    tags: ['Silver', 'Corporate', 'Coffee Regular'],
     totalOrders: 3, 
     totalSpent: 7500,
     loyaltyPoints: 75,
     firstVisit: Date.now() - 20 * 86400000,
     lastVisit: Date.now() - 10 * 86400000,
-    favoriteDishes: ['Fajita Pizza (Medium)']
+    favoriteDishes: ['Cold Brew Iced Americano', 'Smoked Chicken & Cheddar Croissant']
   },
   { 
     id: 'c4', 
@@ -420,14 +421,14 @@ const INITIAL_CUSTOMERS: Customer[] = [
     email: 'ayesha.imran@health.pk',
     address: 'Bahria Town, Sector C', 
     tier: 'VIP',
-    notes: 'Requests extra garlic naan with Mutton Karahi.',
-    tags: ['VIP', 'Doctor'],
+    notes: 'Orders bakery boxes and artisan cappuccinos for clinic staff.',
+    tags: ['VIP', 'Doctor', 'High Spender'],
     totalOrders: 19, 
     totalSpent: 52600,
     loyaltyPoints: 520,
     firstVisit: Date.now() - 60 * 86400000,
     lastVisit: Date.now() - 1 * 86400000,
-    favoriteDishes: ['Mutton Shinwari Karahi', 'Sultan Special Roghni Naan']
+    favoriteDishes: ['Artisan Cappuccino', 'Almond Frangipane Croissant']
   },
   { 
     id: 'c5', 
@@ -435,14 +436,14 @@ const INITIAL_CUSTOMERS: Customer[] = [
     phone: '03456781234', 
     address: 'Johar Town, Phase 1', 
     tier: 'Regular',
-    notes: 'Takeaway orders mostly.',
+    notes: 'Takeaway coffee & pastry orders.',
     tags: ['Takeaway Frequent'],
     totalOrders: 4, 
     totalSpent: 5400,
     loyaltyPoints: 50,
     firstVisit: Date.now() - 15 * 86400000,
     lastVisit: Date.now() - 3 * 86400000,
-    favoriteDishes: ['Chicken Dum Biryani Special']
+    favoriteDishes: ['Pain au Chocolat (Dark Chocolate)']
   },
 ];
 
@@ -457,10 +458,10 @@ const INITIAL_FEEDBACKS: InvoiceFeedback[] = [
     serviceRating: 5,
     ambianceRating: 5,
     items: [
-      { itemId: 'm2', itemName: 'Chicken Karahi', rating: 5, tags: ['Delicious', 'Served Hot'], comment: 'Desi ghee flavor was exceptional.' },
-      { itemId: 'm1', itemName: 'Sultan Kebab', rating: 5, tags: ['Authentic Taste'] },
+      { itemId: 'm1', itemName: 'Kanaf Spanish Latte', rating: 5, tags: ['Smooth Espresso', 'Perfect Microfoam'], comment: 'The Spanish latte was heavenly and butter croissant was flaky and fresh.' },
+      { itemId: 'm9', itemName: 'Kanaf Royal Cheese Kunafa', rating: 5, tags: ['Warm Sweet Cheese', 'Authentic Taste'] },
     ],
-    generalComments: 'Sultan restaurant provides an unmatched royal family dining experience. Server Hamza was very attentive.',
+    generalComments: 'Kanaf Cafe & Bakery provides an unmatched dining experience. Server Hamza was very attentive.',
     createdAt: Date.now() - 86400000,
     status: 'published'
   },
@@ -470,172 +471,347 @@ const INITIAL_FEEDBACKS: InvoiceFeedback[] = [
     customerId: 'c2',
     customerName: 'Fatima Noor',
     customerPhone: '03214567890',
-    overallRating: 4,
+    overallRating: 5,
     serviceRating: 5,
-    ambianceRating: 4,
+    ambianceRating: 5,
     items: [
-      { itemId: 'm5', itemName: 'Mint Margarita', rating: 5, tags: ['Refreshing'] },
-      { itemId: 'm4', itemName: 'Kunafa', rating: 4, tags: ['Delicious'] },
+      { itemId: 'm11', itemName: 'Lotus Biscoff Cheesecake Slice', rating: 5, tags: ['Creamy & Rich'] },
+      { itemId: 'm17', itemName: 'Lotus Biscoff Frappe', rating: 5, tags: ['Refreshing & Chilled'] },
     ],
-    generalComments: 'Beverages and desserts were mouth watering! Will return with family this weekend.',
+    generalComments: 'Best cafe pastries and coffee in Lahore! Lotus cheesecake was melt-in-the-mouth.',
     createdAt: Date.now() - 43200000,
     status: 'published'
   }
 ];
 
 const INITIAL_MENU: MenuItem[] = [
+  // 1. COFFEE & ESPRESSO
   {
     id: 'm1',
-    name: 'Sultan Kebab',
-    price: 1450,
-    costPrice: 650,
-    category: 'Mains',
-    imageUri: 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?w=600&q=80',
-    description: 'Tender minced mutton & beef grilled with royal Sultan spices on open charcoal.',
-    badge: 'Chef Special',
+    name: 'Kanaf Spanish Latte',
+    price: 680,
+    costPrice: 210,
+    category: 'Coffee & Espresso',
+    imageUri: 'https://images.unsplash.com/photo-1541167760496-1628856ab772?w=600&q=80',
+    description: 'Signature double espresso shot blended with textured condensed milk and velvety microfoam.',
+    badge: 'Bestseller',
     trackStock: true,
-    stockQty: 35,
+    stockQty: 45,
     lowStockThreshold: 10,
-    station: 'main'
+    station: 'juice',
+    variants: [
+      { name: 'Hot (Single Origin)', price: 650 },
+      { name: 'Iced Spanish Latte', price: 680 },
+      { name: 'Spanish Frappe Supreme', price: 750 }
+    ]
   },
   {
     id: 'm2',
-    name: 'Chicken Karahi',
-    price: 1850,
-    costPrice: 820,
-    category: 'Mains',
-    imageUri: 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=600&q=80',
-    description: 'Fresh chicken cooked in pure desi ghee, fresh tomatoes, ginger and green chillies.',
-    badge: 'Best Seller',
+    name: 'Artisan Cappuccino',
+    price: 550,
+    costPrice: 160,
+    category: 'Coffee & Espresso',
+    imageUri: 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=600&q=80',
+    description: 'Rich dark roast espresso topped with thick steamed milk foam and Belgian cocoa dusting.',
+    badge: 'Classic',
     trackStock: true,
-    stockQty: 22,
-    lowStockThreshold: 5,
-    station: 'main'
+    stockQty: 60,
+    lowStockThreshold: 15,
+    station: 'juice'
   },
   {
     id: 'm3',
-    name: 'Hummus & Pita',
-    price: 650,
-    costPrice: 220,
-    category: 'Appetizers',
-    imageUri: 'https://images.unsplash.com/photo-1577906096429-f73c2c312435?w=600&q=80',
-    description: 'Creamy chickpea dip with extra virgin olive oil and freshly baked pita bread.',
-    badge: 'Healthy',
+    name: 'Caramel Macchiato',
+    price: 640,
+    costPrice: 190,
+    category: 'Coffee & Espresso',
+    imageUri: 'https://images.unsplash.com/photo-1485808191679-5f86510681a2?w=600&q=80',
+    description: 'Freshly steamed vanilla-infused milk marked with rich espresso and finished with buttery caramel drizzle.',
+    badge: 'Popular',
+    trackStock: true,
+    stockQty: 35,
+    lowStockThreshold: 8,
+    station: 'juice'
+  },
+  {
+    id: 'm4',
+    name: 'Cold Brew Iced Americano',
+    price: 490,
+    costPrice: 120,
+    category: 'Coffee & Espresso',
+    imageUri: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=600&q=80',
+    description: '18-hour slow-steeped Arabica coffee served over crystal artisanal ice cubes.',
+    badge: 'Chilled',
+    trackStock: true,
+    stockQty: 50,
+    lowStockThreshold: 12,
+    station: 'juice'
+  },
+
+  // 2. BAKERY & CROISSANTS
+  {
+    id: 'm5',
+    name: 'Butter Croissant (Artisan Flaky)',
+    price: 420,
+    costPrice: 140,
+    category: 'Bakery & Croissants',
+    imageUri: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=600&q=80',
+    description: 'Authentic French golden croissant baked fresh with 100% pure unsalted Normandy butter.',
+    badge: 'Freshly Baked',
     trackStock: true,
     stockQty: 40,
     lowStockThreshold: 10,
     station: 'main'
   },
   {
-    id: 'm4',
-    name: 'Kunafa',
-    price: 850,
-    costPrice: 320,
-    category: 'Desserts',
-    imageUri: 'https://images.unsplash.com/photo-1608836561226-d621b10a26e8?w=600&q=80',
-    description: 'Crunchy golden pastry filled with stretchy sweet cheese, soaked in rose syrup & pistachios.',
-    badge: 'Signature',
+    id: 'm6',
+    name: 'Almond Frangipane Croissant',
+    price: 580,
+    costPrice: 190,
+    category: 'Bakery & Croissants',
+    imageUri: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&q=80',
+    description: 'Double-baked flaky croissant filled with almond frangipane cream and toasted almond flakes.',
+    badge: 'Chef Special',
     trackStock: true,
-    stockQty: 18,
+    stockQty: 25,
     lowStockThreshold: 6,
     station: 'main'
   },
   {
-    id: 'm5',
-    name: 'Mint Margarita',
-    price: 450,
-    costPrice: 120,
-    category: 'Drinks',
-    imageUri: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=600&q=80',
-    description: 'Blended fresh mint leaves, lemon juice, soda and crushed ice.',
+    id: 'm7',
+    name: 'Pain au Chocolat (Dark Chocolate)',
+    price: 520,
+    costPrice: 170,
+    category: 'Bakery & Croissants',
+    imageUri: 'https://images.unsplash.com/photo-1608198093002-ad4e005484ec?w=600&q=80',
+    description: 'Crisp buttery laminated pastry loaded with two bars of premium Belgian 60% dark chocolate.',
+    badge: 'Popular',
+    trackStock: true,
+    stockQty: 30,
+    lowStockThreshold: 8,
+    station: 'main'
+  },
+  {
+    id: 'm8',
+    name: 'Blueberry Cream Cheese Danish',
+    price: 490,
+    costPrice: 160,
+    category: 'Bakery & Croissants',
+    imageUri: 'https://images.unsplash.com/photo-1509365465985-25d11c17e812?w=600&q=80',
+    description: 'Sweet flaky Danish pastry centered with whipped vanilla cream cheese and wild blueberry compote.',
+    badge: 'Fresh',
+    trackStock: true,
+    stockQty: 28,
+    lowStockThreshold: 8,
+    station: 'main'
+  },
+
+  // 3. KUNAFA & SWEETS (KANAF SPECIALTIES)
+  {
+    id: 'm9',
+    name: 'Kanaf Royal Cheese Kunafa',
+    price: 950,
+    costPrice: 340,
+    category: 'Kunafa & Sweets',
+    imageUri: 'https://images.unsplash.com/photo-1608836561226-d621b10a26e8?w=600&q=80',
+    description: 'Crunchy golden kataifi shredded pastry filled with stretchy sweet Akkawi cheese, rose syrup & Turkish pistachios.',
+    badge: 'Signature',
+    trackStock: true,
+    stockQty: 22,
+    lowStockThreshold: 6,
+    station: 'main',
+    variants: [
+      { name: 'Single Portion', price: 950 },
+      { name: 'Family Platter (Sharing)', price: 1850 }
+    ]
+  },
+  {
+    id: 'm10',
+    name: 'Nutella Pistachio Kunafa',
+    price: 1100,
+    costPrice: 420,
+    category: 'Kunafa & Sweets',
+    imageUri: 'https://images.unsplash.com/photo-1579954115545-a95591f28bfc?w=600&q=80',
+    description: 'Crisp golden kataifi baked fresh and smothered with hot melted Nutella ganache and crushed roasted Turkish pistachios.',
+    badge: 'Indulgent',
+    trackStock: true,
+    stockQty: 20,
+    lowStockThreshold: 5,
+    station: 'main'
+  },
+
+  // 4. CAKES & PATISSERIE
+  {
+    id: 'm11',
+    name: 'Lotus Biscoff Cheesecake Slice',
+    price: 720,
+    costPrice: 260,
+    category: 'Cakes & Patisserie',
+    imageUri: 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=600&q=80',
+    description: 'Silky smooth baked New York cheesecake on a spiced Speculoos biscuit crust, topped with warm molten Lotus spread.',
+    badge: 'Bestseller',
+    trackStock: true,
+    stockQty: 18,
+    lowStockThreshold: 5,
+    station: 'main'
+  },
+  {
+    id: 'm12',
+    name: 'Belgian Chocolate Fudge Cake',
+    price: 680,
+    costPrice: 230,
+    category: 'Cakes & Patisserie',
+    imageUri: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=600&q=80',
+    description: 'Moist dark chocolate sponge layered with rich Belgian fudge cream and chocolate ganache curls.',
+    badge: 'Signature',
+    trackStock: true,
+    stockQty: 20,
+    lowStockThreshold: 6,
+    station: 'main'
+  },
+  {
+    id: 'm13',
+    name: 'Classic Italian Tiramisu Cup',
+    price: 650,
+    costPrice: 210,
+    category: 'Cakes & Patisserie',
+    imageUri: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=600&q=80',
+    description: 'Traditional espresso-soaked Italian savoiardi biscuits layered with light mascarpone sabayon and dusted with dark cocoa.',
+    badge: 'Chef Special',
+    trackStock: true,
+    stockQty: 24,
+    lowStockThreshold: 6,
+    station: 'main'
+  },
+
+  // 5. CAFE BRUNCH & PANINIS
+  {
+    id: 'm14',
+    name: 'Smoked Chicken & Cheddar Croissant',
+    price: 850,
+    costPrice: 310,
+    category: 'Cafe Brunch & Paninis',
+    imageUri: 'https://images.unsplash.com/photo-1525059696034-4967a8e1dca2?w=600&q=80',
+    description: 'Flaky butter croissant filled with sliced smoked herb chicken, sharp cheddar cheese, crisp lettuce & honey mustard.',
+    badge: 'Chef Special',
+    trackStock: true,
+    stockQty: 25,
+    lowStockThreshold: 6,
+    station: 'main'
+  },
+  {
+    id: 'm15',
+    name: 'Kanaf Club Sandwich & Fries',
+    price: 950,
+    costPrice: 340,
+    category: 'Cafe Brunch & Paninis',
+    imageUri: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=600&q=80',
+    description: 'Triple-decker toasted artisan bread with grilled chicken, fried egg, cheddar, cucumber, tomatoes & golden salted fries.',
+    badge: 'Popular',
+    trackStock: true,
+    stockQty: 30,
+    lowStockThreshold: 8,
+    station: 'main'
+  },
+  {
+    id: 'm16',
+    name: 'Grilled Mozzarella & Pesto Panini',
+    price: 790,
+    costPrice: 280,
+    category: 'Cafe Brunch & Paninis',
+    imageUri: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=600&q=80',
+    description: 'Pressed ciabatta bread stuffed with fresh mozzarella, basil pesto, sundried tomatoes & balsamic glaze.',
+    badge: 'Vegetarian',
+    trackStock: true,
+    stockQty: 22,
+    lowStockThreshold: 6,
+    station: 'main'
+  },
+
+  // 6. BEVERAGES & SHAKES
+  {
+    id: 'm17',
+    name: 'Lotus Biscoff Frappe',
+    price: 620,
+    costPrice: 190,
+    category: 'Beverages & Shakes',
+    imageUri: 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=600&q=80',
+    description: 'Creamy iced frappe blended with Lotus Biscoff butter, whole milk, espresso shot, whipped cream & biscuit crumble.',
     badge: 'Chilled',
+    trackStock: true,
+    stockQty: 40,
+    lowStockThreshold: 10,
+    station: 'juice'
+  },
+  {
+    id: 'm18',
+    name: 'Fresh Mint Peach Lemonade',
+    price: 460,
+    costPrice: 110,
+    category: 'Beverages & Shakes',
+    imageUri: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=600&q=80',
+    description: 'Fizzy refreshing cooler with fresh crushed mint leaves, peach puree, fresh lemon and sparkling soda.',
+    badge: 'Refreshing',
     trackStock: true,
     stockQty: 50,
     lowStockThreshold: 15,
     station: 'juice'
   },
-  { 
-    id: 'm6', 
-    name: 'Fajita Pizza', 
-    price: 1400,
-    costPrice: 550,
-    category: 'Mains',
-    imageUri: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&q=80',
-    description: 'Crispy crust loaded with fajita chicken, bell peppers, olives and mozzarella.',
-    badge: 'Popular',
-    trackStock: false,
-    station: 'main',
-    variants: [
-      { name: 'Small (7")', price: 850 },
-      { name: 'Medium (10")', price: 1400 },
-      { name: 'Large (13")', price: 1950 },
-      { name: 'Family (16")', price: 2500 }
-    ]
-  },
-  {
-    id: 'm7',
-    name: 'Mutton Ribs',
-    price: 3500,
-    costPrice: 1800,
-    category: 'Mains',
-    imageUri: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&q=80',
-    description: 'Slow-smoked juicy mutton ribs marinated in Sultan royal rub.',
-    badge: 'Signature',
-    trackStock: true,
-    stockQty: 8,
-    lowStockThreshold: 4,
-    station: 'main',
-    variants: [
-      { name: 'Half KG', price: 3500 },
-      { name: '1 KG', price: 6800 }
-    ]
-  },
+
+  // 7. DEALS & COMBOS
   {
     id: 'deal1',
-    name: 'Sultan Family Feast (4-5 Persons)',
-    price: 4999,
-    costPrice: 2300,
-    category: 'Deals',
-    imageUri: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=600&q=80',
-    description: 'Complete family banquet: 1x Chicken Karahi + 2x Sultan Kebabs + 1x Medium Pizza + 2x Mint Margaritas + 1x Kunafa Dessert.',
-    badge: 'Family Deal',
+    name: 'Barista Morning Combo (Coffee + Croissant)',
+    price: 890,
+    costPrice: 320,
+    category: 'Deals & Combos',
+    imageUri: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=600&q=80',
+    description: '1x Specialty Coffee (Spanish Latte or Cappuccino) + 1x Freshly Baked Butter Croissant.',
+    badge: 'Breakfast Deal',
     isDeal: true,
-    dealOriginalPrice: 6050,
+    dealOriginalPrice: 1100,
     dealItems: [
-      { menuItemId: 'm2', name: 'Chicken Karahi', qty: 1, price: 1850 },
-      { menuItemId: 'm1', name: 'Sultan Kebab', qty: 2, price: 1450 },
-      { menuItemId: 'm6', name: 'Fajita Pizza (Medium)', qty: 1, price: 1400 },
-      { menuItemId: 'm5', name: 'Mint Margarita', qty: 2, price: 450 },
-      { menuItemId: 'm4', name: 'Kunafa', qty: 1, price: 850 }
+      { menuItemId: 'm1', name: 'Kanaf Spanish Latte', qty: 1, price: 680 },
+      { menuItemId: 'm5', name: 'Butter Croissant (Artisan Flaky)', qty: 1, price: 420 }
     ],
     trackStock: true,
-    stockQty: 15,
+    stockQty: 25,
     lowStockThreshold: 5,
     station: 'main'
   },
   {
     id: 'deal2',
-    name: 'Royal Couple Platter (2 Persons)',
-    price: 2850,
-    costPrice: 1250,
-    category: 'Deals',
-    imageUri: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&q=80',
-    description: 'Perfect for two: 2x Sultan Kebabs + 1x Hummus & Pita + 2x Mint Margaritas + 1x Kunafa Dessert.',
-    badge: 'Couple Deal',
+    name: "Baker's High Tea Platter (2-3 Persons)",
+    price: 2650,
+    costPrice: 980,
+    category: 'Deals & Combos',
+    imageUri: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&q=80',
+    description: '2x Specialty Coffees + 2x Smoked Chicken Croissant Sandwiches + 1x Lotus Biscoff Cheesecake + 1x Kanaf Royal Cheese Kunafa.',
+    badge: 'Best Value',
     isDeal: true,
-    dealOriginalPrice: 3400,
+    dealOriginalPrice: 3370,
     dealItems: [
-      { menuItemId: 'm1', name: 'Sultan Kebab', qty: 2, price: 1450 },
-      { menuItemId: 'm3', name: 'Hummus & Pita', qty: 1, price: 650 },
-      { menuItemId: 'm5', name: 'Mint Margarita', qty: 2, price: 450 },
-      { menuItemId: 'm4', name: 'Kunafa', qty: 1, price: 850 }
+      { menuItemId: 'm1', name: 'Kanaf Spanish Latte', qty: 2, price: 680 },
+      { menuItemId: 'm14', name: 'Smoked Chicken & Cheddar Croissant', qty: 2, price: 850 },
+      { menuItemId: 'm11', name: 'Lotus Biscoff Cheesecake Slice', qty: 1, price: 720 },
+      { menuItemId: 'm9', name: 'Kanaf Royal Cheese Kunafa', qty: 1, price: 950 }
     ],
-    trackStock: true,
-    stockQty: 20,
     lowStockThreshold: 5,
     station: 'main'
   }
 ];
+
+export const INITIAL_CATEGORIES: string[] = [
+  'Coffee & Espresso',
+  'Bakery & Croissants',
+  'Cakes & Patisserie',
+  'Kunafa & Sweets',
+  'Cafe Brunch & Paninis',
+  'Beverages & Shakes',
+  'Deals & Combos',
+];
+
+export { INITIAL_MENU };
 
 const INITIAL_STAFF: StaffMember[] = [
   { id: 'st1', name: 'Junaid Ahsan', phone: '+92 300 1234567', role: 'Admin', pin: '1122', status: 'Active', shift: 'Morning', joinedDate: '2025-01-15' },
@@ -731,12 +907,21 @@ export const useRestaurantStore = create<RestaurantState>()(
           timePlaced: Date.now() - 12 * 60000,
           status: 'cooking',
           items: [
-            { id: 'm1', name: 'Sultan Kebab', price: 15.99, qty: 2, completed: false },
+            { id: 'm1', name: 'Kanaf Spanish Latte', price: 680, qty: 2, completed: false },
+            { id: 'm5', name: 'Butter Croissant (Artisan Flaky)', price: 420, qty: 2, completed: false },
           ]
         }
       ],
       menuItems: INITIAL_MENU,
-      categories: ['Appetizers', 'Mains', 'Desserts', 'Drinks', 'Deals'],
+      categories: [
+        'Coffee & Espresso',
+        'Bakery & Croissants',
+        'Cakes & Patisserie',
+        'Kunafa & Sweets',
+        'Cafe Brunch & Paninis',
+        'Beverages & Shakes',
+        'Deals & Combos',
+      ],
       zones: INITIAL_FLOORS.map(f => f.name),
       floors: INITIAL_FLOORS,
 
@@ -1411,6 +1596,14 @@ export const useRestaurantStore = create<RestaurantState>()(
         notifySync();
       },
 
+      resetMenuToBakeryDefaults: () => {
+        set(() => ({
+          menuItems: INITIAL_MENU,
+          categories: INITIAL_CATEGORIES,
+        }));
+        notifySync();
+      },
+
       addCategory: (categoryName) => {
         set((state) => ({
           categories: state.categories.includes(categoryName) ? state.categories : [...state.categories, categoryName]
@@ -1585,8 +1778,31 @@ export const useRestaurantStore = create<RestaurantState>()(
               return [...localUnsynced, ...remoteList];
             })()
           } : {}),
-          ...(remoteState.menuItems ? { menuItems: remoteState.menuItems } : {}),
-          ...(remoteState.categories ? { categories: remoteState.categories } : {}),
+          ...(remoteState.menuItems ? {
+            menuItems: (() => {
+              const remoteList = remoteState.menuItems;
+              if (!Array.isArray(remoteList) || remoteList.length === 0) return state.menuItems;
+              const isLegacy = remoteList.some(
+                (m: any) =>
+                  m.name?.toLowerCase().includes('karahi') ||
+                  m.name?.toLowerCase().includes('seekh') ||
+                  m.name?.toLowerCase().includes('biryani') ||
+                  m.name?.toLowerCase().includes('handi') ||
+                  m.name?.toLowerCase().includes('sultan kebab')
+              );
+              return isLegacy ? (state.menuItems?.length ? state.menuItems : INITIAL_MENU) : remoteList;
+            })()
+          } : {}),
+          ...(remoteState.categories ? {
+            categories: (() => {
+              const remoteCats = remoteState.categories;
+              if (!Array.isArray(remoteCats) || remoteCats.length === 0) return state.categories;
+              const hasLegacyCat = remoteCats.some(
+                (c: string) => c.toLowerCase() === 'karahi & handi' || c.toLowerCase() === 'desi'
+              );
+              return hasLegacyCat ? (state.categories?.length ? state.categories : INITIAL_CATEGORIES) : remoteCats;
+            })()
+          } : {}),
           ...(remoteState.zones ? { zones: remoteState.zones } : {}),
           ...(remoteState.floors ? { floors: remoteState.floors } : {}),
           ...(remoteState.staff ? { staff: remoteState.staff } : {}),
@@ -1663,6 +1879,21 @@ export const useRestaurantStore = create<RestaurantState>()(
             ) {
               state.lastBillPaidAlert = null;
             }
+          }
+
+          // If menu items are empty or still contain legacy Sultan restaurant items (e.g. Seekh Kebab, Karahi),
+          // auto-upgrade to Kanaf Cafe & Bakery menu items & categories
+          const hasLegacyRestaurantItems = (state.menuItems || []).some(
+            (m) =>
+              m.name.toLowerCase().includes('karahi') ||
+              m.name.toLowerCase().includes('seekh') ||
+              m.name.toLowerCase().includes('biryani') ||
+              m.name.toLowerCase().includes('handi') ||
+              m.name.toLowerCase().includes('sultan kebab')
+          );
+          if (!state.menuItems || state.menuItems.length === 0 || hasLegacyRestaurantItems) {
+            state.menuItems = INITIAL_MENU;
+            state.categories = INITIAL_CATEGORIES;
           }
         }
       },

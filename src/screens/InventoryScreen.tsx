@@ -543,7 +543,7 @@ export default function InventoryScreen({ backRoute = '/manager/dashboard' }: Pr
   const handleSendWhatsAppReorder = (item: InventoryItem, shortageQty: number) => {
     const phone = item.supplierPhone;
     const cleanNumber = phone ? toWhatsAppNumber(phone) : '';
-    const message = `*SULTAN RESTAURANT - PURCHASE REORDER ORDER*
+    const message = `*KANAF CAFE & BAKERY - PURCHASE REORDER ORDER*
 ---------------------------------------
 Supplier: *${item.supplier || 'Vendor'}*
 Date: ${new Date().toLocaleDateString('en-GB')}
@@ -554,7 +554,7 @@ Current Stock: ${item.stock} ${item.unit} (LOW STOCK ALERT)
 Required Quantity: *${shortageQty} ${item.unit}*
 Estimated Price: ${item.costPerUnit ? money(item.costPerUnit) : 'As agreed'} / ${item.unit}
 
-Delivery Address: Sultan Restaurant & BBQ, Main Commercial Area
+Delivery Address: Kanaf Cafe & Bakery, Main Commercial Area
 Please confirm delivery schedule and send invoice copy. Shukriya!`;
 
     const encoded = encodeURIComponent(message);
@@ -2081,7 +2081,7 @@ Please confirm delivery schedule and send invoice copy. Shukriya!`;
         <View style={styles.modalBackdrop}>
           <View style={[styles.modalCard, { maxWidth: 520 }]}>
             <View style={styles.grnVoucherHeader}>
-              <Text style={styles.grnVoucherBrand}>SULTAN RESTAURANT & BBQ</Text>
+              <Text style={styles.grnVoucherBrand}>KANAF CAFE & BAKERY</Text>
               <Text style={styles.grnVoucherTitle}>OFFICIAL GOODS RECEIPT NOTE (GRN)</Text>
               <Text style={styles.grnVoucherNo}>GRN #{lastGrn?.grnNo}</Text>
             </View>

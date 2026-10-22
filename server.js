@@ -76,13 +76,13 @@ try {
   if (fs.existsSync(DATA_FILE)) {
     const raw = fs.readFileSync(DATA_FILE, 'utf8');
     serverState = { ...INITIAL_STATE, ...JSON.parse(raw) };
-    console.log('[Sultan Hub] Loaded saved database from server-data.json');
+    console.log('[Kanaf Hub] Loaded saved database from server-data.json');
   } else {
     fs.writeFileSync(DATA_FILE, JSON.stringify(INITIAL_STATE, null, 2));
-    console.log('[Sultan Hub] Created initial server-data.json');
+    console.log('[Kanaf Hub] Created initial server-data.json');
   }
 } catch (err) {
-  console.error('[Sultan Hub] Error loading server-data.json:', err.message);
+  console.error('[Kanaf Hub] Error loading server-data.json:', err.message);
 }
 
 // Debounced file save to avoid disk spam
@@ -93,7 +93,7 @@ function persistState() {
     try {
       fs.writeFileSync(DATA_FILE, JSON.stringify(serverState, null, 2));
     } catch (e) {
-      console.error('[Sultan Hub] Failed to save state to disk:', e.message);
+      console.error('[Kanaf Hub] Failed to save state to disk:', e.message);
     }
   }, 1000);
 }
@@ -117,7 +117,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       status: 'online',
-      server: 'Sultan Central POS Hub',
+      server: 'Kanaf Central POS Hub',
       clientsCount: wss ? wss.clients.size : 0,
       timestamp: Date.now()
     }));
@@ -237,22 +237,22 @@ wss.on('connection', (ws, req) => {
         ws.send(JSON.stringify({ type: 'PONG', timestamp: Date.now() }));
       }
     } catch (e) {
-      console.error('[Sultan Hub] Bad WS message:', e.message);
+      console.error('[Kanaf Hub] Bad WS message:', e.message);
     }
   });
 
   ws.on('close', () => {
-    console.log(`[Sultan Hub] Device disconnected. Total active: ${wss.clients.size}`);
+    console.log(`[Kanaf Hub] Device disconnected. Total active: ${wss.clients.size}`);
   });
 
   ws.on('error', (err) => {
-    console.error('[Sultan Hub] WS socket error:', err.message);
+    console.error('[Kanaf Hub] WS socket error:', err.message);
   });
 });
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`=================================================`);
-  console.log(`🏰 SULTAN RESTAURANT CENTRAL POS HUB ONLINE`);
+  console.log(`🏰 KANAF CAFE & BAKERY CENTRAL POS HUB ONLINE`);
   console.log(`📡 Port: ${PORT} (All network interfaces 0.0.0.0)`);
   console.log(`🌐 Local Wi-Fi Sync Address: ws://192.168.1.16:${PORT}`);
   console.log(`📱 Connect your Mobile, Tablet & PC to this hub`);

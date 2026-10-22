@@ -75,12 +75,12 @@ export default function SultanLogo({
 
 const styles = StyleSheet.create({
   badgeContainer: {
-    backgroundColor: '#451014', // Sultan Deep Royal Burgundy
+    backgroundColor: '#440112', // Kanaf Deep Wine Burgundy
     borderWidth: 2,
-    borderColor: '#D5A943', // Royal Gold Border
+    borderColor: '#FFE0CB', // Kanaf Cream Wheat Border
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#D5A943',
+    shadowColor: '#FFE0CB',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 10,

@@ -292,10 +292,10 @@ export default function LoginScreen() {
                   </View>
                   <View style={styles.headerDetails}>
                     <Text style={styles.title}>
-                      {isWaiterApp ? 'Sultan Order Taker Terminal' : 'SULTAN STAFF PORTAL'}
+                      {isWaiterApp ? 'Kanaf Order Taker Terminal' : 'KANAF STAFF PORTAL'}
                     </Text>
                     <Text style={styles.urduSubtitle}>
-                      {isWaiterApp ? 'آرڈر ٹیکر ٹرمینل • فلور ٹیبلز اور لائیو پنچ' : 'سلطان ریسٹورنٹ سٹاف پورٹل • لاگ ان ٹرمینل منتخب کریں'}
+                      {isWaiterApp ? 'آرڈر ٹیکر ٹرمینل • فلور ٹیبلز اور لائیو پنچ' : 'کناف کیفے اینڈ بیکری • لاگ ان ٹرمینل منتخب کریں'}
                     </Text>
                     <Text style={styles.subtitle}>
                       {isWaiterApp ? 'Floor Tables & Live Order Punch' : 'Select your operational terminal to sign in'}
@@ -330,7 +330,7 @@ export default function LoginScreen() {
                     <View style={styles.clockDateCol}>
                       <View style={styles.clockTopStatusRow}>
                         <View style={styles.clockLiveDot} />
-                        <Text style={styles.clockStatusText}>SULTAN TIME • {urduDay}</Text>
+                        <Text style={styles.clockStatusText}>KANAF TIME • {urduDay}</Text>
                       </View>
                       <View style={styles.clockDateRow}>
                         <Ionicons name="calendar-outline" size={13} color="#D5A943" style={{ marginRight: 5 }} />
@@ -739,9 +739,9 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   mainLoginCard: {
-    backgroundColor: 'rgba(38, 8, 13, 0.85)',
+    backgroundColor: 'rgba(44, 1, 12, 0.88)',
     borderWidth: 1.5,
-    borderColor: 'rgba(212, 175, 55, 0.35)',
+    borderColor: 'rgba(255, 224, 203, 0.35)',
     borderRadius: 22,
     paddingVertical: 18,
     paddingHorizontal: 20,
@@ -762,9 +762,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(213, 169, 67, 0.14)',
+    backgroundColor: 'rgba(255, 224, 203, 0.14)',
     borderWidth: 1,
-    borderColor: 'rgba(213, 169, 67, 0.35)',
+    borderColor: 'rgba(255, 224, 203, 0.35)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 16,
@@ -774,7 +774,7 @@ const styles = StyleSheet.create({
     }),
   },
   backToWelcomeText: {
-    color: '#D5A943',
+    color: '#FFE0CB',
     fontSize: 11.5,
     fontWeight: '800',
     letterSpacing: 0.4,
@@ -820,7 +820,7 @@ const styles = StyleSheet.create({
   },
   urduSubtitle: {
     fontSize: 13,
-    color: '#D5A943',
+    color: '#FFE0CB',
     fontWeight: '700',
     textAlign: 'left',
     marginBottom: 3,
@@ -834,9 +834,9 @@ const styles = StyleSheet.create({
   clockCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(20, 4, 7, 0.92)',
+    backgroundColor: 'rgba(34, 1, 9, 0.94)',
     borderWidth: 1.5,
-    borderColor: 'rgba(213, 169, 67, 0.45)',
+    borderColor: 'rgba(255, 224, 203, 0.38)',
     borderRadius: 16,
     paddingVertical: 8,
     paddingHorizontal: 14,

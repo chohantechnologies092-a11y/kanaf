@@ -986,7 +986,7 @@ export default function ReportsScreen() {
               <View style={styles.panelHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <Ionicons name="document-text-outline" size={20} color={LIGHT.burgundy} />
-                  <Text style={styles.panelTitle}>Sultan Restaurant & Playland — Micro P&L Statement</Text>
+                  <Text style={styles.panelTitle}>Kanaf Cafe & Bakery — Micro P&L Statement</Text>
                 </View>
                 <Text style={styles.panelSub}>{timeWindow.label}</Text>
               </View>
@@ -1984,7 +1984,7 @@ export default function ReportsScreen() {
             <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
               <View style={styles.printSheet}>
                 <View style={styles.printHeader}>
-                  <Text style={styles.printRestName}>SULTAN RESTAURANT & RESORT</Text>
+                  <Text style={styles.printRestName}>KANAF CAFE & BAKERY</Text>
                   <Text style={styles.printSub}>EXECUTIVE PROFIT & LOSS AUDIT STATEMENT</Text>
                   <Text style={styles.printDate}>
                     PERIOD: {timeWindow.label.toUpperCase()} ({formatDay(timeWindow.start)} - {formatDay(timeWindow.end)})

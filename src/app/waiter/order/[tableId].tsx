@@ -1462,7 +1462,7 @@ export default function TableOrderScreen() {
 
             <ScrollView style={{ maxHeight: 360, marginVertical: 10 }} showsVerticalScrollIndicator={false}>
               <View style={styles.slipHeader}>
-                <Text style={styles.slipBrand}>SULTAN RESTAURANT</Text>
+                <Text style={styles.slipBrand}>KANAF CAFE & BAKERY</Text>
                 <Text style={styles.slipSub}>Table Bill Check • Server: {table?.server || user?.name || 'Sara Ahmed'}</Text>
                 <Text style={styles.slipTime}>Date: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
               </View>

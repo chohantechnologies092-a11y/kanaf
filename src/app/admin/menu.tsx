@@ -33,6 +33,7 @@ export default function MenuManagement() {
   const updateMenuItem = useRestaurantStore(state => state.updateMenuItem);
   const deleteMenuItem = useRestaurantStore(state => state.deleteMenuItem);
   const adjustMenuItemStock = useRestaurantStore(state => state.adjustMenuItemStock);
+  const resetMenuToBakeryDefaults = useRestaurantStore(state => state.resetMenuToBakeryDefaults);
   const categories = useRestaurantStore(state => state.categories) || [];
   const addCategory = useRestaurantStore(state => state.addCategory);
   const deleteCategory = useRestaurantStore(state => state.deleteCategory);
@@ -601,6 +602,28 @@ export default function MenuManagement() {
     return { grossProfit, marginPct };
   };
 
+  const handleResetToBakeryDefaults = () => {
+    const doReset = () => {
+      resetMenuToBakeryDefaults();
+      broadcastImmediately();
+      if (Platform.OS === 'web') {
+        window.alert('Kanaf Cafe & Bakery menu items & categories loaded successfully!');
+      } else {
+        Alert.alert('Success', 'Kanaf Cafe & Bakery menu items & categories loaded successfully!');
+      }
+    };
+
+    const msg = 'This will load all standard Kanaf Cafe & Bakery items (Specialty Coffees, French Croissants, Kunafa, Biscoff Cakes, Paninis & Breakfast Combos). Continue?';
+    if (Platform.OS === 'web') {
+      if (window.confirm(msg)) doReset();
+    } else {
+      Alert.alert('Load Bakery & Cafe Menu', msg, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Load Bakery Menu', style: 'default', onPress: doReset }
+      ]);
+    }
+  };
+
   return (
     <View style={[styles.container, isMobile && styles.containerMobile]}>
       {/* Header */}
@@ -613,6 +636,15 @@ export default function MenuManagement() {
         </View>
 
         <View style={styles.headerButtons}>
+          <TouchableOpacity 
+            style={[styles.addButton, { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#CBD5E1' }]} 
+            onPress={handleResetToBakeryDefaults}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="cafe-outline" size={17} color={BRAND.burgundy} style={{ marginRight: 6 }} />
+            <Text style={[styles.addButtonText, { color: BRAND.burgundy }]}>Load Bakery Menu</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity 
             style={[styles.addButton, { backgroundColor: BRAND.burgundy }]} 
             onPress={() => openAddItemModal(true)}

@@ -36,10 +36,10 @@ export default function WelcomeScreen() {
   const [splashStatusIndex, setSplashStatusIndex] = useState(0);
 
   const splashMessages = [
-    'Initializing Royal Dining Suite...',
+    'Initializing Artisan Bakery & Coffee Suite...',
     'Connecting Realtime Multi-Floor Hub...',
-    'Loading Sultan POS & Kitchen KDS...',
-    'Welcome to Sultan Restaurant ✨',
+    'Loading Kanaf POS & Kitchen KDS...',
+    'Welcome to Kanaf Cafe & Bakery ✨',
   ];
 
   // Animation values
@@ -209,11 +209,11 @@ export default function WelcomeScreen() {
               />
             </View>
 
-            {/* Urdu & English Royal Typography */}
+            {/* Urdu & English Kanaf Typography */}
             <View style={styles.splashTitleBox}>
-              <Text style={styles.splashUrduCalligraphy}>سلطان ریسٹورنٹ</Text>
-              <Text style={styles.splashEnglishTitle}>SULTAN RESTAURANT</Text>
-              <Text style={styles.splashTagline}>Fine Dining • Royal Banquets • Smart POS</Text>
+              <Text style={styles.splashUrduCalligraphy}>کناف کیفے اینڈ بیکری</Text>
+              <Text style={styles.splashEnglishTitle}>KANAF CAFE & BAKERY</Text>
+              <Text style={styles.splashTagline}>Artisan Bakery • Specialty Coffee • Smart POS</Text>
             </View>
 
             {/* Gold Shimmer Loading Bar */}
@@ -283,19 +283,19 @@ export default function WelcomeScreen() {
                   </View>
 
                   {/* Urdu Calligraphy & Royal Crest Subtitle */}
-                  <Text style={styles.leftUrduCalligraphy}>سلطان ریسٹورنٹ</Text>
+                  <Text style={styles.leftUrduCalligraphy}>کناف کیفے اینڈ بیکری</Text>
 
                   <View style={styles.leftRoyalDivider}>
                     <View style={styles.leftDividerLine} />
-                    <Ionicons name="sparkles" size={12} color="#D5A943" style={{ marginHorizontal: 6 }} />
+                    <Ionicons name="sparkles" size={12} color="#FFE0CB" style={{ marginHorizontal: 6 }} />
                     <View style={styles.leftDividerLine} />
                   </View>
 
                   <Text style={styles.leftSubBadgeText}>
-                    ROYAL HOSPITALITY & AUTOMATION
+                    ARTISAN BAKERY & SPECIALTY COFFEE
                   </Text>
                   <Text style={styles.leftEstText}>
-                    5-Star Dining • Multi-Floor Experience
+                    Handcrafted Bakes • Espresso Bar • Smart Operations
                   </Text>
                 </View>
               </View>
@@ -313,11 +313,11 @@ export default function WelcomeScreen() {
                   </View>
 
                   <Text style={[styles.welcomeTitle, { fontSize: dynamicMetrics.titleFontSize }, isMobile && { textAlign: 'center' }]}>
-                    SULTAN RESTAURANT
+                    KANAF CAFE & BAKERY
                   </Text>
                   
                   <Text style={[styles.welcomeSubtitle, { fontSize: dynamicMetrics.subtitleFontSize }, isMobile && { textAlign: 'center' }]}>
-                    Welcome to the finest royal dining ecosystem. Experience authentic flavors, 5-star hospitality, and automated multi-floor management.
+                    Welcome to Kanaf Cafe & Bakery. Experience handcrafted bakes, specialty artisanal brews, and seamless automated management.
                   </Text>
                 </View>
 
@@ -448,7 +448,7 @@ export default function WelcomeScreen() {
 
                 {/* Footer Note */}
                 <View style={styles.footerNote}>
-                  <Text style={styles.footerText}>⚡ Sultan Automated Hospitality & Multi-Screen Suite</Text>
+                  <Text style={styles.footerText}>⚡ Kanaf Automated Cafe, Bakery & Multi-Screen Suite</Text>
                 </View>
 
               </View>
@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
      ------------------------------------------------------------ */
   splashOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: '#2A060B', // Deep Royal Obsidian Burgundy
+    backgroundColor: '#34010E', // Kanaf Deep Wine Burgundy
     zIndex: 9999,
     justifyContent: 'center',
     alignItems: 'center',
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
   splashUrduCalligraphy: {
     fontSize: 32,
     fontWeight: '900',
-    color: '#D5A943',
+    color: '#FFE0CB',
     textAlign: 'center',
     letterSpacing: 1,
     textShadowColor: 'rgba(0,0,0,0.6)',
@@ -558,7 +558,7 @@ const styles = StyleSheet.create({
   },
   splashProgressBar: {
     height: '100%',
-    backgroundColor: '#D5A943',
+    backgroundColor: '#FFE0CB',
     borderRadius: 4,
   },
   splashStatusText: {
@@ -583,9 +583,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(38, 8, 13, 0.82)',
+    backgroundColor: 'rgba(44, 1, 12, 0.88)',
     borderWidth: 1.5,
-    borderColor: 'rgba(212, 175, 55, 0.35)',
+    borderColor: 'rgba(255, 224, 203, 0.35)',
     borderRadius: 28,
     padding: 28,
     gap: 32,
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
   leftUrduCalligraphy: {
     fontSize: 28,
     fontWeight: '900',
-    color: '#D5A943',
+    color: '#FFE0CB',
     textAlign: 'center',
     letterSpacing: 1,
     marginTop: 6,
@@ -794,22 +794,22 @@ const styles = StyleSheet.create({
   },
   primaryLoginBtn: {
     flexDirection: 'row',
-    backgroundColor: '#D5A943',
+    backgroundColor: '#FFE0CB',
     paddingHorizontal: 18,
     paddingVertical: 13,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1.5,
-    borderColor: '#F6E095',
+    borderColor: '#FFF0E5',
     ...Platform.select({
       web: {
-        boxShadow: '0 6px 24px rgba(213, 169, 67, 0.35)',
+        boxShadow: '0 6px 24px rgba(255, 224, 203, 0.35)',
         cursor: 'pointer',
         transition: 'transform 0.18s ease',
       } as any,
       ios: {
-        shadowColor: '#D5A943',
+        shadowColor: '#FFE0CB',
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.4,
         shadowRadius: 12,
@@ -823,27 +823,27 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(69, 16, 20, 0.12)',
+    backgroundColor: 'rgba(68, 1, 18, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryLoginBtnText: {
-    color: '#451014',
+    color: '#440112',
     fontSize: 15.5,
     fontWeight: '900',
     letterSpacing: 0.8,
   },
   primaryLoginBtnSub: {
-    color: '#5C1A20',
+    color: '#5C021A',
     fontSize: 10,
     fontWeight: '700',
     marginTop: 2,
   },
   secondaryMenuBtn: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(69, 16, 20, 0.75)',
+    backgroundColor: 'rgba(68, 1, 18, 0.75)',
     borderWidth: 1.5,
-    borderColor: 'rgba(213, 169, 67, 0.85)',
+    borderColor: 'rgba(255, 224, 203, 0.85)',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 14,
@@ -857,7 +857,7 @@ const styles = StyleSheet.create({
     }),
   },
   secondaryMenuBtnText: {
-    color: '#D5A943',
+    color: '#FFE0CB',
     fontSize: 13.5,
     fontWeight: '800',
     letterSpacing: 0.6,
